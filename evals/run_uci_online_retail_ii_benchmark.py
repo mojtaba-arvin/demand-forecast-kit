@@ -88,9 +88,7 @@ def run_benchmark(
                         "mean_mase": item.mean_mase,
                         "mean_wql": item.mean_wql,
                         "mean_pinball_loss": item.mean_pinball_loss,
-                        "interval_coverages": {
-                            str(level): value for level, value in item.interval_coverages.items()
-                        },
+                        "interval_coverages": {str(level): value for level, value in item.interval_coverages.items()},
                     }
                 )
             for item in report.evaluations:
