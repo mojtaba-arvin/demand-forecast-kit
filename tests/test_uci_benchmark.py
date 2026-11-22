@@ -209,7 +209,9 @@ def test_temporal_scale_experiment_keeps_holdout_out_of_scale_fitting() -> None:
                     "model_id": "croston-sba",
                     "lead_time": 7,
                     "fold": offset + 1,
-                    "forecast_origin": start.fromordinal(start.toordinal() + offset * 7).isoformat(),
+                    "forecast_origin": (
+                        start.fromordinal(start.toordinal() + offset * 7).isoformat()
+                    ),
                     "actual": holdout_actual if offset in (10, 12, 14) else 10.0,
                     "q10": 8.0,
                     "q50": 10.0,
