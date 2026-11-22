@@ -53,7 +53,7 @@ class FileArtifactStore:
                     os.link(temporary_name, target)
                 except FileExistsError:
                     if target.is_symlink() or target.read_bytes() != payload:
-                        raise OSError("concurrent artifact write failed integrity check")
+                        raise OSError("concurrent artifact write failed integrity check") from exc
             finally:
                 Path(temporary_name).unlink(missing_ok=True)
         return StoredArtifact(digest, len(payload), str(target.relative_to(self.root)))
