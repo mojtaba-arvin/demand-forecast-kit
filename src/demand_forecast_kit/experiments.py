@@ -43,8 +43,7 @@ class ExperimentManifest:
         if type(self.seed) is not int or self.seed < 0:
             raise ValueError("seed must be a non-negative integer")
         if not self.model_versions or any(
-            not name.strip() or not version.strip()
-            for name, version in self.model_versions.items()
+            not name.strip() or not version.strip() for name, version in self.model_versions.items()
         ):
             raise ValueError("model_versions must contain non-blank model/version pairs")
         canonical_json(self.to_dict())
