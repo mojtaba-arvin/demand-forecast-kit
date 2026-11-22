@@ -2,8 +2,6 @@ name: Release candidate
 
 on:
   push:
-    branches: ["work/parallel-i-release"]
-    tags: ["v*"]
     paths:
       - "pyproject.toml"
       - "README.md"
@@ -31,6 +29,7 @@ concurrency:
 
 jobs:
   build-and-verify:
+    if: github.event_name != 'push' || startsWith(github.ref, 'refs/heads/work/parallel-i-release') || startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -81,6 +80,7 @@ jobs:
           retention-days: 30
 
   python-compatibility:
+    if: github.event_name != 'push' || startsWith(github.ref, 'refs/heads/work/parallel-i-release') || startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
