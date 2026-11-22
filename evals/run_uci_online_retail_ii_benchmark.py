@@ -112,8 +112,7 @@ def run_benchmark(
                             str(level): value for level, value in item.pinball_losses.items()
                         },
                         "interval_coverages": {
-                            str(level): value
-                            for level, value in item.interval_coverages.items()
+                            str(level): value for level, value in item.interval_coverages.items()
                         },
                     }
                 )
