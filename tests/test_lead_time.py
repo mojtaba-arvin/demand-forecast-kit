@@ -191,7 +191,10 @@ def test_prequential_backtest_uses_prior_folds_only_and_reports_coverage() -> No
         item.fold for item in result.observations
     )
     assert all(item.actual >= 0.0 for item in result.observations)
-    assert all(item.quantiles[0.1] <= item.quantiles[0.5] <= item.quantiles[0.9] for item in result.observations)
+    assert all(
+        item.quantiles[0.1] <= item.quantiles[0.5] <= item.quantiles[0.9]
+        for item in result.observations
+    )
 
 
 def test_calibration_rejects_model_version_mismatch() -> None:
