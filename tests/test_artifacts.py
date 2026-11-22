@@ -42,3 +42,18 @@ def test_artifact_store_rejects_non_bytes(tmp_path) -> None:
 
     with pytest.raises(TypeError, match="bytes"):
         store.put("not bytes")  # type: ignore[arg-type]
+
+
+def test_artifact_store_rejects_symlinked_digest_directory(tmp_path) -> None:
+    root = tmp_path / "artifacts"
+    outside = tmp_path / "outside"
+    root.mkdir()
+    outside.mkdir()
+    store = FileArtifactStore(root)
+    digest = hashlib.sha256(b"payload").hexdigest()
+    (root / digest[:2]).symlink_to(outside, target_is_directory=True)
+
+    with pytest.raises(OSError, match="directory"):
+        store.put(b"payload")
+    with pytest.raises(OSError, match="directory"):
+        store.get(digest)
