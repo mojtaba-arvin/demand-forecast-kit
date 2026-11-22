@@ -36,7 +36,7 @@ Not implemented yet: automatic model routing, foundation-model adapters, conform
 The core install still requires only Polars. Install the optional statistical backend when you need the model adapters:
 
 ```bash
-python -m pip install "demand-forecast-kit[stats]"
+python -m pip install -e ".[stats]"
 ```
 
 The adapters use [Nixtla StatsForecast](https://nixtlaverse.nixtla.io/statsforecast/src/core/models.html). AutoETS, AutoARIMA, and Theta use their native prediction intervals. Croston and TSB use StatsForecast conformal intervals fitted only on the training history. The package imports this backend lazily and raises an actionable installation message when the `stats` extra is missing.
