@@ -72,7 +72,10 @@ def run_benchmark(
         "provenance": {
             "dataset": "ElectricityLoadDiagrams20112014",
             "creator": "Artur Trindade",
-            "citation": "Trindade, A. (2015). ElectricityLoadDiagrams20112014. UCI Machine Learning Repository.",
+            "citation": (
+                "Trindade, A. (2015). ElectricityLoadDiagrams20112014. "
+                "UCI Machine Learning Repository."
+            ),
             "doi": UCI_ELECTRICITY_DOI,
             "source_url": "https://archive.ics.uci.edu/dataset/321/electricity",
             "download_url": UCI_ELECTRICITY_SOURCE,
@@ -104,7 +107,13 @@ def run_benchmark(
     }
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(
-        json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False)
+        json.dumps(
+            payload,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        )
         + "\n",
         encoding="utf-8",
     )
