@@ -22,12 +22,13 @@
 4. Use 250 bootstrap draws, a minimum of five non-overlapping historical paths, and a fixed seed.
 5. Report per-series cumulative quantile coverage, P80 interval coverage, pinball loss, and baseline cumulative median error on the same calibration-eligible forecast origins.
 6. Report cohort-level P80 coverage ranges across SKUs, the number of SKUs below nominal coverage, empirical P10/P50/P90 coverage, and equal-SKU baseline bias/MAE summaries.
-7. Aggregate cohort summaries as equal-weight macro averages across SKUs; retain per-series results and skipped-evaluation reasons.
+7. Export detailed prequential origin observations and run a purged chronological holdout experiment. Fit residual-width scaling and median-bias adjustments only on early disjoint origins; score them on later disjoint origins after a horizon-sized purge.
+8. Aggregate cohort summaries as equal-weight macro averages across SKUs; retain per-series results, per-origin forecasts, and skipped-evaluation reasons.
 
 ## Acceptance
 
 - Offline tests cover cancellation/return filtering, daily aggregation, zero filling, deterministic cohort assignment, and invalid sample size.
 - The benchmark runner accepts a local workbook path; the dedicated GitHub Actions workflow downloads the official UCI archive at run time, while the regular quality CI remains dataset-independent.
-- The output includes source attribution, license, source-file hash, preprocessing, model/split configuration, per-SKU results, per-SKU coverage/bias diagnostics, and macro cohort summaries.
+- The schema v2 output includes source attribution, license, source-file hash, preprocessing, model/split configuration, per-SKU results, per-origin forecasts, per-SKU coverage/bias diagnostics, macro cohort summaries, and purged temporal scale-experiment results.
 - CI runs only offline unit tests; it does not download or redistribute the dataset.
-- The benchmark has been run on 30 SKUs (10 per cohort) with 180 model/lead-time evaluations and no skipped evaluations. Results remain descriptive for this retailer/sample; no universal accuracy or inventory-savings claim is made, and the method is not declared production-ready.
+- The benchmark has been run on 30 SKUs (10 per cohort) with 180 model/lead-time evaluations and no skipped evaluations. The temporal scale experiment uses 40 calibration and 30 holdout observations per cohort/model/lead-time slice, with nine origin offsets purged per SKU. Results remain descriptive for this retailer/sample; no universal accuracy or inventory-savings claim is made, and no correction is enabled by default.
