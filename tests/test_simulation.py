@@ -68,3 +68,21 @@ def test_no_demand_has_perfect_fill_rate_without_orders() -> None:
     assert report.fill_rate == 1.0
     assert report.total_ordered == 0
     assert report.ending_on_hand == 5
+
+
+def test_backorder_days_remain_stockout_days_without_new_demand() -> None:
+    report = simulate_inventory_policy(
+        [5, 0, 0],
+        InventorySimulationConfig(
+            initial_on_hand=0,
+            reorder_point=0,
+            order_quantity=1,
+            lead_time_days=4,
+            allow_backorders=True,
+        ),
+    )
+
+    assert report.days[0].backorders == 5
+    assert report.days[1].backorders == 5
+    assert report.days[2].backorders == 5
+    assert report.stockout_days == 3
