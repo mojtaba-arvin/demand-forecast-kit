@@ -80,8 +80,7 @@ def weighted_quantile_loss(
     for index in range(len(observed)):
         values_at_step = tuple(normalized[level][index] for level in levels)
         if any(
-            lower > upper
-            for lower, upper in zip(values_at_step, values_at_step[1:], strict=False)
+            lower > upper for lower, upper in zip(values_at_step, values_at_step[1:], strict=False)
         ):
             raise ValueError("quantile predictions must be non-decreasing at every step")
 
@@ -130,8 +129,7 @@ def mean_absolute_scaled_error(
         return None
 
     mean_absolute_error = sum(
-        abs(actual - predicted)
-        for actual, predicted in zip(observed, forecast, strict=True)
+        abs(actual - predicted) for actual, predicted in zip(observed, forecast, strict=True)
     ) / len(observed)
     return mean_absolute_error / scale
 
@@ -149,8 +147,6 @@ def interval_coverage(
     if any(lo > hi for lo, hi in zip(lower, upper, strict=True)):
         raise ValueError("lower bounds must not exceed upper bounds")
     covered = sum(
-        1
-        for actual, lo, hi in zip(observed, lower, upper, strict=True)
-        if lo <= actual <= hi
+        1 for actual, lo, hi in zip(observed, lower, upper, strict=True) if lo <= actual <= hi
     )
     return covered / len(observed)
