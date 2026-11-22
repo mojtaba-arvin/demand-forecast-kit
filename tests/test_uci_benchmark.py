@@ -3,9 +3,12 @@
 """Tests for the opt-in UCI Online Retail benchmark preprocessing."""
 
 from datetime import date, datetime
+import hashlib
 
 import polars as pl
 import pytest
+
+from demand_forecast_kit.retail_benchmark import sha256_file
 
 from evals.run_uci_online_retail_benchmark import (
     _baseline_error_summary,
@@ -259,3 +262,10 @@ def test_prepare_daily_demand_requires_an_invoice_identifier_column() -> None:
     )
     with pytest.raises(ValueError, match="InvoiceNo or Invoice"):
         prepare_daily_demand(source)
+
+
+def test_sha256_file_hashes_source_bytes(tmp_path) -> None:
+    source = tmp_path / "dataset.xlsx"
+    source.write_bytes(b"workbook bytes")
+
+    assert sha256_file(source) == hashlib.sha256(b"workbook bytes").hexdigest()
