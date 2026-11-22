@@ -149,6 +149,7 @@ distribution = calibrate_lead_time_demand(
     model_id="seasonal-naive",
     forecast_origin=date(2026, 1, 1),
     baseline_median=target_median_forecast[:14],
+    expected_model_version=selected_adapter.model_version,
     lead_time=14,
     quantile_levels=(0.1, 0.5, 0.9),
     min_calibration_paths=5,
