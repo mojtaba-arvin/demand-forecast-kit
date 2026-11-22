@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import hashlib
-from datetime import timedelta
+from datetime import date, timedelta
 from pathlib import Path
 
 import polars as pl
@@ -74,10 +74,12 @@ def build_cohort_panel(
     if daily.is_empty():
         raise ValueError("daily demand must not be empty")
 
-    first_day = daily.get_column("day").min()
-    last_day = daily.get_column("day").max()
-    if first_day is None or last_day is None:
+    first_day_value: object = daily.get_column("day").min()
+    last_day_value: object = daily.get_column("day").max()
+    if not isinstance(first_day_value, date) or not isinstance(last_day_value, date):
         raise ValueError("daily demand must contain valid dates")
+    first_day: date = first_day_value
+    last_day: date = last_day_value
     day_count = (last_day - first_day).days + 1
     if day_count < cohort_window_days:
         raise ValueError(
