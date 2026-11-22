@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, time
 from math import isfinite
 from pathlib import Path
-from typing import Literal
+from typing import Literal, cast
 
 from demand_forecast_kit.backtesting import ArtifactMetadata, BacktestReport, FoldEvaluation
 from demand_forecast_kit.models.base import ForecastAdapter
@@ -74,7 +74,7 @@ def _parse_timestamp(value: date | datetime | str, field_name: str) -> datetime:
         return value
     if isinstance(value, date):
         return datetime.combine(value, time.min)
-    if isinstance(value, str) and value.strip():
+    if value.strip():
         try:
             return datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
         except ValueError as exc:
@@ -143,7 +143,7 @@ class ModelRouter:
             )
 
         self._adapters = registry
-        self.metric = metric
+        self.metric = cast(RoutingMetric, metric)
         self.min_folds = min_folds
         self.fallback_model_id = fallback_model_id
         self.tie_tolerance = float(tie_tolerance)
