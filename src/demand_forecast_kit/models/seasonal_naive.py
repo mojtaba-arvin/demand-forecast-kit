@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from math import floor, isfinite
-from typing import Sequence
 
 from demand_forecast_kit.contracts import QuantileForecast
 
