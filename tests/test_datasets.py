@@ -1,3 +1,4 @@
+from datetime import date
 from pathlib import Path
 
 import polars as pl
@@ -28,7 +29,7 @@ def test_prepare_uci_electricity_aggregates_quarter_hour_kwh(tmp_path: Path) -> 
     assert summary["row_count"] == 740
     assert daily.get_column("demand").to_list() == [10.0, 5.0]
     assert daily.get_column("timestamp").to_list() == [
-        __import__("datetime").date(2011, 1, 1),
+        date(2011, 1, 1),
         __import__("datetime").date(2011, 1, 2),
     ]
 
