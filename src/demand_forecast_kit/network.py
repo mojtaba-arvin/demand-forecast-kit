@@ -60,7 +60,7 @@ def calculate_echelon_positions(nodes: Sequence[InventoryNode]) -> tuple[Echelon
         else:
             children[node.parent_id].append(node.node_id)
     if not roots:
-        raise ValueError("inventory network must contain at least one root")
+        raise ValueError("inventory network contains a cycle or has no root")
 
     local = {
         node.node_id: node.on_hand + node.confirmed_inbound - node.backorders
