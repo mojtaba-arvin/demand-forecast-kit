@@ -174,10 +174,22 @@ def run_benchmark(
         cohort_panel = panel.filter(pl.col("cohort") == cohort).drop("cohort")
         if cohort_panel.is_empty():
             continue
-        report = run_backtest(cohort_panel, adapters, config)
-        panel_fingerprints[cohort] = report.dataset_fingerprint
-        for series_id in cohort_panel.get_column("series_id").unique().sort().to_list():
-            for adapter in adapters:
+        for adapter in adapters:
+            try:
+                report = run_backtest(cohort_panel, [adapter], config)
+            except Exception as exc:
+                skipped.append(
+                    {
+                        "cohort": cohort,
+                        "series_id": "*",
+                        "model_id": adapter.model_id,
+                        "lead_time": "all",
+                        "reason": f"model backtest failed: {type(exc).__name__}: {exc}",
+                    }
+                )
+                continue
+            panel_fingerprints.setdefault(cohort, report.dataset_fingerprint)
+            for series_id in cohort_panel.get_column("series_id").unique().sort().to_list():
                 for lead_time in LEAD_TIMES:
                     try:
                         diagnostic = backtest_lead_time_calibration(
