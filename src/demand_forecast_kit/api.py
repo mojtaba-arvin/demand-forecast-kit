@@ -1,10 +1,8 @@
 """Optional FastAPI surface for forecast, backtest, and replenishment contracts."""
 
-from __future__ import annotations
-
 from datetime import date
 from math import isfinite
-from typing import Annotated, Any
+from typing import Any
 
 import polars as pl
 
