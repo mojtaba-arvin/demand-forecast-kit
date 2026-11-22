@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from math import isfinite, sqrt
-from collections.abc import Sequence
 
 
 @dataclass(frozen=True, slots=True)
