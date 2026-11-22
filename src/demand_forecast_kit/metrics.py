@@ -73,7 +73,7 @@ def weighted_quantile_loss(
             raise ValueError("quantile levels must be unique")
         predictions = _finite_values(raw_predictions, "predictions")
         if len(predictions) != len(observed):
-            raise ValueError("all quantile predictions must match the actuals length")
+            raise ValueError("all quantile predictions must have the same length as actuals")
         normalized[level] = predictions
 
     levels = tuple(sorted(normalized))

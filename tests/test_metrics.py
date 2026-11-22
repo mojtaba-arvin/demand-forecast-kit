@@ -75,7 +75,7 @@ def test_mase_rejects_invalid_inputs() -> None:
 
 
 def test_interval_coverage_is_inclusive() -> None:
-    assert interval_coverage([1.0, 2.0, 3.0], [1.0, 1.5, 2.0], [1.0, 2.5, 3.0]) == pytest.approx(
+    assert interval_coverage([1.0, 2.0, 3.0], [1.0, 1.5, 2.0], [1.0, 2.5, 2.9]) == pytest.approx(
         2.0 / 3.0
     )
 
