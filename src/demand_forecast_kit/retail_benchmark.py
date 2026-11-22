@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 from datetime import timedelta
+from pathlib import Path
 
 import polars as pl
 
@@ -132,3 +133,12 @@ def build_cohort_panel(
     cohort_by_id = {series_id: cohort for cohort in COHORTS for series_id in selected[cohort]}
     panel = panel.with_columns(pl.col("series_id").replace_strict(cohort_by_id).alias("cohort"))
     return panel, {cohort: len(selected[cohort]) for cohort in COHORTS}
+
+
+def sha256_file(path: str | Path) -> str:
+    """Hash a source dataset in bounded memory for reproducible benchmark manifests."""
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
