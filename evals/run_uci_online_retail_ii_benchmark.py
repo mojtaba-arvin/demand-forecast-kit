@@ -25,7 +25,10 @@ DATASET_URL = "https://archive.ics.uci.edu/dataset/502/online+retail+ii"
 
 
 def _stringify_levels(values: Mapping[float, float]) -> dict[str, float]:
-    return {str(level): value for level, value in values.items()}
+    return {
+        str(level): value
+        for level, value in values.items()
+    }
 
 
 def _read_workbook(path: Path) -> tuple[pl.DataFrame, list[str]]:
