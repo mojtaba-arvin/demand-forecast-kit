@@ -8,7 +8,7 @@ import random
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
-from math import floor, isfinite
+from math import floor, isclose, isfinite
 
 from demand_forecast_kit.backtesting import BacktestReport, FoldEvaluation
 from demand_forecast_kit.inventory import InventoryScenario
@@ -243,7 +243,7 @@ def backtest_lead_time_calibration(
     losses = {level: 0.0 for level in levels}
     interval_hits: dict[float, int] = {}
     interval_levels = tuple(
-        level for level in (0.8, 0.9) if (1.0 - level) / 2.0 in levels and (1.0 + level) / 2.0 in levels
+        level for level in (0.8, 0.9) if any(isclose(value, (1.0 - level) / 2.0, abs_tol=1e-10) for value in levels) and any(isclose(value, (1.0 + level) / 2.0, abs_tol=1e-10) for value in levels)
     )
     for nominal in interval_levels:
         interval_hits[nominal] = 0
