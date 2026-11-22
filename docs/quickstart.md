@@ -5,10 +5,10 @@ Demand Forecast Kit requires Python 3.13 or newer.
 ## Install
 
 ```bash
-python -m pip install "demand-forecast-kit[dev]"
+python -m pip install -e ".[dev]"
 ```
 
-For a local checkout:
+Install from a checkout that contains the package source:
 
 ```bash
 python -m pip install -e ".[dev]"
