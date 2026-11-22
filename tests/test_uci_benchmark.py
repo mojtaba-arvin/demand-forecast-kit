@@ -7,10 +7,10 @@ from datetime import date, datetime
 import polars as pl
 import pytest
 
-from demand_forecast_kit.backtesting import BacktestConfig, BacktestReport, FoldEvaluation
 from evals.run_uci_online_retail_benchmark import (
+    _baseline_error_summary,
     _coverage_diagnostics,
-    _prequential_baseline_error,
+    _temporal_scale_experiment,
     build_cohort_panel,
     prepare_daily_demand,
 )
@@ -178,62 +178,54 @@ def test_coverage_diagnostics_exposes_sku_dispersion_and_tail_miscalibration() -
     ]
 
 
-def test_prequential_baseline_error_uses_only_calibration_eligible_origins() -> None:
-    config = BacktestConfig(
-        initial_train_size=180,
-        horizon=14,
-        step=14,
-        season_length=7,
-        quantile_levels=(0.1, 0.5, 0.9),
-        coverage_levels=(0.8,),
-    )
-    evaluations = []
-    start = date(2020, 1, 1)
-    for fold in range(1, 9):
-        test_start = start.fromordinal(start.toordinal() + (fold - 1) * 14)
-        test_end = start.fromordinal(test_start.toordinal() + 13)
-        evaluations.append(
-            FoldEvaluation(
-                model_id="croston-sba",
-                model_version="1",
-                series_id="SKU-1",
-                fold=fold,
-                train_size=180 + (fold - 1) * 14,
-                train_end_timestamp=start.fromordinal(test_start.toordinal() - 1).isoformat(),
-                test_start_timestamp=test_start.isoformat(),
-                test_end_timestamp=test_end.isoformat(),
-                actuals=(3.0,) * 14,
-                quantile_forecasts={
-                    0.1: (0.0,) * 14,
-                    0.5: (1.0,) * 14,
-                    0.9: (2.0,) * 14,
-                },
-                mase=None,
-                wql=None,
-                pinball_losses={0.1: 0.0, 0.5: 0.0, 0.9: 0.0},
-                interval_coverages={0.8: 0.0},
-            )
-        )
-    report = BacktestReport(
-        dataset_fingerprint="fixture",
-        config=config,
-        evaluations=tuple(evaluations),
-        skipped_series=(),
-        model_summaries=(),
-        series_history_ranges={},
-    )
 
-    summary = _prequential_baseline_error(
-        report,
-        series_id="SKU-1",
-        model_id="croston-sba",
-        lead_time=7,
+def test_baseline_error_summary_uses_actual_minus_uncalibrated_median() -> None:
+    summary = _baseline_error_summary(
+        [
+            {"actual": 12.0, "baseline_median": 10.0},
+            {"actual": 8.0, "baseline_median": 10.0},
+        ]
     )
 
     assert summary == {
-        "origin_count": 3,
-        "mean_error": 14.0,
-        "median_error": 14.0,
-        "mean_absolute_error": 14.0,
-        "underforecast_rate": 1.0,
+        "origin_count": 2,
+        "mean_error": 0.0,
+        "median_error": 0.0,
+        "mean_absolute_error": 2.0,
+        "underforecast_rate": 0.5,
     }
+
+
+def test_temporal_scale_experiment_keeps_holdout_out_of_scale_fitting() -> None:
+    start = date(2020, 1, 1)
+
+    def build_rows(holdout_actual: float) -> list[dict[str, object]]:
+        rows = []
+        for offset in range(16):
+            rows.append(
+                {
+                    "cohort": "dense",
+                    "series_id": "SKU-1",
+                    "model_id": "croston-sba",
+                    "lead_time": 7,
+                    "fold": offset + 1,
+                    "forecast_origin": start.fromordinal(start.toordinal() + offset * 7).isoformat(),
+                    "actual": holdout_actual if offset in (10, 12, 14) else 10.0,
+                    "q10": 8.0,
+                    "q50": 10.0,
+                    "q90": 12.0,
+                    "calibration_path_count": 5 + offset,
+                }
+            )
+        return rows
+
+    first = _temporal_scale_experiment(build_rows(20.0))[0]
+    changed_holdout = _temporal_scale_experiment(build_rows(200.0))[0]
+
+    assert first["status"] == "evaluated"
+    assert first["calibration_observation_count"] == 4
+    assert first["holdout_observation_count"] == 3
+    assert first["purged_origin_count_per_series"] == 9
+    assert first["fitted_width_scale"] == changed_holdout["fitted_width_scale"]
+    assert first["fitted_median_shift"] == changed_holdout["fitted_median_shift"]
+    assert first["holdout_baseline"] != changed_holdout["holdout_baseline"]
