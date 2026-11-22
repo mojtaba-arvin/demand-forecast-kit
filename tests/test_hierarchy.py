@@ -42,9 +42,7 @@ def test_hierarchy_identifiers_are_collision_safe() -> None:
         }
     )
 
-    result = build_hierarchical_history(source).filter(
-        pl.col("hierarchy_level") == "sku-location"
-    )
+    result = build_hierarchical_history(source).filter(pl.col("hierarchy_level") == "sku-location")
     assert result["series_id"].n_unique() == 2
 
 
