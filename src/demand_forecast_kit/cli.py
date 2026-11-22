@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 import argparse
 import json
+from collections.abc import Sequence
 from pathlib import Path
 
 from demand_forecast_kit.data import scan_history, validate_history
