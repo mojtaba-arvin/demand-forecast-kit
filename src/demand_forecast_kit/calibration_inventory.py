@@ -54,8 +54,7 @@ def compare_calibration_inventory_costs(
             original.scenario_id != adjusted.scenario_id
             or original.realized_lead_time_demand != adjusted.realized_lead_time_demand
             or original.inventory_position != adjusted.inventory_position
-            or set(original.lead_time_demand_quantiles)
-            != set(adjusted.lead_time_demand_quantiles)
+            or set(original.lead_time_demand_quantiles) != set(adjusted.lead_time_demand_quantiles)
         ):
             raise ValueError(
                 "scenario identity, realized demand, inventory position, and quantile levels "
