@@ -57,3 +57,39 @@ def test_registry_unknown_run_raises_key_error(tmp_path) -> None:
     registry = SQLiteRunRegistry(tmp_path / "runs.sqlite")
     with pytest.raises(KeyError, match="unknown"):
         registry.get_run(404)
+
+
+def test_idempotency_key_cannot_be_reused_for_different_run_inputs(tmp_path: Path) -> None:
+    registry = SQLiteRunRegistry(tmp_path / "runs.sqlite")
+    original = registry.create_run(
+        idempotency_key="stable-key",
+        dataset_fingerprint="dataset-a",
+        model_id="seasonal-naive",
+        model_version="1",
+        config={"horizon": 7},
+    )
+    retry = registry.create_run(
+        idempotency_key="stable-key",
+        dataset_fingerprint="dataset-a",
+        model_id="seasonal-naive",
+        model_version="1",
+        config={"horizon": 7},
+    )
+
+    assert retry.run_id == original.run_id
+    with pytest.raises(ValueError, match="different dataset, model, or config"):
+        registry.create_run(
+            idempotency_key="stable-key",
+            dataset_fingerprint="dataset-b",
+            model_id="seasonal-naive",
+            model_version="1",
+            config={"horizon": 7},
+        )
+    with pytest.raises(ValueError, match="different dataset, model, or config"):
+        registry.create_run(
+            idempotency_key="stable-key",
+            dataset_fingerprint="dataset-a",
+            model_id="seasonal-naive",
+            model_version="1",
+            config={"horizon": 14},
+        )
