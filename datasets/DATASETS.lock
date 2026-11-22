@@ -1,0 +1,5 @@
+schema_version = 1
+
+# No external datasets are approved or bundled in the initial repository.
+# Add one [[dataset]] record only after independently verifying the source terms.
+# Required fields: name, url, sha256, license, retrieved_at, intended_use.

@@ -1,0 +1,75 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "demand-forecast-kit"
+version = "0.1.0"
+description = "Probabilistic demand forecasting and inventory replenishment primitives."
+readme = "README.md"
+requires-python = ">=3.13"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Mojtaba Arvin" }]
+keywords = ["forecasting", "demand-planning", "inventory", "probabilistic-forecasting", "supply-chain"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
+  "Intended Audience :: Manufacturing",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Office/Business",
+  "Topic :: Scientific/Engineering",
+]
+dependencies = ["polars>=1.35,<2"]
+
+[project.optional-dependencies]
+io = ["duckdb>=1.4,<2", "pyarrow>=22,<25"]
+api = ["fastapi>=0.120,<1", "uvicorn>=0.38,<1"]
+cli = ["typer>=0.20,<1"]
+dev = [
+  "hypothesis>=6.140,<7",
+  "pip-audit>=2.9,<3",
+  "pyright>=1.1.400,<2",
+  "pytest>=8.4,<9",
+  "pytest-cov>=6.3,<7",
+  "reuse>=5.1,<6",
+  "ruff>=0.14,<1",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/demand_forecast_kit"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["B", "E", "F", "I", "SIM", "UP"]
+
+[tool.pyright]
+include = ["src"]
+pythonVersion = "3.13"
+typeCheckingMode = "strict"
+reportMissingTypeStubs = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = [
+  "--strict-markers",
+  "--strict-config",
+  "--cov=demand_forecast_kit",
+  "--cov-report=term-missing",
+  "--cov-fail-under=90",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["demand_forecast_kit"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
