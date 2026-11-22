@@ -83,3 +83,41 @@ def test_build_cohort_panel_rejects_invalid_sample_size() -> None:
     daily = pl.DataFrame({"series_id": ["A"], "day": [date(2011, 1, 1)], "demand": [1.0]})
     with pytest.raises(ValueError, match="positive integer"):
         build_cohort_panel(daily, max_skus_per_cohort=0)
+
+
+def test_cohort_assignment_uses_only_initial_training_window() -> None:
+    start = date(2011, 1, 1)
+    rows = [
+        {
+            "series_id": "stable-intermittent",
+            "day": start.fromordinal(start.toordinal() + day),
+            "demand": 1.0,
+        }
+        for day in range(0, 180, 9)
+    ]
+    rows.extend(
+        {
+            "series_id": "future-only-burst",
+            "day": start.fromordinal(start.toordinal() + day),
+            "demand": 1.0,
+        }
+        for day in range(180, 200)
+    )
+
+    panel, counts = build_cohort_panel(pl.DataFrame(rows), max_skus_per_cohort=5)
+
+    assert counts == {"dense": 0, "intermittent": 1, "very-intermittent": 0}
+    assert panel.get_column("series_id").unique().to_list() == ["stable-intermittent"]
+    assert panel.height == 200
+
+
+def test_build_cohort_panel_requires_full_assignment_window() -> None:
+    daily = pl.DataFrame(
+        {
+            "series_id": ["A"] * 10,
+            "day": [date(2011, 1, day) for day in range(1, 11)],
+            "demand": [1.0] * 10,
+        }
+    )
+    with pytest.raises(ValueError, match="at least 180 are required"):
+        build_cohort_panel(daily)

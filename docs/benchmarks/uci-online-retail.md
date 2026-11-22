@@ -41,15 +41,19 @@ For a smaller development run, use `--max-skus-per-cohort 3`. The default is
   the target is gross outbound unit demand, not net accounting movement.
 - Aggregate positive quantities by StockCode and calendar day.
 - Fill days without a sale with zero after constructing a complete daily calendar.
-- Require at least eight active sales days before cohort assignment.
-- Dense: activity on at least 50% of calendar days.
-- Intermittent: activity on 5% to less than 50% of calendar days.
-- Very intermittent: activity on less than 5% of calendar days.
+- Freeze cohort membership using only the first 180 calendar days, matching the
+  initial training window. No observations from later evaluation periods influence
+  cohort assignment.
+- Require at least eight active sales days within that initial window.
+- Dense: activity on at least 50% of initial-window days.
+- Intermittent: activity on 5% to less than 50% of initial-window days.
+- Very intermittent: activity on less than 5% of initial-window days.
 - Select up to 10 SKUs per cohort by stable SHA-256 ordering of StockCode.
   This is deterministic, not a volume-weighted or random sample.
 
 ## Evaluation design
 
+- Cohort membership is frozen from the initial 180-day training window.
 - 180-day expanding training window.
 - 14-day forecast horizon, 7-day origin step.
 - Lead times: 7 and 14 days.

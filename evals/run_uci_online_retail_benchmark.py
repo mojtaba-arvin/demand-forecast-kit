@@ -22,6 +22,7 @@ DATASET_DOI = "https://doi.org/10.24432/C5BW33"
 DATASET_URL = "https://archive.ics.uci.edu/dataset/352/online-retail"
 QUANTILES = (0.1, 0.5, 0.9)
 LEAD_TIMES = (7, 14)
+INITIAL_TRAIN_SIZE = 180
 COHORTS = ("dense", "intermittent", "very-intermittent")
 
 
@@ -74,10 +75,19 @@ def build_cohort_panel(
     daily: pl.DataFrame,
     *,
     max_skus_per_cohort: int = 10,
+    cohort_window_days: int = INITIAL_TRAIN_SIZE,
 ) -> tuple[pl.DataFrame, dict[str, int]]:
-    """Create complete daily histories for deterministic SKU-frequency cohorts."""
+    """Create daily histories with cohorts frozen from the initial training window.
+
+    Cohort membership is determined only from the first cohort_window_days
+    calendar days. Later observations are retained for backtesting but cannot
+    change a series' cohort, preventing evaluation-period information from
+    influencing benchmark stratification.
+    """
     if type(max_skus_per_cohort) is not int or max_skus_per_cohort < 1:
         raise ValueError("max_skus_per_cohort must be a positive integer")
+    if type(cohort_window_days) is not int or cohort_window_days < 1:
+        raise ValueError("cohort_window_days must be a positive integer")
     if daily.is_empty():
         raise ValueError("daily demand must not be empty")
 
@@ -86,10 +96,17 @@ def build_cohort_panel(
     if first_day is None or last_day is None:
         raise ValueError("daily demand must contain valid dates")
     day_count = (last_day - first_day).days + 1
+    if day_count < cohort_window_days:
+        raise ValueError(
+            f"daily demand spans {day_count} calendar days; "
+            f"at least {cohort_window_days} are required for cohort assignment"
+        )
+    cohort_cutoff = first_day + timedelta(days=cohort_window_days)
+    cohort_history = daily.filter(pl.col("day") < cohort_cutoff)
     summary = (
-        daily.group_by("series_id")
+        cohort_history.group_by("series_id")
         .agg(pl.len().alias("active_days"))
-        .with_columns((pl.col("active_days") / day_count).alias("activity_rate"))
+        .with_columns((pl.col("active_days") / cohort_window_days).alias("activity_rate"))
         .filter(pl.col("active_days") >= 8)
     )
 
@@ -147,6 +164,7 @@ def run_benchmark(
     panel, cohort_counts = build_cohort_panel(
         daily,
         max_skus_per_cohort=max_skus_per_cohort,
+        cohort_window_days=INITIAL_TRAIN_SIZE,
     )
     adapters = [
         SeasonalNaiveAdapter(season_length=7),
@@ -154,7 +172,7 @@ def run_benchmark(
         TSBAdapter(conformal_windows=2),
     ]
     config = BacktestConfig(
-        initial_train_size=180,
+        initial_train_size=INITIAL_TRAIN_SIZE,
         horizon=14,
         step=7,
         season_length=7,
@@ -290,7 +308,8 @@ def run_benchmark(
             ),
         },
         "configuration": {
-            "initial_train_size_days": 180,
+            "initial_train_size_days": INITIAL_TRAIN_SIZE,
+            "cohort_assignment_window_days": INITIAL_TRAIN_SIZE,
             "forecast_horizon_days": 14,
             "origin_step_days": 7,
             "lead_times_days": list(LEAD_TIMES),
@@ -315,7 +334,8 @@ def run_benchmark(
             "Macro-averages weight each SKU equally within its cohort. Results are specific to "
             "this historical retailer and preprocessing policy; they are not universal accuracy "
             "claims or evidence of inventory savings. The SKU sample is a deterministic hash "
-            "sample within each activity-frequency cohort."
+            "sample within each activity-frequency cohort. Cohort membership is frozen using "
+            "only the initial training window; later observations cannot affect assignment."
         ),
     }
     output.parent.mkdir(parents=True, exist_ok=True)
