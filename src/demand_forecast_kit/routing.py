@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, time
 from math import isfinite
 from pathlib import Path
-from typing import Literal, cast
+from typing import Literal
 
 from demand_forecast_kit.backtesting import ArtifactMetadata, BacktestReport, FoldEvaluation
 from demand_forecast_kit.models.base import ForecastAdapter
@@ -99,6 +99,8 @@ def _metric_value(record: FoldEvaluation, metric: RoutingMetric) -> float | None
 
 
 class ModelRouter:
+    metric: RoutingMetric
+
     """Choose a model independently for each SKU using only past validation folds.
 
     A report is eligible only when the target series' complete observed history
@@ -143,7 +145,7 @@ class ModelRouter:
             )
 
         self._adapters = registry
-        self.metric = cast(RoutingMetric, metric)
+        self.metric = metric
         self.min_folds = min_folds
         self.fallback_model_id = fallback_model_id
         self.tie_tolerance = float(tie_tolerance)
