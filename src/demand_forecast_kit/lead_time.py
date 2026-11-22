@@ -104,8 +104,7 @@ def _eligible_residual_paths(
         if len(item.actuals) != report.config.horizon or len(median) != report.config.horizon:
             raise ValueError("backtest residual paths must match the configured horizon")
         residuals = tuple(
-            actual - forecast
-            for actual, forecast in zip(item.actuals, median, strict=True)
+            actual - forecast for actual, forecast in zip(item.actuals, median, strict=True)
         )
         if any(not isfinite(value) for value in residuals):
             raise ValueError("backtest residual paths must contain only finite values")
@@ -166,9 +165,7 @@ def calibrate_lead_time_demand(
         raise ValueError("baseline_median values must be finite and non-negative")
 
     origin = _parse_timestamp(forecast_origin, "forecast_origin")
-    paths = _eligible_residual_paths(
-        report, series_id=series_id, model_id=model_id, origin=origin
-    )
+    paths = _eligible_residual_paths(report, series_id=series_id, model_id=model_id, origin=origin)
     if len(paths) < min_calibration_paths:
         raise ValueError(
             f"insufficient non-overlapping calibration paths: {len(paths)}; "
