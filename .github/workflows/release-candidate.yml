@@ -26,13 +26,16 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install build twine
-          python -m pip install -e ".[dev]"
+          python -m pip install -e ".[dev,stats,api,api-test]"
       - name: Run source quality gates
         run: |
           ruff check .
           ruff format --check .
           pyright
           pytest
+          pytest tests/test_statistical_adapters.py --no-cov
+          python evals/run_statistical_smoke.py
+          pytest tests/test_api.py --no-cov
           reuse lint
           pip-audit --skip-editable
       - name: Build wheel and source distribution
