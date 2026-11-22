@@ -61,8 +61,7 @@ def test_rolling_origin_splits_are_chronological_and_sliding_when_limited() -> N
     splits = rolling_origin_splits(10, config)
 
     assert [
-        (item.train_start, item.train_end, item.test_start, item.test_end)
-        for item in splits
+        (item.train_start, item.train_end, item.test_start, item.test_end) for item in splits
     ] == [(0, 4, 4, 6), (0, 6, 6, 8), (0, 8, 8, 10)]
 
     sliding = rolling_origin_splits(
@@ -106,9 +105,7 @@ def test_rolling_origin_splits_reject_invalid_sizes() -> None:
         ),
     ],
 )
-def test_backtest_config_rejects_invalid_values(
-    kwargs: dict[str, object], message: str
-) -> None:
+def test_backtest_config_rejects_invalid_values(kwargs: dict[str, object], message: str) -> None:
     with pytest.raises(ValueError, match=message):
         BacktestConfig(**kwargs)  # type: ignore[arg-type]
 

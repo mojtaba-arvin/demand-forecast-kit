@@ -52,8 +52,7 @@ class BacktestConfig:
                 qualifier = "non-negative" if name == "seed" else "positive"
                 raise ValueError(f"{name} must be a {qualifier} integer")
         if self.max_train_size is not None and (
-            type(self.max_train_size) is not int
-            or self.max_train_size < self.initial_train_size
+            type(self.max_train_size) is not int or self.max_train_size < self.initial_train_size
         ):
             raise ValueError("max_train_size must be an integer >= initial_train_size")
 
@@ -113,11 +112,7 @@ def rolling_origin_splits(
     test_start = config.initial_train_size
     while test_start + config.horizon <= n_observations:
         train_end = test_start
-        train_start = (
-            max(0, train_end - config.max_train_size)
-            if config.max_train_size is not None
-            else 0
-        )
+        train_start = max(0, train_end - config.max_train_size) if config.max_train_size is not None else 0
         splits.append(
             RollingOriginSplit(
                 fold=len(splits) + 1,
@@ -221,8 +216,7 @@ class BacktestReport:
                         _level_key(level): value for level, value in item.pinball_losses.items()
                     },
                     "interval_coverages": {
-                        _level_key(level): value
-                        for level, value in item.interval_coverages.items()
+                        _level_key(level): value for level, value in item.interval_coverages.items()
                     },
                 }
                 for item in self.evaluations
@@ -245,8 +239,7 @@ class BacktestReport:
                     "mean_wql": item.mean_wql,
                     "mean_pinball_loss": item.mean_pinball_loss,
                     "interval_coverages": {
-                        _level_key(level): value
-                        for level, value in item.interval_coverages.items()
+                        _level_key(level): value for level, value in item.interval_coverages.items()
                     },
                 }
                 for item in self.model_summaries
@@ -327,12 +320,8 @@ def _coverage_bounds(
 ) -> tuple[float, float]:
     lower_target = (1.0 - nominal_coverage) / 2.0
     upper_target = 1.0 - lower_target
-    lower = next(
-        level for level in quantile_levels if isclose(level, lower_target, abs_tol=1e-10)
-    )
-    upper = next(
-        level for level in quantile_levels if isclose(level, upper_target, abs_tol=1e-10)
-    )
+    lower = next(level for level in quantile_levels if isclose(level, lower_target, abs_tol=1e-10))
+    upper = next(level for level in quantile_levels if isclose(level, upper_target, abs_tol=1e-10))
     return lower, upper
 
 
@@ -346,9 +335,7 @@ def _model_summaries(
         records = tuple(item for item in evaluations if item.model_id == model_id)
         if not records:
             continue
-        pinball_values = tuple(
-            value for item in records for value in item.pinball_losses.values()
-        )
+        pinball_values = tuple(value for item in records for value in item.pinball_losses.values())
         coverage = {
             nominal: sum(item.interval_coverages[nominal] for item in records) / len(records)
             for nominal in coverage_levels
