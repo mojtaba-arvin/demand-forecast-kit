@@ -9,7 +9,7 @@ The forecast contract contains marginal daily quantiles and does not encode cros
 
 ## Decision
 
-- Use rolling-origin out-of-sample median forecast residuals from the same series and model.
+- Use rolling-origin out-of-sample median forecast residuals from the same series and model; allow callers to pin the expected model version and enforce exact version matching in prequential diagnostics.
 - Admit only folds whose full test window ends strictly before the target forecast origin.
 - Greedily retain non-overlapping forecast windows to avoid counting repeated actual observations as independent paths.
 - Resample complete residual trajectories with a seeded bootstrap, add them to the caller's median baseline path, clip daily demand at zero, then sum over lead time.
