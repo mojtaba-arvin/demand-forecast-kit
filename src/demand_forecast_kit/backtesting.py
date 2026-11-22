@@ -51,12 +51,11 @@ class BacktestConfig:
             if type(value) is not int or value < minimum:
                 qualifier = "non-negative" if name == "seed" else "positive"
                 raise ValueError(f"{name} must be a {qualifier} integer")
-        if self.max_train_size is not None:
-            if (
-                type(self.max_train_size) is not int
-                or self.max_train_size < self.initial_train_size
-            ):
-                raise ValueError("max_train_size must be an integer >= initial_train_size")
+        if self.max_train_size is not None and (
+            type(self.max_train_size) is not int
+            or self.max_train_size < self.initial_train_size
+        ):
+            raise ValueError("max_train_size must be an integer >= initial_train_size")
 
         quantiles = tuple(float(level) for level in self.quantile_levels)
         if not quantiles or any(
