@@ -153,53 +153,15 @@ def build_cohort_panel(
     return panel, {cohort: len(selected[cohort]) for cohort in COHORTS}
 
 
-def _prequential_baseline_error(
-    report: BacktestReport,
-    *,
-    series_id: str,
-    model_id: str,
-    lead_time: int,
-    min_calibration_paths: int = 5,
+def _baseline_error_summary(
+    observations: list[dict[str, object]],
 ) -> dict[str, float | int]:
-    """Summarize baseline median errors on exactly the origins eligible for calibration."""
-    targets = sorted(
-        (
-            item
-            for item in report.evaluations
-            if item.series_id == series_id and item.model_id == model_id
-        ),
-        key=lambda item: (datetime.fromisoformat(item.test_start_timestamp), item.fold),
-    )
-    errors: list[float] = []
-    for target in targets:
-        origin = datetime.fromisoformat(target.test_start_timestamp)
-        candidates = sorted(
-            (
-                item
-                for item in report.evaluations
-                if item.series_id == series_id
-                and item.model_id == model_id
-                and datetime.fromisoformat(item.test_end_timestamp) < origin
-            ),
-            key=lambda item: (datetime.fromisoformat(item.test_start_timestamp), item.fold),
-        )
-        selected_count = 0
-        previous_end: datetime | None = None
-        for candidate in candidates:
-            start = datetime.fromisoformat(candidate.test_start_timestamp)
-            end = datetime.fromisoformat(candidate.test_end_timestamp)
-            if previous_end is not None and start <= previous_end:
-                continue
-            selected_count += 1
-            previous_end = end
-        if selected_count < min_calibration_paths:
-            continue
-        actual = sum(target.actuals[:lead_time])
-        median_forecast = sum(target.quantile_forecasts[0.5][:lead_time])
-        errors.append(actual - median_forecast)
-
+    """Summarize baseline errors on the exact prequential calibration-eligible origins."""
+    errors = [
+        float(item["actual"]) - float(item["baseline_median"]) for item in observations
+    ]
     if not errors:
-        raise ValueError("no target folds had enough strictly earlier calibration paths")
+        raise ValueError("at least one prequential observation is required")
     ordered = sorted(errors)
     middle = len(ordered) // 2
     median_error = (
@@ -212,6 +174,182 @@ def _prequential_baseline_error(
         "mean_absolute_error": sum(abs(value) for value in errors) / len(errors),
         "underforecast_rate": sum(value > 0.0 for value in errors) / len(errors),
     }
+
+
+def _pinball(actual: float, forecast: float, level: float) -> float:
+    error = actual - forecast
+    return max(level * error, (level - 1.0) * error)
+
+
+def _median(values: list[float]) -> float:
+    ordered = sorted(values)
+    middle = len(ordered) // 2
+    if len(ordered) % 2:
+        return ordered[middle]
+    return (ordered[middle - 1] + ordered[middle]) / 2.0
+
+
+def _evaluate_scaled_intervals(
+    observations: list[dict[str, object]],
+    *,
+    scale: float,
+    median_shift: float,
+) -> dict[str, float | int]:
+    if not observations:
+        raise ValueError("at least one evaluation observation is required")
+    interval_hits = 0
+    quantile_hits = {0.1: 0, 0.5: 0, 0.9: 0}
+    losses = {0.1: 0.0, 0.5: 0.0, 0.9: 0.0}
+    widths: list[float] = []
+    for item in observations:
+        actual = float(item["actual"])
+        q10 = float(item["q10"])
+        q50 = float(item["q50"])
+        q90 = float(item["q90"])
+        median = max(0.0, q50 + median_shift)
+        lower = max(0.0, median + scale * (q10 - q50))
+        upper = max(lower, median + scale * (q90 - q50))
+        interval_hits += int(lower <= actual <= upper)
+        quantile_hits[0.1] += int(actual <= lower)
+        quantile_hits[0.5] += int(actual <= median)
+        quantile_hits[0.9] += int(actual <= upper)
+        losses[0.1] += _pinball(actual, lower, 0.1)
+        losses[0.5] += _pinball(actual, median, 0.5)
+        losses[0.9] += _pinball(actual, upper, 0.9)
+        widths.append(upper - lower)
+    count = len(observations)
+    return {
+        "observation_count": count,
+        "p80_coverage": interval_hits / count,
+        "p10_coverage": quantile_hits[0.1] / count,
+        "p50_coverage": quantile_hits[0.5] / count,
+        "p90_coverage": quantile_hits[0.9] / count,
+        "p10_pinball": losses[0.1] / count,
+        "p50_pinball": losses[0.5] / count,
+        "p90_pinball": losses[0.9] / count,
+        "mean_interval_width": sum(widths) / count,
+    }
+
+
+def _fit_interval_scale(
+    observations: list[dict[str, object]],
+    *,
+    median_shift: float,
+) -> float:
+    """Select interval width by calibration-block P10+P90 pinball loss only."""
+    scale_grid = (0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0, 4.0)
+    candidates: list[tuple[float, float]] = []
+    for scale in scale_grid:
+        metrics = _evaluate_scaled_intervals(
+            observations,
+            scale=scale,
+            median_shift=median_shift,
+        )
+        score = float(metrics["p10_pinball"]) + float(metrics["p90_pinball"])
+        candidates.append((score, scale))
+    return min(candidates)[1]
+
+
+def _temporal_scale_experiment(
+    origin_results: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    """Fit width/bias adjustments on early disjoint origins and score later disjoint origins.
+
+    Per SKU, eligible origin offsets 0, 2, 4, and 6 form the calibration block.
+    Offsets 10, 12, and 14 form the untouched holdout block. All other offsets
+    are purged, ensuring no 14-day target windows overlap across the split.
+    """
+    grouped: dict[tuple[str, str, int], list[dict[str, object]]] = defaultdict(list)
+    for item in origin_results:
+        grouped[(str(item["cohort"]), str(item["model_id"]), int(item["lead_time"]))].append(
+            item
+        )
+
+    calibration_offsets = (0, 2, 4, 6)
+    holdout_offsets = (10, 12, 14)
+    summaries: list[dict[str, object]] = []
+    for (cohort, model_id, lead_time), items in sorted(grouped.items()):
+        by_series: dict[str, list[dict[str, object]]] = defaultdict(list)
+        for item in items:
+            by_series[str(item["series_id"])].append(item)
+        calibration: list[dict[str, object]] = []
+        holdout: list[dict[str, object]] = []
+        insufficient: list[str] = []
+        for series_id, series_items in sorted(by_series.items()):
+            ordered = sorted(series_items, key=lambda item: int(item["fold"]))
+            if len(ordered) <= max(holdout_offsets):
+                insufficient.append(series_id)
+                continue
+            selected_calibration = [ordered[index] for index in calibration_offsets]
+            selected_holdout = [ordered[index] for index in holdout_offsets]
+            selected_dates = [
+                datetime.fromisoformat(str(item["forecast_origin"]))
+                for item in selected_calibration + selected_holdout
+            ]
+            if any(
+                (right - left).days < 14
+                for left, right in zip(selected_dates, selected_dates[1:], strict=False)
+            ):
+                raise RuntimeError("temporal calibration and holdout origins must be disjoint")
+            if selected_holdout[0]["forecast_origin"] <= selected_calibration[-1]["forecast_origin"]:
+                raise RuntimeError("holdout origins must follow the calibration block")
+            calibration.extend(selected_calibration)
+            holdout.extend(selected_holdout)
+
+        if insufficient or not calibration or not holdout:
+            summaries.append(
+                {
+                    "cohort": cohort,
+                    "model_id": model_id,
+                    "lead_time": lead_time,
+                    "status": "skipped",
+                    "reason": "insufficient prequential origins for the fixed purged split",
+                    "series_without_required_origins": insufficient,
+                }
+            )
+            continue
+
+        median_shift = _median(
+            [
+                float(item["actual"]) - float(item["q50"])
+                for item in calibration
+            ]
+        )
+        width_scale = _fit_interval_scale(calibration, median_shift=0.0)
+        bias_width_scale = _fit_interval_scale(calibration, median_shift=median_shift)
+        summaries.append(
+            {
+                "cohort": cohort,
+                "model_id": model_id,
+                "lead_time": lead_time,
+                "status": "evaluated",
+                "series_count": len(by_series),
+                "calibration_observation_count": len(calibration),
+                "holdout_observation_count": len(holdout),
+                "calibration_origin_offsets_per_series": list(calibration_offsets),
+                "holdout_origin_offsets_per_series": list(holdout_offsets),
+                "purged_origin_count_per_series": 9,
+                "fitted_width_scale": width_scale,
+                "fitted_bias_and_width_scale": bias_width_scale,
+                "fitted_median_shift": median_shift,
+                "holdout_baseline": _evaluate_scaled_intervals(
+                    holdout,
+                    scale=1.0,
+                    median_shift=0.0,
+                ),
+                "holdout_width_scaled": _evaluate_scaled_intervals(
+                    holdout,
+                    scale=width_scale,
+                    median_shift=0.0,
+                ),
+                "holdout_bias_and_width_scaled": _evaluate_scaled_intervals(
+                    holdout,
+                    scale=bias_width_scale,
+                    median_shift=median_shift,
+                ),
+            }
+        )
+    return summaries
 
 
 def _coverage_diagnostics(results: list[dict[str, object]]) -> list[dict[str, object]]:
