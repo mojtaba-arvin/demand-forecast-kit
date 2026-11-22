@@ -54,3 +54,26 @@ def test_calibration_cost_comparison_rejects_changed_realized_scenarios() -> Non
             holding_cost_per_unit=1,
             shortage_cost_per_unit=1,
         )
+
+
+def test_calibration_cost_comparison_rejects_empty_or_different_quantile_sets() -> None:
+    with pytest.raises(ValueError, match="equal non-zero lengths"):
+        compare_calibration_inventory_costs(
+            [],
+            [],
+            underage_cost=1,
+            overage_cost=1,
+            holding_cost_per_unit=1,
+            shortage_cost_per_unit=1,
+        )
+    baseline = InventoryScenario("sku-a", {0.1: 1, 0.5: 2, 0.9: 3}, 2, 0)
+    calibrated = InventoryScenario("sku-a", {0.1: 1, 0.5: 2}, 2, 0)
+    with pytest.raises(ValueError, match="quantile levels must match"):
+        compare_calibration_inventory_costs(
+            [baseline],
+            [calibrated],
+            underage_cost=1,
+            overage_cost=1,
+            holding_cost_per_unit=1,
+            shortage_cost_per_unit=1,
+        )
