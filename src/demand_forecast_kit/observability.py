@@ -80,7 +80,7 @@ class InMemoryMetrics:
             self._counters[metric] += amount
 
     def observe(self, name: str, value: float) -> None:
-        """Record one finite measurement as count, sum, min, and max."""
+        """Record one finite, non-negative measurement as count, sum, min, and max."""
         metric = self._name(name)
         if not isfinite(value) or value < 0.0:
             raise ValueError("metric observation must be finite and non-negative")
