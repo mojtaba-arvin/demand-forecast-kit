@@ -31,6 +31,18 @@ class LeadTimeDemandDistribution:
 
 
 @dataclass(frozen=True, slots=True)
+class LeadTimeCalibrationObservation:
+    """One prequential forecast origin with its calibrated cumulative demand quantiles."""
+
+    fold: int
+    forecast_origin: str
+    actual: float
+    baseline_median: float
+    quantiles: dict[float, float]
+    calibration_path_count: int
+
+
+@dataclass(frozen=True, slots=True)
 class LeadTimeCalibrationBacktest:
     """Prequential out-of-sample calibration diagnostics for cumulative demand."""
 
@@ -41,6 +53,7 @@ class LeadTimeCalibrationBacktest:
     quantile_coverage: dict[float, float]
     mean_pinball_loss: dict[float, float]
     interval_coverage: dict[float, float]
+    observations: tuple[LeadTimeCalibrationObservation, ...] = ()
 
 
 def _parse_timestamp(value: str | date | datetime, field: str) -> datetime:
@@ -259,6 +272,7 @@ def backtest_lead_time_calibration(
         interval_hits[nominal] = 0
 
     evaluated = 0
+    observations: list[LeadTimeCalibrationObservation] = []
     for index, target in enumerate(targets):
         median = target.quantile_forecasts.get(0.5)
         if median is None:
@@ -283,6 +297,16 @@ def backtest_lead_time_calibration(
             seed=seed + index,
         )
         actual = sum(target.actuals[:lead_time])
+        observations.append(
+            LeadTimeCalibrationObservation(
+                fold=target.fold,
+                forecast_origin=origin.isoformat(),
+                actual=actual,
+                baseline_median=sum(median[:lead_time]),
+                quantiles=dict(distribution.quantiles),
+                calibration_path_count=distribution.calibration_path_count,
+            )
+        )
         evaluated += 1
         for level, predicted in distribution.quantiles.items():
             hits[level] += int(actual <= predicted)
@@ -309,4 +333,5 @@ def backtest_lead_time_calibration(
         quantile_coverage={level: hits[level] / evaluated for level in levels},
         mean_pinball_loss={level: losses[level] / evaluated for level in levels},
         interval_coverage={level: interval_hits[level] / evaluated for level in interval_levels},
+        observations=tuple(observations),
     )
