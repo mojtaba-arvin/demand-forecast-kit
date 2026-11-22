@@ -112,7 +112,9 @@ def rolling_origin_splits(
     test_start = config.initial_train_size
     while test_start + config.horizon <= n_observations:
         train_end = test_start
-        train_start = max(0, train_end - config.max_train_size) if config.max_train_size is not None else 0
+        train_start = 0
+        if config.max_train_size is not None:
+            train_start = max(0, train_end - config.max_train_size)
         splits.append(
             RollingOriginSplit(
                 fold=len(splits) + 1,
