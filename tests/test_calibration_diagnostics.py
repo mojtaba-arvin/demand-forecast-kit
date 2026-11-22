@@ -25,3 +25,38 @@ def test_wilson_interval_rejects_empty_and_invalid_confidence() -> None:
         wilson_coverage_interval([])
     with pytest.raises(ValueError, match="confidence_z"):
         wilson_coverage_interval([True], confidence_z=0.0)
+
+
+def test_quantile_coverage_estimates_report_each_level_and_uncertainty() -> None:
+    from demand_forecast_kit.calibration_diagnostics import quantile_coverage_estimates
+
+    estimates = quantile_coverage_estimates(
+        [1.0, 2.0, 3.0, 4.0],
+        {
+            0.1: [0.0, 1.0, 2.0, 3.0],
+            0.5: [1.0, 2.0, 3.0, 4.0],
+            0.8: [2.0, 3.0, 4.0, 5.0],
+            0.9: [3.0, 4.0, 5.0, 6.0],
+        },
+    )
+
+    assert tuple(estimates) == (0.1, 0.5, 0.8, 0.9)
+    assert estimates[0.1].coverage == 0.75
+    assert estimates[0.5].coverage == 1.0
+    assert estimates[0.8].coverage == 1.0
+    assert estimates[0.9].coverage == 1.0
+    assert estimates[0.1].lower < estimates[0.1].coverage < estimates[0.1].upper
+
+
+def test_quantile_coverage_rejects_misaligned_and_crossing_forecasts() -> None:
+    from demand_forecast_kit.calibration_diagnostics import quantile_coverage_estimates
+
+    with pytest.raises(ValueError, match="match the actuals length"):
+        quantile_coverage_estimates([1.0, 2.0], {0.5: [1.0]})
+    with pytest.raises(ValueError, match="non-decreasing"):
+        quantile_coverage_estimates(
+            [1.0, 2.0],
+            {0.1: [2.0, 1.0], 0.9: [1.0, 2.0]},
+        )
+    with pytest.raises(ValueError, match="booleans"):
+        wilson_coverage_interval([1, 0])  # type: ignore[list-item]
