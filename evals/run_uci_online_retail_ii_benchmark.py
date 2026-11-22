@@ -30,7 +30,6 @@ def _stringify_levels(values: Mapping[float, float]) -> dict[str, float]:
         for level, value in values.items()
     }
 
-
 def _read_workbook(path: Path) -> tuple[pl.DataFrame, list[str]]:
     """Read and combine the two official historical worksheets."""
     loaded = pl.read_excel(path, sheet_id=0)
