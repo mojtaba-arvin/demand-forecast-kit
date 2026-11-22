@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -43,6 +43,17 @@ jobs:
 
       - name: Test with coverage
         run: pytest
+
+      - name: Generate deterministic synthetic evaluation
+        run: python evals/run_synthetic_smoke.py
+
+      - name: Upload evaluation artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: synthetic-evaluation-report
+          path: artifacts/synthetic-baseline-evaluation.json
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Audit Python dependencies
         run: pip-audit --skip-editable

@@ -18,6 +18,7 @@ build/
 *.parquet
 *.arrow
 *.feather
+artifacts/
 .env
 .env.*
 !.env.example
