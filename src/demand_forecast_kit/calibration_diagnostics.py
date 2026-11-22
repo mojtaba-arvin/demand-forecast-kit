@@ -41,9 +41,7 @@ def wilson_coverage_interval(
     denominator = 1.0 + z2 / n
     center = (proportion + z2 / (2.0 * n)) / denominator
     margin = (
-        confidence_z
-        * sqrt(proportion * (1.0 - proportion) / n + z2 / (4.0 * n * n))
-        / denominator
+        confidence_z * sqrt(proportion * (1.0 - proportion) / n + z2 / (4.0 * n * n)) / denominator
     )
     return CoverageEstimate(
         successes=successes,
