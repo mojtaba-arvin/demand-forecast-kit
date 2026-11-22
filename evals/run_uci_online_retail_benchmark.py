@@ -565,7 +565,7 @@ def run_benchmark(
         )
 
     payload: dict[str, object] = {
-        "schema_version": 1,
+        "schema_version": 2,
         "benchmark": "uci-online-retail-lead-time-calibration",
         "provenance": {
             "dataset": "UCI Online Retail",
