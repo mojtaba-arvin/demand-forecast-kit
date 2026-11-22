@@ -106,6 +106,22 @@ class SQLiteRunRegistry:
                 (idempotency_key,),
             ).fetchone()
         assert row is not None
+        requested_identity = (
+            dataset_fingerprint,
+            model_id,
+            model_version,
+            config_json,
+        )
+        stored_identity = (
+            str(row["dataset_fingerprint"]),
+            str(row["model_id"]),
+            str(row["model_version"]),
+            str(row["config_json"]),
+        )
+        if stored_identity != requested_identity:
+            raise ValueError(
+                "idempotency_key is already bound to a different dataset, model, or config"
+            )
         return self._record(row)
 
     def complete_run(self, run_id: int, result: dict[str, Any]) -> RunRecord:
