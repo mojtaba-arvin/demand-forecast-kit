@@ -9,6 +9,7 @@
 1. A target forecast supplies a non-negative median daily baseline for the requested lead time.
 2. Calibration residual paths are actual minus median forecast from completed rolling-origin folds for the exact same series and model.
 3. A calibration fold is eligible only when its `test_end_timestamp` is strictly earlier than the target forecast origin.
+4. The caller may pin `expected_model_version`; prequential diagnostics always require the target fold's model version to match the calibration paths.
 4. Overlapping evaluation windows are greedily excluded, so shared actual periods do not count as independent calibration paths.
 5. Bootstrap samples resample complete residual trajectories. The residuals inside a path are never shuffled or sampled independently.
 6. Daily demand samples are clipped at zero before cumulative summation.
