@@ -8,12 +8,13 @@ import argparse
 import hashlib
 import json
 from collections import defaultdict
-from datetime import timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
+from typing import cast
 
 import polars as pl
 
-from demand_forecast_kit.backtesting import BacktestConfig, run_backtest
+from demand_forecast_kit.backtesting import BacktestConfig, BacktestReport, run_backtest
 from demand_forecast_kit.lead_time import backtest_lead_time_calibration
 from demand_forecast_kit.models.seasonal_naive import SeasonalNaiveAdapter
 from demand_forecast_kit.models.statistical import CrostonAdapter, TSBAdapter
@@ -152,6 +153,120 @@ def build_cohort_panel(
     return panel, {cohort: len(selected[cohort]) for cohort in COHORTS}
 
 
+
+def _prequential_baseline_error(
+    report: BacktestReport,
+    *,
+    series_id: str,
+    model_id: str,
+    lead_time: int,
+    min_calibration_paths: int = 5,
+) -> dict[str, float | int]:
+    """Summarize baseline median errors on exactly the origins eligible for calibration."""
+    targets = sorted(
+        (
+            item
+            for item in report.evaluations
+            if item.series_id == series_id and item.model_id == model_id
+        ),
+        key=lambda item: (datetime.fromisoformat(item.test_start_timestamp), item.fold),
+    )
+    errors: list[float] = []
+    for target in targets:
+        origin = datetime.fromisoformat(target.test_start_timestamp)
+        candidates = sorted(
+            (
+                item
+                for item in report.evaluations
+                if item.series_id == series_id
+                and item.model_id == model_id
+                and datetime.fromisoformat(item.test_end_timestamp) < origin
+            ),
+            key=lambda item: (datetime.fromisoformat(item.test_start_timestamp), item.fold),
+        )
+        selected = []
+        previous_end: datetime | None = None
+        for candidate in candidates:
+            start = datetime.fromisoformat(candidate.test_start_timestamp)
+            end = datetime.fromisoformat(candidate.test_end_timestamp)
+            if previous_end is not None and start <= previous_end:
+                continue
+            selected.append(candidate)
+            previous_end = end
+        if len(selected) < min_calibration_paths:
+            continue
+        actual = sum(target.actuals[:lead_time])
+        median_forecast = sum(target.quantile_forecasts[0.5][:lead_time])
+        errors.append(actual - median_forecast)
+
+    if not errors:
+        raise ValueError("no target folds had enough strictly earlier calibration paths")
+    ordered = sorted(errors)
+    middle = len(ordered) // 2
+    median_error = (
+        ordered[middle]
+        if len(ordered) % 2
+        else (ordered[middle - 1] + ordered[middle]) / 2.0
+    )
+    return {
+        "origin_count": len(errors),
+        "mean_error": sum(errors) / len(errors),
+        "median_error": median_error,
+        "mean_absolute_error": sum(abs(value) for value in errors) / len(errors),
+        "underforecast_rate": sum(value > 0.0 for value in errors) / len(errors),
+    }
+
+
+def _coverage_diagnostics(results: list[dict[str, object]]) -> list[dict[str, object]]:
+    """Expose SKU dispersion, tail-quantile bias, and baseline median bias."""
+    grouped: dict[tuple[str, str, int], list[dict[str, object]]] = defaultdict(list)
+    for item in results:
+        grouped[(str(item["cohort"]), str(item["model_id"]), int(item["lead_time"]))].append(item)
+
+    summaries: list[dict[str, object]] = []
+    for (cohort, model_id, lead_time), items in sorted(grouped.items()):
+        interval_values = [
+            cast(dict[str, float], item["interval_coverage"])["0.8"] for item in items
+        ]
+        quantile_values = [
+            cast(dict[str, float], item["quantile_coverage"]) for item in items
+        ]
+        baseline_values = [
+            cast(dict[str, float | int], item["baseline_median_error"]) for item in items
+        ]
+        summaries.append(
+            {
+                "cohort": cohort,
+                "model_id": model_id,
+                "lead_time": lead_time,
+                "series_count": len(items),
+                "macro_interval_coverage": sum(interval_values) / len(interval_values),
+                "min_series_interval_coverage": min(interval_values),
+                "max_series_interval_coverage": max(interval_values),
+                "series_below_nominal_p80": sum(value < 0.8 for value in interval_values),
+                "macro_quantile_coverage": {
+                    level: sum(item[level] for item in quantile_values) / len(quantile_values)
+                    for level in ("0.1", "0.5", "0.9")
+                },
+                "macro_baseline_median_error": (
+                    sum(float(item["mean_error"]) for item in baseline_values)
+                    / len(baseline_values)
+                ),
+                "macro_baseline_median_absolute_error": (
+                    sum(float(item["mean_absolute_error"]) for item in baseline_values)
+                    / len(baseline_values)
+                ),
+                "series_with_mean_underforecast": sum(
+                    float(item["mean_error"]) > 0.0 for item in baseline_values
+                ),
+                "series_with_mean_overforecast": sum(
+                    float(item["mean_error"]) < 0.0 for item in baseline_values
+                ),
+            }
+        )
+    return summaries
+
+
 def run_benchmark(
     workbook: Path,
     *,
@@ -227,6 +342,16 @@ def run_benchmark(
                             }
                         )
                         continue
+                    baseline_error = _prequential_baseline_error(
+                        report,
+                        series_id=series_id,
+                        model_id=adapter.model_id,
+                        lead_time=lead_time,
+                    )
+                    if baseline_error["origin_count"] != diagnostic.origin_count:
+                        raise RuntimeError(
+                            "baseline error and calibrated coverage used different evaluation origins"
+                        )
                     results.append(
                         {
                             "cohort": cohort,
@@ -234,6 +359,7 @@ def run_benchmark(
                             "model_id": adapter.model_id,
                             "lead_time": lead_time,
                             "origin_count": diagnostic.origin_count,
+                            "baseline_median_error": baseline_error,
                             "quantile_coverage": {
                                 str(level): value
                                 for level, value in diagnostic.quantile_coverage.items()
@@ -328,6 +454,7 @@ def run_benchmark(
             "panel_fingerprints_by_cohort": panel_fingerprints,
         },
         "macro_summary": macro_summary,
+        "coverage_diagnostics": _coverage_diagnostics(results),
         "per_series_results": results,
         "skipped_evaluations": skipped,
         "interpretation": (
