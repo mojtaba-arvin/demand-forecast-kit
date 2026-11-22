@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from pathlib import Path
 import polars as pl
-
-
 UCI_ELECTRICITY_DOI = "https://doi.org/10.24432/C58C86"
 UCI_ELECTRICITY_SOURCE = (
     "https://archive.ics.uci.edu/ml/machine-learning-databases/00321/LD2011_2014.txt.zip"
