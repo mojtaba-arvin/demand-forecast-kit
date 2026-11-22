@@ -15,14 +15,18 @@ def _frame(rows: list[tuple[str, datetime, float]]) -> pl.DataFrame:
 
 
 def test_incremental_merge_keeps_late_rows_and_new_batch_wins() -> None:
-    old = _frame([
-        ("sku-a", datetime(2026, 1, 1), 2.0),
-        ("sku-a", datetime(2026, 1, 3), 4.0),
-    ])
-    incoming = _frame([
-        ("sku-a", datetime(2026, 1, 2), 3.0),
-        ("sku-a", datetime(2026, 1, 3), 7.0),
-    ])
+    old = _frame(
+        [
+            ("sku-a", datetime(2026, 1, 1), 2.0),
+            ("sku-a", datetime(2026, 1, 3), 4.0),
+        ]
+    )
+    incoming = _frame(
+        [
+            ("sku-a", datetime(2026, 1, 2), 3.0),
+            ("sku-a", datetime(2026, 1, 3), 7.0),
+        ]
+    )
 
     result = merge_history_batches(old, incoming)
 
