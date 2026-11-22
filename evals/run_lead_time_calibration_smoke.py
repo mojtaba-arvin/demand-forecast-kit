@@ -48,6 +48,7 @@ def main() -> None:
         model_id="seasonal-naive",
         forecast_origin=origin,
         baseline_median=target.quantile_forecasts[0.5],
+        expected_model_version=target.model_version,
         lead_time=7,
         quantile_levels=(0.1, 0.5, 0.9),
         bootstrap_samples=1000,
