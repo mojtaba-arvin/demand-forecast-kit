@@ -121,9 +121,7 @@ def estimate_temporal_bias_correction(
     ordered = sorted(selected)
     middle = len(ordered) // 2
     correction = (
-        ordered[middle]
-        if len(ordered) % 2
-        else (ordered[middle - 1] + ordered[middle]) / 2.0
+        ordered[middle] if len(ordered) % 2 else (ordered[middle - 1] + ordered[middle]) / 2.0
     )
     return TemporalBiasCorrection(
         series_id=series_id,
