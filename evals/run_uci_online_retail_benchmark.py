@@ -14,7 +14,7 @@ from typing import cast
 
 import polars as pl
 
-from demand_forecast_kit.backtesting import BacktestConfig, BacktestReport, run_backtest
+from demand_forecast_kit.backtesting import BacktestConfig, run_backtest
 from demand_forecast_kit.lead_time import backtest_lead_time_calibration
 from demand_forecast_kit.models.seasonal_naive import SeasonalNaiveAdapter
 from demand_forecast_kit.models.statistical import CrostonAdapter, TSBAdapter
@@ -430,6 +430,7 @@ def run_benchmark(
     )
 
     results: list[dict[str, object]] = []
+    origin_level_results: list[dict[str, object]] = []
     panel_fingerprints: dict[str, str] = {}
     skipped: list[dict[str, str]] = []
     for cohort in COHORTS:
@@ -475,17 +476,30 @@ def run_benchmark(
                             }
                         )
                         continue
-                    baseline_error = _prequential_baseline_error(
-                        report,
-                        series_id=series_id,
-                        model_id=adapter.model_id,
-                        lead_time=lead_time,
-                    )
-                    if baseline_error["origin_count"] != diagnostic.origin_count:
+                    origin_diagnostics = [
+                        {
+                            "cohort": cohort,
+                            "series_id": series_id,
+                            "model_id": adapter.model_id,
+                            "lead_time": lead_time,
+                            "fold": item.fold,
+                            "forecast_origin": item.forecast_origin,
+                            "actual": item.actual,
+                            "baseline_median": item.baseline_median,
+                            "q10": item.quantiles[0.1],
+                            "q50": item.quantiles[0.5],
+                            "q90": item.quantiles[0.9],
+                            "calibration_path_count": item.calibration_path_count,
+                        }
+                        for item in diagnostic.observations
+                    ]
+                    if len(origin_diagnostics) != diagnostic.origin_count:
                         raise RuntimeError(
-                            "baseline error and calibrated coverage used "
+                            "detailed observations and calibrated coverage used "
                             "different evaluation origins"
                         )
+                    origin_level_results.extend(origin_diagnostics)
+                    baseline_error = _baseline_error_summary(origin_diagnostics)
                     results.append(
                         {
                             "cohort": cohort,
@@ -578,6 +592,13 @@ def run_benchmark(
             "minimum_calibration_paths": 5,
             "seed": 42,
             "max_skus_per_cohort": max_skus_per_cohort,
+            "temporal_scale_experiment": {
+                "calibration_origin_offsets_per_series": [0, 2, 4, 6],
+                "holdout_origin_offsets_per_series": [10, 12, 14],
+                "purged_origin_count_per_series": 9,
+                "target_window_days": 14,
+                "scale_grid": [0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0, 4.0],
+            },
         },
         "panel": {
             "start_date": str(panel.get_column("timestamp").min()),
@@ -589,6 +610,8 @@ def run_benchmark(
         },
         "macro_summary": macro_summary,
         "coverage_diagnostics": _coverage_diagnostics(results),
+        "origin_level_results": origin_level_results,
+        "temporal_scale_experiment": _temporal_scale_experiment(origin_level_results),
         "per_series_results": results,
         "skipped_evaluations": skipped,
         "interpretation": (
