@@ -26,9 +26,14 @@ classifiers = [
 ]
 dependencies = ["polars>=1.35,<2"]
 
+[project.scripts]
+demand-forecast = "demand_forecast_kit.cli:main"
+demand-forecast-evaluate = "demand_forecast_kit.evaluation_cli:main"
+
 [project.optional-dependencies]
 io = ["duckdb>=1.4,<2", "pyarrow>=22,<25"]
 api = ["fastapi>=0.120,<1", "uvicorn>=0.38,<1"]
+api-test = ["httpx>=0.28,<1"]
 cli = ["typer>=0.20,<1"]
 stats = ["statsforecast>=2.1.1,<3"]
 benchmark = ["fastexcel>=0.12,<1", "statsforecast>=2.1.1,<3"]
@@ -75,7 +80,10 @@ addopts = [
 branch = true
 source = ["demand_forecast_kit"]
 # The optional StatsForecast backend is exercised in its dedicated integration CI job.
-omit = ["src/demand_forecast_kit/models/statistical.py"]
+omit = [
+  "src/demand_forecast_kit/models/statistical.py",
+  "src/demand_forecast_kit/api.py",
+]
 
 [tool.coverage.report]
 show_missing = true
