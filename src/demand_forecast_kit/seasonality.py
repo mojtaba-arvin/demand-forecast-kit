@@ -50,8 +50,7 @@ def detect_season_length(
             if period >= len(values):
                 continue
             numerator = sum(
-                centered[index] * centered[index - period]
-                for index in range(period, len(values))
+                centered[index] * centered[index - period] for index in range(period, len(values))
             )
             strengths[period] = numerator / denominator
 
