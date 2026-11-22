@@ -1,4 +1,8 @@
-"""Preparation adapter for the independent UCI electricity load benchmark."""
+"""Preparation adapter for the independent UCI electricity load benchmark.
+
+Preserves the source's local 15-minute interval labels while converting power
+readings into interval energy, with explicit handling for malformed rows.
+"""
 
 from __future__ import annotations
 
