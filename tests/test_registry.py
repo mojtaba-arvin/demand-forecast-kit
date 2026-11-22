@@ -1,3 +1,6 @@
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+
 import pytest
 
 from demand_forecast_kit.registry import SQLiteRunRegistry
@@ -14,10 +17,10 @@ def test_registry_create_is_idempotent_and_round_trips(tmp_path) -> None:
     )
     retry = registry.create_run(
         idempotency_key="forecast:dataset-a:sku-1:2026-01-01",
-        dataset_fingerprint="sha256:changed",
-        model_id="other-model",
-        model_version="9.9",
-        config={"horizon": 99},
+        dataset_fingerprint="sha256:abc",
+        model_id="seasonal-naive",
+        model_version="0.1.0",
+        config={"horizon": 14, "quantiles": [0.1, 0.5, 0.9]},
     )
 
     assert retry == first
