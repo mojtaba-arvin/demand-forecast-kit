@@ -47,7 +47,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         parser.error("--output is required for CSV and Parquet formats")
 
     adapter = SeasonalNaiveAdapter(season_length=args.season_length)
-    forecasts = []
+    forecasts: list[dict[str, object]] = []
+    table_rows: list[dict[str, str | int | float]] = []
     for series in history.sort(["series_id", "timestamp"]).partition_by(
         "series_id", maintain_order=True
     ):
@@ -66,6 +67,16 @@ def main(argv: Sequence[str] | None = None) -> int:
             "horizon": forecast.horizon,
             "quantiles": {str(level): list(values) for level, values in forecast.quantiles.items()},
         })
+        for level, values in forecast.quantiles.items():
+            for step, value in enumerate(values):
+                table_rows.append({
+                    "series_id": series_id,
+                    "model_id": adapter.model_id,
+                    "model_version": adapter.model_version,
+                    "horizon_step": step + 1,
+                    "quantile": level,
+                    "forecast": value,
+                })
     if args.format == "json":
         payload = json.dumps(
             {"schema_version": 1, "forecasts": forecasts},
@@ -79,20 +90,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             args.output.parent.mkdir(parents=True, exist_ok=True)
             args.output.write_text(payload, encoding="utf-8")
     else:
-        rows = [
-            {
-                "series_id": forecast["series_id"],
-                "model_id": forecast["model_id"],
-                "model_version": forecast["model_version"],
-                "horizon_step": step + 1,
-                "quantile": float(level),
-                "forecast": value,
-            }
-            for forecast in forecasts
-            for level, values in forecast["quantiles"].items()
-            for step, value in enumerate(values)
-        ]
-        frame = pl.DataFrame(rows)
+        frame = pl.DataFrame(table_rows)
         args.output.parent.mkdir(parents=True, exist_ok=True)
         if args.format == "csv":
             frame.write_csv(args.output)
