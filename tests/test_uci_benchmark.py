@@ -230,3 +230,32 @@ def test_temporal_scale_experiment_keeps_holdout_out_of_scale_fitting() -> None:
     assert first["fitted_width_scale"] == changed_holdout["fitted_width_scale"]
     assert first["fitted_median_shift"] == changed_holdout["fitted_median_shift"]
     assert first["holdout_baseline"] != changed_holdout["holdout_baseline"]
+
+
+def test_prepare_daily_demand_accepts_online_retail_ii_invoice_column() -> None:
+    source = pl.DataFrame(
+        {
+            "Invoice": ["10001", "C10002"],
+            "StockCode": ["A", "A"],
+            "Quantity": [3, 7],
+            "InvoiceDate": [datetime(2010, 1, 1), datetime(2010, 1, 2)],
+        }
+    )
+
+    actual = prepare_daily_demand(source)
+
+    assert actual.to_dicts() == [
+        {"series_id": "A", "day": date(2010, 1, 1), "demand": 3.0}
+    ]
+
+
+def test_prepare_daily_demand_requires_an_invoice_identifier_column() -> None:
+    source = pl.DataFrame(
+        {
+            "StockCode": ["A"],
+            "Quantity": [1],
+            "InvoiceDate": [datetime(2010, 1, 1)],
+        }
+    )
+    with pytest.raises(ValueError, match="InvoiceNo or Invoice"):
+        prepare_daily_demand(source)
