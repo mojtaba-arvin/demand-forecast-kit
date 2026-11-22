@@ -121,7 +121,11 @@ def build_cohort_panel(
     identifiers = pl.DataFrame({"series_id": selected_ids})
     panel = (
         identifiers.join(calendar, how="cross")
-        .join(daily.filter(pl.col("series_id").is_in(selected_ids)), on=["series_id", "day"], how="left")
+        .join(
+            daily.filter(pl.col("series_id").is_in(selected_ids)),
+            on=["series_id", "day"],
+            how="left",
+        )
         .with_columns(pl.col("demand").fill_null(0.0))
         .rename({"day": "timestamp"})
         .sort(["series_id", "timestamp"])
@@ -231,17 +235,23 @@ def run_benchmark(
                 "model_id": model_id,
                 "lead_time": lead_time,
                 "series_count": len(items),
-                "mean_origin_count": sum(int(item["origin_count"]) for item in items) / len(items),
+                "mean_origin_count": (
+                    sum(int(item["origin_count"]) for item in items) / len(items)
+                ),
                 "macro_quantile_coverage": {
                     level: sum(float(item["quantile_coverage"][level]) for item in items) / len(items)
                     for level in ("0.1", "0.5", "0.9")
                 },
                 "macro_mean_pinball_loss": {
-                    level: sum(float(item["mean_pinball_loss"][level]) for item in items) / len(items)
+                    level: (
+                        sum(float(item["mean_pinball_loss"][level]) for item in items) / len(items)
+                    )
                     for level in ("0.1", "0.5", "0.9")
                 },
                 "macro_interval_coverage": {
-                    "0.8": sum(float(item["interval_coverage"]["0.8"]) for item in items) / len(items)
+                    "0.8": (
+                        sum(float(item["interval_coverage"]["0.8"]) for item in items) / len(items)
+                    )
                 },
             }
         )
@@ -294,7 +304,13 @@ def run_benchmark(
     }
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(
-        json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False)
+        json.dumps(
+            payload,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        )
         + "\n",
         encoding="utf-8",
     )
