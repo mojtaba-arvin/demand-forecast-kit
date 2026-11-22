@@ -89,8 +89,8 @@ def estimate_demand_driver_effects(
     mean_demand = fsum(demand) / len(demand)
     total = fsum((actual - mean_demand) ** 2 for actual in demand)
     residual = fsum((actual - estimate) ** 2 for actual, estimate in zip(demand, predicted, strict=True))
-    r_squared = 1.0 if total == 0.0 and residual == 0.0 else (
-        0.0 if total == 0.0 else 1.0 - residual / total
+    r_squared = 1.0 if total <= 1e-12 and residual <= 1e-12 else (
+        0.0 if total <= 1e-12 else 1.0 - residual / total
     )
     return DemandDriverEffects(
         intercept=intercept,
