@@ -1,6 +1,12 @@
 name: UCI Electricity independent benchmark
 
 on:
+  push:
+    branches: ["work/parallel-e-evaluation"]
+    paths:
+      - "evals/run_uci_electricity_benchmark.py"
+      - "src/demand_forecast_kit/datasets.py"
+      - "pyproject.toml"
   workflow_dispatch:
     inputs:
       max_series:
@@ -40,7 +46,7 @@ jobs:
         run: |
           python evals/run_uci_electricity_benchmark.py \
             data/uci-electricity/LD2011_2014.txt \
-            --max-series "${{ inputs.max_series }}" \
+            --max-series "${{ inputs.max_series || '370' }}" \
             --output artifacts/uci-electricity-benchmark.json
       - name: Upload benchmark report
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
