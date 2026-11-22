@@ -60,13 +60,17 @@ def main(argv: Sequence[str] | None = None) -> int:
             quantile_levels=args.quantiles,
             seed=0,
         )
-        forecasts.append({
-            "series_id": series_id,
-            "model_id": adapter.model_id,
-            "model_version": adapter.model_version,
-            "horizon": forecast.horizon,
-            "quantiles": {str(level): list(values) for level, values in forecast.quantiles.items()},
-        })
+        forecasts.append(
+            {
+                "series_id": series_id,
+                "model_id": adapter.model_id,
+                "model_version": adapter.model_version,
+                "horizon": forecast.horizon,
+                "quantiles": {
+                    str(level): list(values) for level, values in forecast.quantiles.items()
+                },
+            }
+        )
         for level, values in forecast.quantiles.items():
             for step, value in enumerate(values):
                 table_rows.append(
