@@ -13,27 +13,27 @@ on a real transaction dataset and compares Seasonal Naive, Croston SBA, and TSB.
 - Citation: Chen, D. (2015). *Online Retail*. UCI Machine Learning Repository.
 - DOI: https://doi.org/10.24432/C5BW33
 - License: CC BY 4.0
-- Original workbook: \`Online Retail.xlsx\`
+- Original workbook: `Online Retail.xlsx`
 
 The raw workbook is not committed and CI does not download it. Download the
 workbook from UCI, then install the optional benchmark dependencies:
 
-\`\`\`bash
+```bash
 python -m pip install -e ".[benchmark,dev]"
-\`\`\`
+```
 
 Run the benchmark:
 
-\`\`\`bash
+```bash
 python evals/run_uci_online_retail_benchmark.py /path/to/Online\\ Retail.xlsx
-\`\`\`
+```
 
-For a smaller development run, use \`--max-skus-per-cohort 3\`. The default is
+For a smaller development run, use `--max-skus-per-cohort 3`. The default is
 10 SKUs per cohort.
 
 ## Preprocessing contract
 
-- Exclude cancellation invoices (InvoiceNo beginning with \`C\`, case-insensitive).
+- Exclude cancellation invoices (InvoiceNo beginning with `C`, case-insensitive).
 - Exclude non-positive quantities, including returns. This is intentional:
   the target is gross outbound unit demand, not net accounting movement.
 - Aggregate positive quantities by StockCode and calendar day.
