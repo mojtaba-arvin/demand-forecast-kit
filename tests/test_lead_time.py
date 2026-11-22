@@ -73,6 +73,7 @@ def test_calibration_uses_only_completed_non_overlapping_same_series_paths() -> 
         model_id="seasonal-naive",
         forecast_origin=origin,
         baseline_median=(10.0, 10.0),
+        expected_model_version="1.0",
         lead_time=2,
         quantile_levels=(0.1, 0.5, 0.9),
         bootstrap_samples=500,
@@ -95,6 +96,7 @@ def test_calibration_is_deterministic_and_preserves_full_path_residual_sum() -> 
         "model_id": "seasonal-naive",
         "forecast_origin": "2024-02-15T00:00:00",
         "baseline_median": (10.0, 10.0),
+        "expected_model_version": "1.0",
         "lead_time": 2,
         "bootstrap_samples": 200,
         "min_calibration_paths": 5,
@@ -148,6 +150,7 @@ def test_distribution_adapts_to_inventory_scenario_and_policy_evaluation() -> No
         model_id="seasonal-naive",
         forecast_origin="2024-02-15",
         baseline_median=(10.0, 10.0),
+        expected_model_version="1.0",
         lead_time=2,
         min_calibration_paths=5,
     )
@@ -182,3 +185,16 @@ def test_prequential_backtest_uses_prior_folds_only_and_reports_coverage() -> No
     assert result.origin_count >= 5
     assert set(result.quantile_coverage) == {0.1, 0.5, 0.9}
     assert set(result.mean_pinball_loss) == {0.1, 0.5, 0.9}
+
+def test_calibration_rejects_model_version_mismatch() -> None:
+    with pytest.raises(ValueError, match="model version mismatch"):
+        calibrate_lead_time_demand(
+            _report(),
+            series_id="sku-1",
+            model_id="seasonal-naive",
+            forecast_origin="2024-02-15",
+            baseline_median=(10.0, 10.0),
+            expected_model_version="2.0",
+            lead_time=2,
+            min_calibration_paths=5,
+        )
