@@ -65,6 +65,78 @@ For a smaller development run, use `--max-skus-per-cohort 3`. The default is
   interval coverage, and pinball loss. Cohort summaries are unweighted
   macro-averages across SKUs.
 
+
+## SKU-level coverage and baseline-bias diagnostics
+
+A follow-up run adds per-SKU dispersion and baseline median-error diagnostics to
+the JSON report. It uses the same 30-SKU sample, model fits, rolling origins,
+and prequential eligibility rule as the corrected benchmark. The diagnostic
+runner was executed at commit `3f8197e0b58b7ea7ff71a2263c7dbc655a2d520d`:
+
+- [Diagnostic benchmark workflow](https://github.com/mojtaba-arvin/demand-forecast-kit/actions/runs/45049056780)
+- [Diagnostic JSON artifact](https://github.com/mojtaba-arvin/demand-forecast-kit/actions/runs/45049056780/artifacts/14764981545)
+
+For every SKU/model/lead-time combination, the report now records the baseline
+cumulative P50 error on exactly the forecast origins eligible for residual-path
+calibration. Error is defined as actual cumulative lead-time demand minus the
+uncalibrated model's cumulative median forecast; positive values indicate
+underforecasting. It also records mean absolute error and the fraction of
+eligible origins underforecast. The cohort diagnostics report the equal-SKU
+macro error, P10/P50/P90 empirical coverage, P80 coverage range across SKUs,
+and the number of SKUs below nominal P80.
+
+| Cohort | Lead | Model | P80 macro (SKU min–max) | SKUs below 0.80 | P10 / P50 / P90 coverage | Baseline P50 bias |
+|---|---:|---|---:|---:|---:|---:|
+| Dense | 7 | Croston SBA | 0.656 (0.250–0.938) | 7/10 | 0.225 / 0.438 / 0.869 | +17.3 |
+| Dense | 14 | Croston SBA | 0.625 (0.250–0.875) | 7/10 | 0.175 / 0.469 / 0.800 | +32.7 |
+| Dense | 7 | Seasonal Naive | 0.500 (0.312–0.750) | 10/10 | 0.400 / 0.606 / 0.887 | +3.0 |
+| Dense | 14 | Seasonal Naive | 0.469 (0.188–0.688) | 10/10 | 0.406 / 0.613 / 0.863 | +4.1 |
+| Dense | 7 | TSB | 0.688 (0.438–0.938) | 7/10 | 0.212 / 0.494 / 0.887 | +17.8 |
+| Dense | 14 | TSB | 0.600 (0.375–0.875) | 7/10 | 0.219 / 0.512 / 0.819 | +33.7 |
+| Intermittent | 7 | Croston SBA | 0.669 (0.312–1.000) | 6/10 | 0.400 / 0.619 / 0.850 | +35.3 |
+| Intermittent | 14 | Croston SBA | 0.631 (0.250–1.000) | 7/10 | 0.325 / 0.550 / 0.819 | +80.5 |
+| Intermittent | 7 | Seasonal Naive | 0.544 (0.312–0.875) | 9/10 | 0.537 / 0.700 / 0.869 | +9.9 |
+| Intermittent | 14 | Seasonal Naive | 0.544 (0.250–0.812) | 9/10 | 0.450 / 0.631 / 0.856 | +29.7 |
+| Intermittent | 7 | TSB | 0.588 (0.250–0.938) | 8/10 | 0.481 / 0.662 / 0.856 | +30.1 |
+| Intermittent | 14 | TSB | 0.575 (0.375–0.875) | 8/10 | 0.375 / 0.581 / 0.831 | +70.2 |
+| Very intermittent | 7 | Croston SBA | 0.819 (0.375–1.000) | 4/10 | 0.719 / 0.788 / 0.912 | -0.2 |
+| Very intermittent | 14 | Croston SBA | 0.775 (0.438–1.000) | 5/10 | 0.669 / 0.762 / 0.906 | -0.5 |
+| Very intermittent | 7 | Seasonal Naive | 0.775 (0.438–1.000) | 5/10 | 0.794 / 0.825 / 0.944 | -0.1 |
+| Very intermittent | 14 | Seasonal Naive | 0.750 (0.500–1.000) | 6/10 | 0.738 / 0.800 / 0.925 | -0.3 |
+| Very intermittent | 7 | TSB | 0.725 (0.188–1.000) | 5/10 | 0.787 / 0.838 / 0.925 | +0.1 |
+| Very intermittent | 14 | TSB | 0.750 (0.375–1.000) | 5/10 | 0.688 / 0.787 / 0.919 | +0.2 |
+
+### Interpretation
+
+- The dense and intermittent undercoverage is distributed across SKUs, not
+  explained by one or two outliers. For dense SKUs, 7–10 of 10 series are below
+  nominal P80 across the model/lead-time slices; for intermittent SKUs, 6–9 of
+  10 are below nominal.
+- In dense and intermittent cohorts, empirical P10 coverage is consistently
+  above 0.10 while P90 coverage is generally below 0.90. The lower quantiles
+  are too high and upper quantiles too low, indicating intervals that are too
+  narrow. The baseline cumulative median error is also positive in every
+  dense/intermittent model slice, indicating baseline underforecasting on
+  average.
+- The calibrated P50 coverage does not move uniformly with baseline bias:
+  Croston SBA's intermittent P50 coverage is above 0.50 despite positive
+  baseline median error. This is evidence that the residual-path adjustment
+  can shift the center differently from the underlying model's baseline bias;
+  it is not safe to apply one global additive correction.
+- Very-intermittent baseline median bias is close to zero and P80 macro coverage
+  is nearer nominal, but SKU-level ranges remain wide. Large point masses at
+  zero and discrete cumulative demand also make quantile hit rates less smooth
+  in this cohort.
+- These diagnostics localize the problem but do not yet establish its cause.
+  They are based on 10 deterministically selected SKUs per cohort and 16
+  prequential evaluation origins per SKU. The origins overlap in calendar time,
+  so they must not be treated as 16 independent observations for confidence
+  intervals or significance tests.
+
+No calibration parameter was tuned on these evaluation outcomes. The next
+valid experiment must fit any bias/scale/conformal adjustment using only earlier
+calibration origins and evaluate it on a later, untouched chronological block.
+
 ## Real-data run: 2026-11-22
 
 The first run on commit `da76574...` used full-history cohort assignment and is
@@ -72,7 +144,7 @@ superseded. After freezing cohorts to the initial training window, the corrected
 workflow completed successfully on commit
 `d25e8fd680cd2df212b4678fcee350f9adcb96d6`:
 
-- [GitHub Actions run #45038895069](https://github.com/mojtaba-arvin/demand-forecast-kit/actions/runs/45036995061)
+- [GitHub Actions run #45038895069](https://github.com/mojtaba-arvin/demand-forecast-kit/actions/runs/45038895069)
 - [JSON artifact](https://github.com/mojtaba-arvin/demand-forecast-kit/actions/runs/45036995061/artifacts/14759959986)
 - Official UCI workbook extracted by the runner: 23,715,344 bytes.
 - Source workbook SHA-256: `43465a06f2ccf7c8b5bd2892bc7defb52f97487934fe93b16ae4c3936424676d`.
