@@ -185,7 +185,7 @@ def count_missing_periods(
             counts[series_id] = 0
             continue
         absent = 0
-        for previous, current in zip(timestamps, timestamps[1:], strict=True):
+        for previous, current in zip(timestamps, timestamps[1:], strict=False):
             if isinstance(previous, date) and not isinstance(previous, datetime):
                 previous = datetime.combine(previous, datetime.min.time())
             if isinstance(current, date) and not isinstance(current, datetime):
