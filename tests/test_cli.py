@@ -1,6 +1,5 @@
-from datetime import date, timedelta
-
 import json
+from datetime import date, timedelta
 
 from demand_forecast_kit.cli import main
 
