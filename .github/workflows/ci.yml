@@ -61,6 +61,17 @@ jobs:
       - name: Generate synthetic inventory policy evaluation
         run: python evals/run_inventory_smoke.py
 
+      - name: Generate synthetic lead-time calibration evaluation
+        run: python evals/run_lead_time_calibration_smoke.py
+
+      - name: Upload lead-time calibration artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: synthetic-lead-time-calibration
+          path: artifacts/synthetic-lead-time-calibration.json
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Upload inventory evaluation artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
