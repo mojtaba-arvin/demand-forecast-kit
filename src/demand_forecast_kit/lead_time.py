@@ -280,14 +280,10 @@ def backtest_lead_time_calibration(
             losses[level] += max(level * error, (level - 1.0) * error)
         for nominal in interval_levels:
             lower_level = next(
-                level
-                for level in levels
-                if isclose(level, (1.0 - nominal) / 2.0, abs_tol=1e-10)
+                level for level in levels if isclose(level, (1.0 - nominal) / 2.0, abs_tol=1e-10)
             )
             upper_level = next(
-                level
-                for level in levels
-                if isclose(level, (1.0 + nominal) / 2.0, abs_tol=1e-10)
+                level for level in levels if isclose(level, (1.0 + nominal) / 2.0, abs_tol=1e-10)
             )
             lower = distribution.quantiles[lower_level]
             upper = distribution.quantiles[upper_level]
