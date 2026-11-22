@@ -1,0 +1,12 @@
+name: Tagged release validation
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    uses: ./.github/workflows/release-candidate.yml
