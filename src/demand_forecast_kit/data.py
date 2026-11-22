@@ -5,8 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from math import isfinite
-from statistics import median
 from pathlib import Path
+from statistics import median
 
 import polars as pl
 
@@ -227,18 +227,8 @@ def count_demand_outliers(
         values = [float(value) for value in series.get_column("demand").to_list()]
         if not values or any(not isfinite(value) for value in values):
             raise ValueError("demand must contain finite values")
-        ordered = sorted(values)
-        middle = len(ordered) // 2
-        median = (
-            ordered[middle] if len(ordered) % 2 else (ordered[middle - 1] + ordered[middle]) / 2.0
-        )
-        deviations = sorted(abs(value - median) for value in values)
-        deviation_middle = len(deviations) // 2
-        mad = (
-            deviations[deviation_middle]
-            if len(deviations) % 2
-            else (deviations[deviation_middle - 1] + deviations[deviation_middle]) / 2.0
-        )
+        median_value = median(values)
+        mad = median([abs(value - median_value) for value in values])
         if mad == 0.0:
             count = sum(value != median_value for value in values)
         else:
