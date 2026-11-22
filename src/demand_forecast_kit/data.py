@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import polars as pl
@@ -75,11 +76,17 @@ def scan_history(
     else:
         raise ValueError("input file must have a .csv, .parquet, or .pq extension")
 
-    available = set(frame.collect_schema().names())
+    schema = frame.collect_schema()
+    available = set(schema.names())
     required = (columns.series_id, columns.timestamp, columns.demand)
     missing = tuple(name for name in required if name not in available)
     if missing:
         raise ValueError(f"missing required input columns: {', '.join(missing)}")
+    if getattr(schema[columns.timestamp], "time_zone", None) is not None:
+        raise ValueError(
+            "timezone-aware timestamps are not supported; normalize timestamps "
+            "to one timezone before scanning"
+        )
 
     return frame.select(
         pl.col(columns.series_id).cast(pl.String, strict=False).alias("series_id"),
@@ -91,11 +98,17 @@ def scan_history(
 def validate_history(frame: pl.DataFrame | pl.LazyFrame) -> DataQualityReport:
     """Validate required canonical fields and return aggregate quality counts."""
     lazy = frame.lazy() if isinstance(frame, pl.DataFrame) else frame
-    available = set(lazy.collect_schema().names())
+    schema = lazy.collect_schema()
+    available = set(schema.names())
     required = {"series_id", "timestamp", "demand"}
     missing = sorted(required - available)
     if missing:
         raise ValueError(f"missing canonical columns: {', '.join(missing)}")
+    if getattr(schema["timestamp"], "time_zone", None) is not None:
+        raise ValueError(
+            "timezone-aware timestamps are not supported; normalize timestamps "
+            "to one timezone before validation"
+        )
 
     normalized = lazy.select(
         pl.col("series_id").cast(pl.String, strict=False).alias("series_id"),
@@ -142,3 +155,47 @@ def validate_history(frame: pl.DataFrame | pl.LazyFrame) -> DataQualityReport:
         non_finite_demand=int(summary["non_finite_demand"]),
         empty_series_ids=int(summary["empty_series_ids"]),
     )
+
+
+def count_missing_periods(
+    frame: pl.DataFrame,
+    *,
+    interval: timedelta = timedelta(days=1),
+) -> dict[str, int]:
+    """Count absent regular timestamps per series without inventing zero-demand rows.
+
+    This diagnostic is deliberately separate from validation: a missing date
+    may mean no sales, a data outage, or a calendar closure. Callers must decide
+    whether a missing period represents zero demand before filling it.
+    """
+    if interval <= timedelta(0):
+        raise ValueError("interval must be positive")
+    required = {"series_id", "timestamp"}
+    missing = sorted(required - set(frame.columns))
+    if missing:
+        raise ValueError(f"missing canonical columns: {', '.join(missing)}")
+
+    counts: dict[str, int] = {}
+    for series in frame.partition_by("series_id", maintain_order=True):
+        series_id = str(series["series_id"][0])
+        timestamps = series.get_column("timestamp").drop_nulls().sort().to_list()
+        if len(timestamps) < 2:
+            counts[series_id] = 0
+            continue
+        absent = 0
+        for previous, current in zip(timestamps, timestamps[1:], strict=True):
+            if isinstance(previous, date) and not isinstance(previous, datetime):
+                previous = datetime.combine(previous, datetime.min.time())
+            if isinstance(current, date) and not isinstance(current, datetime):
+                current = datetime.combine(current, datetime.min.time())
+            if not isinstance(previous, datetime) or not isinstance(current, datetime):
+                raise ValueError("timestamp values must be dates or datetimes")
+            if previous.tzinfo is not None or current.tzinfo is not None:
+                raise ValueError("timezone-aware timestamps must be normalized before diagnostics")
+            gap = current - previous
+            steps, remainder = divmod(gap, interval)
+            if remainder:
+                raise ValueError("timestamps do not align to the requested interval")
+            absent += max(0, steps - 1)
+        counts[series_id] = absent
+    return dict(sorted(counts.items()))
