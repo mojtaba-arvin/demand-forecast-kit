@@ -19,7 +19,7 @@ def test_prepare_daily_demand_excludes_cancellations_and_returns() -> None:
             "InvoiceDate": [
                 datetime(2011, 1, 1),
                 datetime(2011, 1, 1),
-                date(2011, 1, 2),
+                datetime(2011, 1, 2),
                 datetime(2011, 1, 2),
                 datetime(2011, 1, 3),
             ],
@@ -70,7 +70,7 @@ def test_build_cohort_panel_fills_no_sale_days_and_is_deterministic() -> None:
     assert first.equals(second)
     assert first.height == 600
     dense_zero = first.filter(
-        (pl.col("series_id") == "dense") & (pl.col("timestamp") == datetime(2011, 1, 2))
+        (pl.col("series_id") == "dense") & (pl.col("timestamp") == date(2011, 1, 2))
     ).get_column("demand").item()
     assert dense_zero == 0.0
 
