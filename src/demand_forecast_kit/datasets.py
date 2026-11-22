@@ -37,7 +37,7 @@ def prepare_uci_electricity(
         input_path,
         separator=";",
         decimal_comma=True,
-        infer_schema_length=1000,
+        infer_schema_length=None,
         try_parse_dates=False,
     )
     names = frame.collect_schema().names()
