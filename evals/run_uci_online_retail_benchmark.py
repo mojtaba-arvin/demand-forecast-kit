@@ -235,6 +235,12 @@ def run_benchmark(
                         }
                     )
 
+    if not results:
+        raise RuntimeError(
+            "no lead-time calibration diagnostics were produced; inspect skipped_evaluations "
+            "and verify that the source history contains enough completed rolling-origin paths"
+        )
+
     grouped: dict[tuple[str, str, int], list[dict[str, object]]] = defaultdict(list)
     for item in results:
         grouped[(str(item["cohort"]), str(item["model_id"]), int(item["lead_time"]))].append(item)
