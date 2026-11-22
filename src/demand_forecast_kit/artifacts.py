@@ -27,8 +27,6 @@ class FileArtifactStore:
 
     @staticmethod
     def _digest(payload: bytes) -> str:
-        if not isinstance(payload, bytes):
-            raise TypeError("artifact payload must be bytes")
         return hashlib.sha256(payload).hexdigest()
 
     def put(self, payload: bytes) -> StoredArtifact:
