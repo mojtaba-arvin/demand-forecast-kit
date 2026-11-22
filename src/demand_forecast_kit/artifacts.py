@@ -60,10 +60,7 @@ class FileArtifactStore:
 
     def get(self, sha256: str) -> bytes:
         """Read an artifact only when its content matches the requested digest."""
-        if (
-            len(sha256) != 64
-            or any(character not in "0123456789abcdef" for character in sha256)
-        ):
+        if len(sha256) != 64 or any(character not in "0123456789abcdef" for character in sha256):
             raise ValueError("sha256 must be a lowercase 64-character hexadecimal digest")
         directory = self.root / sha256[:2]
         if directory.is_symlink():
