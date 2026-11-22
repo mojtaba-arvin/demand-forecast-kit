@@ -38,3 +38,45 @@ def test_driver_effects_reject_invalid_or_collinear_training_data() -> None:
     ]
     with pytest.raises(ValueError, match="collinear"):
         estimate_demand_driver_effects(collinear)
+
+
+def test_driver_effects_handle_constant_demand_with_full_rank_features() -> None:
+    observations = [
+        DemandDriverObservation(5.0, price, promoted)
+        for promoted in (False, True)
+        for price in (1.0, 2.0, 3.0)
+    ]
+
+    result = estimate_demand_driver_effects(observations)
+
+    assert result.intercept == pytest.approx(5.0)
+    assert result.price_effect == pytest.approx(0.0)
+    assert result.promotion_effect == pytest.approx(0.0)
+    assert result.r_squared == 1.0
+
+
+def test_driver_effects_validate_driver_values_and_feature_variation() -> None:
+    valid = [
+        DemandDriverObservation(5.0, price, promoted)
+        for promoted in (False, True)
+        for price in (1.0, 2.0)
+    ]
+    with pytest.raises(ValueError, match="demand must be finite"):
+        estimate_demand_driver_effects(
+            [DemandDriverObservation(float("nan"), item.price, item.promoted) for item in valid]
+        )
+    with pytest.raises(ValueError, match="price must be finite"):
+        estimate_demand_driver_effects(
+            [DemandDriverObservation(item.demand, 0.0, item.promoted) for item in valid]
+        )
+    with pytest.raises(ValueError, match="both promotion states"):
+        estimate_demand_driver_effects(
+            [DemandDriverObservation(item.demand, item.price, False) for item in valid]
+        )
+    with pytest.raises(ValueError, match="promoted must be boolean"):
+        estimate_demand_driver_effects(
+            [
+                DemandDriverObservation(item.demand, item.price, 1)  # type: ignore[arg-type]
+                for item in valid
+            ]
+        )
