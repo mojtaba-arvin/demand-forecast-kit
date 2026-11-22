@@ -1,6 +1,12 @@
 name: UCI Online Retail II independent retail benchmark
 
 on:
+  push:
+    branches: ["work/parallel-e-evaluation"]
+    paths:
+      - "evals/run_uci_online_retail_ii_benchmark.py"
+      - "src/demand_forecast_kit/retail_benchmark.py"
+      - "pyproject.toml"
   workflow_dispatch:
     inputs:
       max_skus_per_cohort:
@@ -40,7 +46,7 @@ jobs:
         run: |
           workbook="$(find data/uci-online-retail-ii -iname 'online_retail_II.xlsx' -print -quit)"
           python evals/run_uci_online_retail_ii_benchmark.py "$workbook" \
-            --max-skus-per-cohort "${{ inputs.max_skus_per_cohort }}" \
+            --max-skus-per-cohort "${{ inputs.max_skus_per_cohort || '20' }}" \
             --output artifacts/uci-online-retail-ii-benchmark.json
       - name: Upload benchmark report
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
