@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import hashlib
+import os
+from pathlib import Path
 
 import pytest
 
@@ -74,8 +76,6 @@ def test_artifact_store_rejects_symlinked_artifact_file(tmp_path) -> None:
 
 
 def test_artifact_store_handles_concurrent_identical_write(tmp_path, monkeypatch) -> None:
-    import os
-
     root = tmp_path / "artifacts"
     store = FileArtifactStore(root)
     payload = b"concurrent"
@@ -86,8 +86,6 @@ def test_artifact_store_handles_concurrent_identical_write(tmp_path, monkeypatch
     def concurrent_link(source: str, destination: str) -> None:
         Path(destination).write_bytes(payload)
         raise FileExistsError(destination)
-
-    from pathlib import Path
 
     monkeypatch.setattr(os, "link", concurrent_link)
     artifact = store.put(payload)
