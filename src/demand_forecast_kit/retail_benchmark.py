@@ -3,13 +3,19 @@
 from __future__ import annotations
 
 import hashlib
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import polars as pl
 
 INITIAL_TRAIN_SIZE = 180
 COHORTS = ("dense", "intermittent", "very-intermittent")
+
+
+def _as_date(value: object) -> date:
+    if isinstance(value, date):
+        return date(value.year, value.month, value.day)
+    raise ValueError("daily demand must contain valid dates")
 
 
 def prepare_daily_demand(transactions: pl.DataFrame) -> pl.DataFrame:
@@ -74,12 +80,9 @@ def build_cohort_panel(
     if daily.is_empty():
         raise ValueError("daily demand must not be empty")
 
-    first_day_value: object = daily.get_column("day").min()
-    last_day_value: object = daily.get_column("day").max()
-    if not isinstance(first_day_value, date) or not isinstance(last_day_value, date):
-        raise ValueError("daily demand must contain valid dates")
-    first_day: date = first_day_value
-    last_day: date = last_day_value
+    daily = daily.with_columns(pl.col("day").cast(pl.Date, strict=False))
+    first_day = _as_date(daily.get_column("day").min())
+    last_day = _as_date(daily.get_column("day").max())
     day_count = (last_day - first_day).days + 1
     if day_count < cohort_window_days:
         raise ValueError(
