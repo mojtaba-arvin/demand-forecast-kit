@@ -211,9 +211,7 @@ class ModelRouter:
                 continue
             versions = {record.model_version for record in records}
             if len(versions) != 1:
-                raise ValueError(
-                    f"backtest evidence for model {model_id!r} mixes model versions"
-                )
+                raise ValueError(f"backtest evidence for model {model_id!r} mixes model versions")
             evidence_version = next(iter(versions))
             if evidence_version != adapter.model_version:
                 raise ValueError(
@@ -241,9 +239,7 @@ class ModelRouter:
         eligible = tuple(scores)
         if eligible:
             best_score = eligible[0].score
-            tied = tuple(
-                item for item in eligible if item.score <= best_score + self.tie_tolerance
-            )
+            tied = tuple(item for item in eligible if item.score <= best_score + self.tie_tolerance)
             chosen = min(
                 tied,
                 key=lambda item: (item.model_id != self.fallback_model_id, item.model_id),
