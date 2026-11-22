@@ -7,6 +7,8 @@ import json
 from collections.abc import Sequence
 from pathlib import Path
 
+import polars as pl
+
 from demand_forecast_kit.data import scan_history, validate_history
 from demand_forecast_kit.models.seasonal_naive import SeasonalNaiveAdapter
 
@@ -30,7 +32,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--horizon", type=int, default=14)
     parser.add_argument("--season-length", type=int, default=7)
     parser.add_argument("--quantiles", type=_quantiles, default=(0.1, 0.5, 0.9))
-    parser.add_argument("--output", type=Path, help="write JSON to this path instead of stdout")
+    parser.add_argument("--format", choices=("json", "csv", "parquet"), default="json")
+    parser.add_argument("--output", type=Path, help="write output to this path instead of stdout")
     args = parser.parse_args(argv)
     if args.horizon < 1 or args.season_length < 1:
         parser.error("horizon and season-length must be positive")
@@ -39,6 +42,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     quality = validate_history(history)
     if not quality.is_valid:
         parser.error("invalid demand history: " + "; ".join(quality.issues))
+
+    if args.format != "json" and args.output is None:
+        parser.error("--output is required for CSV and Parquet formats")
 
     adapter = SeasonalNaiveAdapter(season_length=args.season_length)
     forecasts = []
@@ -60,17 +66,38 @@ def main(argv: Sequence[str] | None = None) -> int:
             "horizon": forecast.horizon,
             "quantiles": {str(level): list(values) for level, values in forecast.quantiles.items()},
         })
-    payload = json.dumps(
-        {"schema_version": 1, "forecasts": forecasts},
-        sort_keys=True,
-        indent=2,
-        allow_nan=False,
-    ) + "\n"
-    if args.output is None:
-        print(payload, end="")
+    if args.format == "json":
+        payload = json.dumps(
+            {"schema_version": 1, "forecasts": forecasts},
+            sort_keys=True,
+            indent=2,
+            allow_nan=False,
+        ) + "\n"
+        if args.output is None:
+            print(payload, end="")
+        else:
+            args.output.parent.mkdir(parents=True, exist_ok=True)
+            args.output.write_text(payload, encoding="utf-8")
     else:
+        rows = [
+            {
+                "series_id": forecast["series_id"],
+                "model_id": forecast["model_id"],
+                "model_version": forecast["model_version"],
+                "horizon_step": step + 1,
+                "quantile": float(level),
+                "forecast": value,
+            }
+            for forecast in forecasts
+            for level, values in forecast["quantiles"].items()
+            for step, value in enumerate(values)
+        ]
+        frame = pl.DataFrame(rows)
         args.output.parent.mkdir(parents=True, exist_ok=True)
-        args.output.write_text(payload, encoding="utf-8")
+        if args.format == "csv":
+            frame.write_csv(args.output)
+        else:
+            frame.write_parquet(args.output)
     return 0
 
 
