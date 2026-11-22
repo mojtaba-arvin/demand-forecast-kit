@@ -32,9 +32,9 @@ def test_driver_effects_reject_invalid_or_collinear_training_data() -> None:
         estimate_demand_driver_effects([])
     collinear = [
         DemandDriverObservation(10.0, 5.0, False),
-        DemandDriverObservation(12.0, 6.0, False),
-        DemandDriverObservation(14.0, 7.0, True),
-        DemandDriverObservation(16.0, 8.0, True),
+        DemandDriverObservation(12.0, 5.0, False),
+        DemandDriverObservation(14.0, 6.0, True),
+        DemandDriverObservation(16.0, 6.0, True),
     ]
     with pytest.raises(ValueError, match="collinear"):
         estimate_demand_driver_effects(collinear)
