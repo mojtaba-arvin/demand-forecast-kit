@@ -42,9 +42,7 @@ def _solve_three_by_three(matrix: list[list[float]], vector: list[float]) -> tup
             factor = augmented[row][column]
             augmented[row] = [
                 value - factor * pivot_value
-                for value, pivot_value in zip(
-                    augmented[row], augmented[column], strict=True
-                )
+                for value, pivot_value in zip(augmented[row], augmented[column], strict=True)
             ]
     return tuple(augmented[index][3] for index in range(3))
 
@@ -74,29 +72,24 @@ def estimate_demand_driver_effects(
         raise ValueError("both promotion states and at least two price levels are required")
 
     rows = tuple(
-        (1.0, price_value, promo)
-        for price_value, promo in zip(price, promoted, strict=True)
+        (1.0, price_value, promo) for price_value, promo in zip(price, promoted, strict=True)
     )
     matrix = [
-        [fsum(row[left] * row[right] for row in rows) for right in range(3)]
-        for left in range(3)
+        [fsum(row[left] * row[right] for row in rows) for right in range(3)] for left in range(3)
     ]
     vector = [
         fsum(row[index] * actual for row, actual in zip(rows, demand, strict=True))
         for index in range(3)
     ]
     intercept, price_effect, promotion_effect = _solve_three_by_three(matrix, vector)
-    predicted = tuple(
-        intercept + price_effect * row[1] + promotion_effect * row[2] for row in rows
-    )
+    predicted = tuple(intercept + price_effect * row[1] + promotion_effect * row[2] for row in rows)
     mean_demand = fsum(demand) / len(demand)
     total = fsum((actual - mean_demand) ** 2 for actual in demand)
-    residual = fsum(
-        (actual - estimate) ** 2
-        for actual, estimate in zip(demand, predicted, strict=True)
-    )
-    r_squared = 1.0 if total <= 1e-12 and residual <= 1e-12 else (
-        0.0 if total <= 1e-12 else 1.0 - residual / total
+    residual = fsum((actual - estimate) ** 2 for actual, estimate in zip(demand, predicted, strict=True))
+    r_squared = (
+        1.0
+        if total <= 1e-12 and residual <= 1e-12
+        else (0.0 if total <= 1e-12 else 1.0 - residual / total)
     )
     return DemandDriverEffects(
         intercept=intercept,
