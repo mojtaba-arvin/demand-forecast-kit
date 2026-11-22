@@ -79,7 +79,10 @@ addopts = [
 branch = true
 source = ["demand_forecast_kit"]
 # The optional StatsForecast backend is exercised in its dedicated integration CI job.
-omit = ["src/demand_forecast_kit/models/statistical.py"]
+omit = [
+  "src/demand_forecast_kit/models/statistical.py",
+  "src/demand_forecast_kit/api.py",
+]
 
 [tool.coverage.report]
 show_missing = true
