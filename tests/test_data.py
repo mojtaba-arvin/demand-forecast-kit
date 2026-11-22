@@ -6,6 +6,7 @@ import pytest
 
 from demand_forecast_kit.data import (
     DataColumns,
+    count_demand_outliers,
     count_missing_periods,
     scan_history,
     validate_history,
@@ -163,3 +164,25 @@ def test_count_missing_periods_validates_interval() -> None:
     )
     with pytest.raises(ValueError, match="interval must be positive"):
         count_missing_periods(frame, interval=timedelta(0))
+
+
+def test_count_demand_outliers_flags_extremes_without_mutating_data() -> None:
+    frame = pl.DataFrame(
+        {
+            "series_id": ["sku-1"] * 7 + ["sku-2"] * 4,
+            "demand": [10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 100.0, 3.0, 3.0, 3.0, 3.0],
+        }
+    )
+    original = frame.clone()
+
+    assert count_demand_outliers(frame) == {"sku-1": 1, "sku-2": 0}
+    assert frame.equals(original)
+
+
+def test_count_demand_outliers_rejects_invalid_threshold_and_values() -> None:
+    frame = pl.DataFrame({"series_id": ["sku-1"], "demand": [1.0]})
+    with pytest.raises(ValueError, match="threshold"):
+        count_demand_outliers(frame, threshold=0.0)
+    invalid = pl.DataFrame({"series_id": ["sku-1"], "demand": [float("nan")]})
+    with pytest.raises(ValueError, match="finite"):
+        count_demand_outliers(invalid)
