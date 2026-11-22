@@ -31,6 +31,7 @@ io = ["duckdb>=1.4,<2", "pyarrow>=22,<25"]
 api = ["fastapi>=0.120,<1", "uvicorn>=0.38,<1"]
 cli = ["typer>=0.20,<1"]
 stats = ["statsforecast>=2.1.1,<3"]
+benchmark = ["fastexcel>=0.12,<1", "statsforecast>=2.1.1,<3"]
 dev = [
   "hypothesis>=6.140,<7",
   "pip-audit>=2.9,<3",
