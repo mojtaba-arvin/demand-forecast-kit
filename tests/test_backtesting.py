@@ -144,12 +144,12 @@ def test_run_backtest_is_reproducible_and_writes_a_digest_checked_artifact(
     assert first.to_json_bytes() == second.to_json_bytes()
     assert first.schema_version == 2
     assert first.series_history_ranges == {
-        "sku-1": ("2024-01-01", "2024-01-10"),
-        "sku-2": ("2024-01-01", "2024-01-10"),
+        "sku-1": ("2024-01-01T00:00:00", "2024-01-10T00:00:00"),
+        "sku-2": ("2024-01-01T00:00:00", "2024-01-10T00:00:00"),
     }
     assert first.to_dict()["series_history_ranges"]["sku-1"] == {
-        "start_timestamp": "2024-01-01",
-        "end_timestamp": "2024-01-10",
+        "start_timestamp": "2024-01-01T00:00:00",
+        "end_timestamp": "2024-01-10T00:00:00",
     }
 
     destination = tmp_path / "nested" / "evaluation.json"

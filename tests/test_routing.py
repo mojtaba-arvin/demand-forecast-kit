@@ -319,6 +319,6 @@ def test_routing_artifact_is_deterministic_and_rejects_mixed_or_duplicate_series
 
     with pytest.raises(ValueError, match="unique series_id"):
         write_routing_artifact((decision, decision), path)
-    mixed = replace(decision, dataset_fingerprint="b" * 64)
+    mixed = replace(decision, series_id="sku-3", dataset_fingerprint="b" * 64)
     with pytest.raises(ValueError, match="same dataset"):
         write_routing_artifact((decision, mixed), path)
