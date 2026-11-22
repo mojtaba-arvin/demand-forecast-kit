@@ -1,6 +1,6 @@
 # SPEC 0001: Rolling-origin backtesting and evaluation
 
-- Status: implemented on work/backtesting-evaluation; CI verification pending.
+- Status: implemented on work/backtesting-evaluation; current report schema is version 2.
 - Scope: deterministic chronological evaluation of one or more quantile forecast adapters on canonical demand history.
 - Non-goals: automatic model selection/routing, hyperparameter tuning, conformal calibration, hierarchical reconciliation, external dataset downloads, benchmark claims, and GPU execution.
 
@@ -14,7 +14,7 @@
 6. WQL is 2 * sum(pinball losses across quantiles and observations) / sum(abs(actual demand)); it is null when the actual-demand denominator is zero.
 7. Pinball loss is reported per quantile. Interval coverage is reported for symmetric central intervals (default 80% and 90%) whose lower and upper quantiles must be requested.
 8. Short series are explicitly listed as skipped. No result is silently omitted.
-9. The report contains model ID/version, split boundaries, seed, dataset SHA-256 fingerprint, predictions, and metrics. JSON serialization is canonical and contains no wall-clock timestamp.
+9. The report contains model ID/version, split boundaries, seed, dataset SHA-256 fingerprint, predictions, metrics, and per-series observed start/end timestamps. JSON schema version 2 is canonical and contains no wall-clock timestamp.
 
 ## Acceptance criteria
 

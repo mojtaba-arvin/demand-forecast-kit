@@ -99,8 +99,6 @@ def _metric_value(record: FoldEvaluation, metric: RoutingMetric) -> float | None
 
 
 class ModelRouter:
-    metric: RoutingMetric
-
     """Choose a model independently for each SKU using only past validation folds.
 
     A report is eligible only when the target series' complete observed history
@@ -108,6 +106,8 @@ class ModelRouter:
     averaged over the target series' rolling-origin folds. Undefined scores and
     candidates with too few folds are excluded.
     """
+
+    metric: RoutingMetric
 
     def __init__(
         self,
