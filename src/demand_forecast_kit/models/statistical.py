@@ -174,10 +174,12 @@ class _StatsForecastAdapter:
                 f"training observations for horizon={horizon}; received {len(values)}"
             )
 
+        import numpy as np
+
         models_module, utils_module = _load_statsforecast()
         model = self._new_model(models_module, utils_module, horizon)
         output = model.forecast(
-            y=values,
+            y=np.asarray(values, dtype=np.float64),
             h=horizon,
             level=list(requested_intervals) if requested_intervals else None,
         )
