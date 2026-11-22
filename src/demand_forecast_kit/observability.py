@@ -8,7 +8,14 @@ from collections import defaultdict
 from datetime import UTC, datetime
 from math import isfinite
 from threading import Lock
-from typing import Any
+from typing import Any, TypedDict
+
+
+class MetricsSnapshot(TypedDict):
+    """Stable shape of the process-local metrics snapshot."""
+
+    counters: dict[str, float]
+    observations: dict[str, dict[str, float]]
 
 
 class JsonLogFormatter(logging.Formatter):
@@ -84,7 +91,7 @@ class InMemoryMetrics:
             summary[2] = min(summary[2], value)
             summary[3] = max(summary[3], value)
 
-    def snapshot(self) -> dict[str, dict[str, float]]:
+    def snapshot(self) -> MetricsSnapshot:
         """Return a detached, deterministic snapshot of current measurements."""
         with self._lock:
             counters = dict(sorted(self._counters.items()))
