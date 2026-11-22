@@ -11,6 +11,17 @@ from typing import Any
 
 
 @dataclass(frozen=True, slots=True)
+class InventoryDecisionRecord:
+    """Immutable inventory recommendation linked to a completed or created run."""
+
+    decision_id: int
+    run_id: int
+    decision_key: str
+    created_at: str
+    decision: dict[str, Any]
+
+
+@dataclass(frozen=True, slots=True)
 class RunRecord:
     """Immutable metadata for one reproducible execution."""
 
@@ -185,6 +196,73 @@ class SQLiteRunRegistry:
         if row is None:
             raise KeyError(f"unknown run_id: {run_id}")
         return self._record(row)
+
+    def record_inventory_decision(
+        self,
+        run_id: int,
+        *,
+        decision_key: str,
+        decision: dict[str, Any],
+    ) -> InventoryDecisionRecord:
+        """Persist one immutable inventory decision per run and decision key."""
+        if not decision_key.strip():
+            raise ValueError("decision_key must not be blank")
+        decision_json = self._json(decision)
+        with self._connect() as connection:
+            run = connection.execute(
+                "SELECT run_id FROM forecast_runs WHERE run_id = ?", (run_id,)
+            ).fetchone()
+            if run is None:
+                raise KeyError(f"unknown run_id: {run_id}")
+            connection.execute(
+                """
+                INSERT INTO inventory_decisions (
+                    run_id, decision_key, created_at, decision_json
+                ) VALUES (?, ?, ?, ?)
+                ON CONFLICT(run_id, decision_key) DO NOTHING
+                """,
+                (run_id, decision_key, datetime.now(UTC).isoformat(), decision_json),
+            )
+            row = connection.execute(
+                """
+                SELECT * FROM inventory_decisions
+                WHERE run_id = ? AND decision_key = ?
+                """,
+                (run_id, decision_key),
+            ).fetchone()
+        assert row is not None
+        if str(row["decision_json"]) != decision_json:
+            raise ValueError("decision_key is already bound to a different inventory decision")
+        return InventoryDecisionRecord(
+            decision_id=int(row["decision_id"]),
+            run_id=int(row["run_id"]),
+            decision_key=str(row["decision_key"]),
+            created_at=str(row["created_at"]),
+            decision=json.loads(row["decision_json"]),
+        )
+
+    def list_inventory_decisions(self, run_id: int) -> tuple[InventoryDecisionRecord, ...]:
+        """Retrieve inventory decisions for a known run in insertion order."""
+        with self._connect() as connection:
+            run = connection.execute(
+                "SELECT run_id FROM forecast_runs WHERE run_id = ?", (run_id,)
+            ).fetchone()
+            if run is None:
+                raise KeyError(f"unknown run_id: {run_id}")
+            rows = connection.execute(
+                "SELECT * FROM inventory_decisions WHERE run_id = ? ORDER BY decision_id",
+                (run_id,),
+            ).fetchall()
+        return tuple(
+            InventoryDecisionRecord(
+                decision_id=int(row["decision_id"]),
+                run_id=int(row["run_id"]),
+                decision_key=str(row["decision_key"]),
+                created_at=str(row["created_at"]),
+                decision=json.loads(row["decision_json"]),
+            )
+            for row in rows
+        )
 
     @staticmethod
     def _record(row: sqlite3.Row) -> RunRecord:
