@@ -30,6 +30,8 @@ QUANTILES = (0.1, 0.5, 0.9)
 LEAD_TIMES = (7, 14)
 INITIAL_TRAIN_SIZE = 180
 
+
+
 def _baseline_error_summary(
     observations: list[dict[str, object]],
 ) -> dict[str, float | int]:
