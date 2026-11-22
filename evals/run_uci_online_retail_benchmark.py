@@ -204,9 +204,7 @@ def _prequential_baseline_error(
     ordered = sorted(errors)
     middle = len(ordered) // 2
     median_error = (
-        ordered[middle]
-        if len(ordered) % 2
-        else (ordered[middle - 1] + ordered[middle]) / 2.0
+        ordered[middle] if len(ordered) % 2 else (ordered[middle - 1] + ordered[middle]) / 2.0
     )
     return {
         "origin_count": len(errors),
@@ -228,9 +226,7 @@ def _coverage_diagnostics(results: list[dict[str, object]]) -> list[dict[str, ob
         interval_values = [
             cast(dict[str, float], item["interval_coverage"])["0.8"] for item in items
         ]
-        quantile_values = [
-            cast(dict[str, float], item["quantile_coverage"]) for item in items
-        ]
+        quantile_values = [cast(dict[str, float], item["quantile_coverage"]) for item in items]
         baseline_values = [
             cast(dict[str, float | int], item["baseline_median_error"]) for item in items
         ]
