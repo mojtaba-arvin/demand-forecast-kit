@@ -37,11 +37,11 @@ def test_prepare_daily_demand_excludes_cancellations_and_returns() -> None:
 def test_build_cohort_panel_fills_no_sale_days_and_is_deterministic() -> None:
     start = date(2011, 1, 1)
     rows = []
-    for day in range(20):
+    for day in range(200):
         rows.append({"series_id": "dense", "day": start.fromordinal(start.toordinal() + day), "demand": 1.0})
-    for day in range(0, 20, 4):
+    for day in range(0, 200, 4):
         rows.append({"series_id": "intermittent", "day": start.fromordinal(start.toordinal() + day), "demand": 2.0})
-    for day in range(0, 20, 2):
+    for day in range(0, 200, 25):
         rows.append({"series_id": "very-intermittent", "day": start.fromordinal(start.toordinal() + day), "demand": 1.0})
     daily = pl.DataFrame(rows)
 
@@ -50,7 +50,7 @@ def test_build_cohort_panel_fills_no_sale_days_and_is_deterministic() -> None:
 
     assert counts == {"dense": 1, "intermittent": 1, "very-intermittent": 1}
     assert first.equals(second)
-    assert first.height == 60
+    assert first.height == 600
     dense_zero = first.filter(
         (pl.col("series_id") == "dense") & (pl.col("timestamp") == datetime(2011, 1, 2))
     ).get_column("demand").item()
