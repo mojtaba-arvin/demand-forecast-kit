@@ -1,10 +1,15 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import polars as pl
 import pytest
 
-from demand_forecast_kit.data import DataColumns, scan_history, validate_history
+from demand_forecast_kit.data import (
+    DataColumns,
+    count_missing_periods,
+    scan_history,
+    validate_history,
+)
 
 
 def valid_frame() -> pl.DataFrame:
@@ -109,3 +114,52 @@ def test_data_columns_reject_duplicate_names() -> None:
 def test_data_columns_reject_blank_names() -> None:
     with pytest.raises(ValueError, match="blank"):
         DataColumns(series_id=" ", timestamp="date", demand="units")
+
+
+def test_count_missing_periods_reports_gaps_without_filling_them() -> None:
+    frame = pl.DataFrame(
+        {
+            "series_id": ["sku-1", "sku-1", "sku-1", "sku-2", "sku-2"],
+            "timestamp": [
+                datetime(2024, 1, 1),
+                datetime(2024, 1, 3),
+                datetime(2024, 1, 6),
+                datetime(2024, 1, 1),
+                datetime(2024, 1, 2),
+            ],
+        }
+    )
+
+    assert count_missing_periods(frame) == {"sku-1": 3, "sku-2": 0}
+    assert frame.height == 5
+
+
+def test_count_missing_periods_rejects_unaligned_timestamps() -> None:
+    frame = pl.DataFrame(
+        {
+            "series_id": ["sku-1", "sku-1"],
+            "timestamp": [datetime(2024, 1, 1), datetime(2024, 1, 1, 12)],
+        }
+    )
+    with pytest.raises(ValueError, match="do not align"):
+        count_missing_periods(frame)
+
+
+def test_validate_history_rejects_timezone_aware_timestamps() -> None:
+    frame = pl.DataFrame(
+        {
+            "series_id": ["sku-1"],
+            "timestamp": [datetime(2024, 1, 1, tzinfo=__import__("datetime").UTC)],
+            "demand": [1.0],
+        }
+    )
+    with pytest.raises(ValueError, match="timezone-aware"):
+        validate_history(frame)
+
+
+def test_count_missing_periods_validates_interval() -> None:
+    frame = pl.DataFrame(
+        {"series_id": ["sku-1"], "timestamp": [datetime(2024, 1, 1)]}
+    )
+    with pytest.raises(ValueError, match="interval must be positive"):
+        count_missing_periods(frame, interval=timedelta(0))
