@@ -186,6 +186,7 @@ def test_prequential_backtest_uses_prior_folds_only_and_reports_coverage() -> No
     assert set(result.quantile_coverage) == {0.1, 0.5, 0.9}
     assert set(result.mean_pinball_loss) == {0.1, 0.5, 0.9}
 
+
 def test_calibration_rejects_model_version_mismatch() -> None:
     with pytest.raises(ValueError, match="model version mismatch"):
         calibrate_lead_time_demand(
