@@ -3,6 +3,7 @@ name: Release candidate
 on:
   push:
     branches: ["work/parallel-i-release"]
+    tags: ["v*"]
     paths:
       - "pyproject.toml"
       - "README.md"
@@ -19,8 +20,6 @@ on:
       - "tests/**"
       - "evals/**"
       - ".github/workflows/release-candidate.yml"
-  push_tags:
-    tags: ["v*"]
   workflow_dispatch:
 
 permissions:
