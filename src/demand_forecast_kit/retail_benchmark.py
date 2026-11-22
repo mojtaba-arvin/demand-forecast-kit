@@ -106,7 +106,7 @@ def build_cohort_panel(
         else:
             candidates = summary.filter(pl.col("activity_rate") < 0.05)
 
-        series_ids = cast(list[str], candidates.get_column("series_id").to_list())
+        series_ids = [str(value) for value in candidates.get_column("series_id").to_list()]
         ranked = sorted(
             series_ids,
             key=lambda value: hashlib.sha256(value.encode("utf-8")).hexdigest(),
