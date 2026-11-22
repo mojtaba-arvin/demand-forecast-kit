@@ -30,7 +30,8 @@ Demand Forecast Kit is an open-source library and API for turning sales and inve
 - Write deterministic JSON evaluation artifacts with a SHA-256 dataset fingerprint and artifact digest.
 - Select a model independently for each SKU from historical rolling-origin evidence, with a strict forecast-origin cutoff, model-version checks, minimum evidence folds, and an explicit Seasonal Naive fallback.
 - Write auditable, deterministic routing decision artifacts.
-- Calibrate cumulative lead-time demand from same-series, same-model out-of-sample residual paths, with strict forecast-origin filtering and prequential coverage diagnostics.\n- Evaluate replenishment policies against realized cumulative lead-time demand, reporting shortage/holding costs, unit fill rate, and cycle service level.
+- Calibrate cumulative lead-time demand from same-series, same-model out-of-sample residual paths, with strict forecast-origin filtering and prequential coverage diagnostics.
+- Evaluate replenishment policies against realized cumulative lead-time demand, reporting shortage/holding costs, unit fill rate, and cycle service level.
 - Run an opt-in real-data benchmark on UCI Online Retail across dense, intermittent, and very-intermittent SKU cohorts.
 
 ## Empirical lead-time calibration benchmark
