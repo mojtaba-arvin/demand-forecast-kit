@@ -2,7 +2,7 @@ name: Statistical adapter CI
 
 on:
   push:
-    branches: ["main", "work/**"]
+    branches: ["main", "work/**", "integration/**"]
     paths:
       - "pyproject.toml"
       - "src/demand_forecast_kit/models/statistical.py"
