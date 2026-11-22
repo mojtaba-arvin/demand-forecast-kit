@@ -157,9 +157,7 @@ def _baseline_error_summary(
     observations: list[dict[str, object]],
 ) -> dict[str, float | int]:
     """Summarize baseline errors on the exact prequential calibration-eligible origins."""
-    errors = [
-        float(item["actual"]) - float(item["baseline_median"]) for item in observations
-    ]
+    errors = [float(item["actual"]) - float(item["baseline_median"]) for item in observations]
     if not errors:
         raise ValueError("at least one prequential observation is required")
     ordered = sorted(errors)
@@ -261,9 +259,7 @@ def _temporal_scale_experiment(
     """
     grouped: dict[tuple[str, str, int], list[dict[str, object]]] = defaultdict(list)
     for item in origin_results:
-        grouped[(str(item["cohort"]), str(item["model_id"]), int(item["lead_time"]))].append(
-            item
-        )
+        grouped[(str(item["cohort"]), str(item["model_id"]), int(item["lead_time"]))].append(item)
 
     calibration_offsets = (0, 2, 4, 6)
     holdout_offsets = (10, 12, 14)
@@ -291,9 +287,8 @@ def _temporal_scale_experiment(
                 for left, right in zip(selected_dates, selected_dates[1:], strict=False)
             ):
                 raise RuntimeError("temporal calibration and holdout origins must be disjoint")
-            if (
-                str(selected_holdout[0]["forecast_origin"])
-                <= str(selected_calibration[-1]["forecast_origin"])
+            if str(selected_holdout[0]["forecast_origin"]) <= str(
+                selected_calibration[-1]["forecast_origin"]
             ):
                 raise RuntimeError("holdout origins must follow the calibration block")
             calibration.extend(selected_calibration)
@@ -312,12 +307,7 @@ def _temporal_scale_experiment(
             )
             continue
 
-        median_shift = _median(
-            [
-                float(item["actual"]) - float(item["q50"])
-                for item in calibration
-            ]
-        )
+        median_shift = _median([float(item["actual"]) - float(item["q50"]) for item in calibration])
         width_scale = _fit_interval_scale(calibration, median_shift=0.0)
         bias_width_scale = _fit_interval_scale(calibration, median_shift=median_shift)
         summaries.append(
