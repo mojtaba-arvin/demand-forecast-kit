@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 from datetime import date, timedelta
 from pathlib import Path
+from typing import cast
 
 import polars as pl
 
@@ -81,8 +82,8 @@ def build_cohort_panel(
         raise ValueError("daily demand must not be empty")
 
     daily = daily.with_columns(pl.col("day").cast(pl.Date, strict=False))
-    first_day = _as_date(daily.get_column("day").min())
-    last_day = _as_date(daily.get_column("day").max())
+    first_day = _as_date(cast(object, daily.get_column("day").min()))
+    last_day = _as_date(cast(object, daily.get_column("day").max()))
     day_count = (last_day - first_day).days + 1
     if day_count < cohort_window_days:
         raise ValueError(
