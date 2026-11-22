@@ -2,8 +2,8 @@ from datetime import date, timedelta
 
 import pytest
 
-fastapi = pytest.importorskip("fastapi")
-from fastapi.testclient import TestClient
+testclient = pytest.importorskip("fastapi.testclient")
+TestClient = testclient.TestClient
 
 from demand_forecast_kit.api import create_app
 
