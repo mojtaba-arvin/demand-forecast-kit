@@ -207,6 +207,7 @@ python -m pip install ".[dev]"
 - [Benchmarking protocol](docs/benchmarking-protocol.md)
 - [Statistical and operational limitations](docs/limitations.md)
 - [Independent UCI Electricity benchmark](docs/benchmarks/uci-electricity-load.md)
+- [Expanded UCI Online Retail II benchmark](docs/benchmarks/uci-online-retail-ii.md)
 
 ## Metric definitions
 
