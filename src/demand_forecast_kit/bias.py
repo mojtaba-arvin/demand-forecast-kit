@@ -6,7 +6,6 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
 from math import isfinite
-from typing import cast
 
 from demand_forecast_kit.backtesting import BacktestReport, FoldEvaluation
 
@@ -70,8 +69,7 @@ def estimate_temporal_bias_correction(
 
     origin = _parse_origin(forecast_origin)
     candidates: list[FoldEvaluation] = []
-    evaluations = cast(tuple[FoldEvaluation, ...], report.evaluations)
-    for item in evaluations:
+    for item in report.evaluations:
         if item.series_id != series_id or item.model_id != model_id:
             continue
         end = _parse_origin(item.test_end_timestamp)
