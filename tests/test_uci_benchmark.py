@@ -246,7 +246,9 @@ def test_prepare_daily_demand_accepts_online_retail_ii_invoice_column() -> None:
 
     actual = prepare_daily_demand(source)
 
-    assert actual.to_dicts() == [{"series_id": "A", "day": date(2010, 1, 1), "demand": 3.0}]
+    assert actual.to_dicts() == [
+        {"series_id": "A", "day": date(2010, 1, 1), "demand": 3.0}
+    ]
 
 
 def test_prepare_daily_demand_requires_an_invoice_identifier_column() -> None:
