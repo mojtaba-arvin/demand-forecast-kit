@@ -20,6 +20,13 @@ from demand_forecast_kit.inventory import (
     ScenarioDecision,
     evaluate_inventory_policy,
 )
+from demand_forecast_kit.lead_time import (
+    LeadTimeCalibrationBacktest,
+    LeadTimeDemandDistribution,
+    backtest_lead_time_calibration,
+    calibrate_lead_time_demand,
+    to_inventory_scenario,
+)
 from demand_forecast_kit.metrics import (
     interval_coverage,
     mean_absolute_scaled_error,
@@ -56,6 +63,8 @@ __all__ = [
     "FoldEvaluation",
     "InventoryEvaluationReport",
     "InventoryScenario",
+    "LeadTimeCalibrationBacktest",
+    "LeadTimeDemandDistribution",
     "ModelRouter",
     "ModelSummary",
     "OrderRecommendation",
@@ -68,6 +77,9 @@ __all__ = [
     "TSBAdapter",
     "ThetaAdapter",
     "evaluate_inventory_policy",
+    "backtest_lead_time_calibration",
+    "calibrate_lead_time_demand",
+    "to_inventory_scenario",
     "interval_coverage",
     "mean_absolute_scaled_error",
     "newsvendor_order",
