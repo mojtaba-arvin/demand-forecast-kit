@@ -15,7 +15,6 @@ from evals.run_uci_online_retail_benchmark import (
     prepare_daily_demand,
 )
 
-
 def test_prepare_daily_demand_excludes_cancellations_and_returns() -> None:
     source = pl.DataFrame(
         {
@@ -38,7 +37,6 @@ def test_prepare_daily_demand_excludes_cancellations_and_returns() -> None:
         {"series_id": "A", "day": date(2011, 1, 1), "demand": 5.0},
         {"series_id": "B", "day": date(2011, 1, 3), "demand": 4.0},
     ]
-
 
 def test_build_cohort_panel_fills_no_sale_days_and_is_deterministic() -> None:
     start = date(2011, 1, 1)
@@ -84,12 +82,10 @@ def test_build_cohort_panel_fills_no_sale_days_and_is_deterministic() -> None:
     )
     assert dense_zero == 0.0
 
-
 def test_build_cohort_panel_rejects_invalid_sample_size() -> None:
     daily = pl.DataFrame({"series_id": ["A"], "day": [date(2011, 1, 1)], "demand": [1.0]})
     with pytest.raises(ValueError, match="positive integer"):
         build_cohort_panel(daily, max_skus_per_cohort=0)
-
 
 def test_cohort_assignment_uses_only_initial_training_window() -> None:
     start = date(2011, 1, 1)
@@ -116,7 +112,6 @@ def test_cohort_assignment_uses_only_initial_training_window() -> None:
     assert panel.get_column("series_id").unique().to_list() == ["stable-intermittent"]
     assert panel.height == 200
 
-
 def test_build_cohort_panel_requires_full_assignment_window() -> None:
     daily = pl.DataFrame(
         {
@@ -127,8 +122,6 @@ def test_build_cohort_panel_requires_full_assignment_window() -> None:
     )
     with pytest.raises(ValueError, match="at least 180 are required"):
         build_cohort_panel(daily)
-
-
 
 def test_coverage_diagnostics_exposes_sku_dispersion_and_tail_miscalibration() -> None:
     rows = [
@@ -177,7 +170,6 @@ def test_coverage_diagnostics_exposes_sku_dispersion_and_tail_miscalibration() -
             "series_with_mean_overforecast": 1,
         }
     ]
-
 
 def test_prequential_baseline_error_uses_only_calibration_eligible_origins() -> None:
     config = BacktestConfig(
