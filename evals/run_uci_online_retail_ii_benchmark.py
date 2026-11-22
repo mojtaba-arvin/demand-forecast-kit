@@ -108,7 +108,10 @@ def run_benchmark(
                         "pinball_losses": {
                             str(level): value for level, value in item.pinball_losses.items()
                         },
-                        "interval_coverages": {str(level): value for level, value in item.interval_coverages.items()},
+                        "interval_coverages": {
+                            str(level): value
+                            for level, value in item.interval_coverages.items()
+                        },
                     }
                 )
             skipped.extend(
