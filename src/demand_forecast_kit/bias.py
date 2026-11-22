@@ -79,7 +79,8 @@ def estimate_temporal_bias_correction(
             candidates.append(item)
     candidates.sort(key=lambda item: (_parse_origin(item.test_start_timestamp), item.fold))
 
-    selected = []
+    selected: list[float] = []
+    selected_folds = []
     previous_end: datetime | None = None
     versions: set[str] = set()
     for item in candidates:
@@ -97,6 +98,7 @@ def estimate_temporal_bias_correction(
         if any(not isfinite(value) for value in residuals):
             raise ValueError("calibration residuals must be finite")
         selected.extend(residuals)
+        selected_folds.append(item)
         previous_end = end
         versions.add(item.model_version)
 
@@ -104,9 +106,9 @@ def estimate_temporal_bias_correction(
         raise ValueError("no eligible pre-origin calibration paths are available")
     if len(versions) != 1:
         raise ValueError("calibration paths must use one consistent model version")
-    if len(candidates) < min_calibration_paths:
+    if len(selected_folds) < min_calibration_paths:
         raise ValueError(
-            f"insufficient pre-origin calibration paths: {len(candidates)}; "
+            f"insufficient non-overlapping pre-origin calibration paths: {len(selected_folds)}; "
             f"need at least {min_calibration_paths}"
         )
 
@@ -129,9 +131,9 @@ def estimate_temporal_bias_correction(
         model_version=model_version,
         forecast_origin=origin.isoformat(),
         correction=correction,
-        calibration_path_count=len(candidates),
+        calibration_path_count=len(selected_folds),
         latest_calibration_end=max(
-            (item.test_end_timestamp for item in candidates),
+            (item.test_end_timestamp for item in selected_folds),
             key=_parse_origin,
         ),
     )
