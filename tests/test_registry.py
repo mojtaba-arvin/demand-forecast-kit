@@ -137,3 +137,42 @@ def test_concurrent_idempotent_creates_return_one_run(tmp_path: Path) -> None:
 
     assert len(set(identifiers)) == 1
     assert registry.get_run(identifiers[0]).status == "created"
+
+
+def test_inventory_decisions_are_idempotent_and_immutable(tmp_path: Path) -> None:
+    registry = SQLiteRunRegistry(tmp_path / "decisions.sqlite")
+    run = registry.create_run(
+        idempotency_key="decision-run",
+        dataset_fingerprint="dataset",
+        model_id="seasonal-naive",
+        model_version="1",
+        config={"horizon": 7},
+    )
+    decision = {"sku": "sku-1", "quantity": 12, "target_stock": 20}
+
+    first = registry.record_inventory_decision(
+        run.run_id, decision_key="sku-1:2026-01-01", decision=decision
+    )
+    retry = registry.record_inventory_decision(
+        run.run_id, decision_key="sku-1:2026-01-01", decision=decision
+    )
+
+    assert retry == first
+    assert registry.list_inventory_decisions(run.run_id) == (first,)
+    with pytest.raises(ValueError, match="different inventory decision"):
+        registry.record_inventory_decision(
+            run.run_id,
+            decision_key="sku-1:2026-01-01",
+            decision={"sku": "sku-1", "quantity": 15},
+        )
+
+
+def test_inventory_decision_requires_existing_run(tmp_path: Path) -> None:
+    registry = SQLiteRunRegistry(tmp_path / "decisions.sqlite")
+
+    with pytest.raises(KeyError, match="unknown run_id"):
+        registry.record_inventory_decision(
+            404, decision_key="decision", decision={"quantity": 1}
+        )
+    with pytest.raises(KeyError, match="unknown run_id"):
+        registry.list_inventory_decisions(404)
