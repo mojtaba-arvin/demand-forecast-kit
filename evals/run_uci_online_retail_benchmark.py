@@ -164,12 +164,14 @@ def run_benchmark(
     )
 
     results: list[dict[str, object]] = []
+    panel_fingerprints: dict[str, str] = {}
     skipped: list[dict[str, str]] = []
     for cohort in COHORTS:
         cohort_panel = panel.filter(pl.col("cohort") == cohort).drop("cohort")
         if cohort_panel.is_empty():
             continue
         report = run_backtest(cohort_panel, adapters, config)
+        panel_fingerprints[cohort] = report.dataset_fingerprint
         for series_id in cohort_panel.get_column("series_id").unique().sort().to_list():
             for adapter in adapters:
                 for lead_time in LEAD_TIMES:
@@ -273,12 +275,12 @@ def run_benchmark(
             "max_skus_per_cohort": max_skus_per_cohort,
         },
         "panel": {
-            "start_date": str(panel.get_column("timestamp").min().date()),
-            "end_date": str(panel.get_column("timestamp").max().date()),
+            "start_date": str(panel.get_column("timestamp").min()),
+            "end_date": str(panel.get_column("timestamp").max()),
             "calendar_days": panel.get_column("timestamp").n_unique(),
             "sku_counts": cohort_counts,
             "selected_series_count": panel.get_column("series_id").n_unique(),
-            "panel_fingerprint": report.dataset_fingerprint if results else None,
+            "panel_fingerprints_by_cohort": panel_fingerprints,
         },
         "macro_summary": macro_summary,
         "per_series_results": results,
