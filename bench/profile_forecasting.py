@@ -35,17 +35,23 @@ def main() -> None:
     elapsed = time.perf_counter() - started
     _, peak_bytes = tracemalloc.get_traced_memory()
     tracemalloc.stop()
-    print(json.dumps({
-        "python": platform.python_version(),
-        "platform": platform.platform(),
-        "adapter": adapter.model_id,
-        "series": args.series,
-        "history": args.history,
-        "horizon": args.horizon,
-        "elapsed_seconds": round(elapsed, 6),
-        "series_per_second": round(args.series / elapsed, 3),
-        "peak_traced_bytes": peak_bytes,
-    }, sort_keys=True, indent=2))
+    print(
+        json.dumps(
+            {
+                "python": platform.python_version(),
+                "platform": platform.platform(),
+                "adapter": adapter.model_id,
+                "series": args.series,
+                "history": args.history,
+                "horizon": args.horizon,
+                "elapsed_seconds": round(elapsed, 6),
+                "series_per_second": round(args.series / elapsed, 3),
+                "peak_traced_bytes": peak_bytes,
+            },
+            sort_keys=True,
+            indent=2,
+        )
+    )
 
 
 if __name__ == "__main__":
