@@ -11,6 +11,7 @@ import polars as pl
 
 INITIAL_TRAIN_SIZE = 180
 COHORTS = ("dense", "intermittent", "very-intermittent")
+MIN_ACTIVE_DAYS = 8
 
 
 def _as_date(value: object) -> date:
@@ -96,7 +97,7 @@ def build_cohort_panel(
         cohort_history.group_by("series_id")
         .agg(pl.len().alias("active_days"))
         .with_columns((pl.col("active_days") / cohort_window_days).alias("activity_rate"))
-        .filter(pl.col("active_days") >= 8)
+        .filter(pl.col("active_days") >= MIN_ACTIVE_DAYS)
     )
 
     selected: dict[str, list[str]] = {}
