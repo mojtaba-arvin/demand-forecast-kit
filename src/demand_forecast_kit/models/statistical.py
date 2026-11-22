@@ -49,7 +49,7 @@ def _validated_inputs(
     quantile_levels: Sequence[float],
     seed: int,
 ) -> tuple[tuple[float, ...], tuple[float, ...]]:
-    if not isinstance(series_id, str) or not series_id.strip():
+    if not series_id.strip():
         raise ValueError("series_id must not be blank")
     _positive_int("horizon", horizon)
     if type(seed) is not int or seed < 0:
@@ -174,12 +174,11 @@ class _StatsForecastAdapter:
                 f"training observations for horizon={horizon}; received {len(values)}"
             )
 
-        import numpy as np
-
         models_module, utils_module = _load_statsforecast()
+        numpy_module = import_module("numpy")
         model = self._new_model(models_module, utils_module, horizon)
         output = model.forecast(
-            y=np.asarray(values, dtype=np.float64),
+            y=numpy_module.asarray(values, dtype=numpy_module.float64),
             h=horizon,
             level=list(requested_intervals) if requested_intervals else None,
         )
@@ -213,7 +212,7 @@ class AutoETSAdapter(_StatsForecastAdapter):
     def __init__(self, season_length: int = 1, model: str = "ZZZ") -> None:
         super().__init__()
         _positive_int("season_length", season_length)
-        if not isinstance(model, str) or len(model) != 3:
+        if len(model) != 3:
             raise ValueError("model must be a three-character ETS specification")
         self.season_length = season_length
         self.model = model
