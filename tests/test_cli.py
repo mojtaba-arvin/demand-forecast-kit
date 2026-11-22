@@ -11,7 +11,10 @@ def test_cli_writes_deterministic_json_forecast(tmp_path) -> None:
     source = tmp_path / "history.csv"
     start = date(2026, 1, 1)
     rows = ["series_id,timestamp,demand"]
-    rows.extend(f"sku-a,{start + timedelta(days=index)},{index % 7 + 1}" for index in range(21))
+    rows.extend(
+        f"sku-a,{start + timedelta(days=index)},{index % 7 + 1}"
+        for index in range(21)
+    )
     source.write_text("\n".join(rows) + "\n", encoding="utf-8")
     output = tmp_path / "nested" / "forecast.json"
 
@@ -29,14 +32,23 @@ def test_cli_writes_tabular_forecast_formats(tmp_path, output_format: str) -> No
     source = tmp_path / "history.csv"
     start = date(2026, 1, 1)
     rows = ["series_id,timestamp,demand"]
-    rows.extend(f"sku-a,{start + timedelta(days=index)},{index % 7 + 1}" for index in range(21))
-    source.write_text("\\n".join(rows) + "\\n", encoding="utf-8")
+    rows.extend(
+        f"sku-a,{start + timedelta(days=index)},{index % 7 + 1}"
+        for index in range(21)
+    )
+    source.write_text("\n".join(rows) + "\n", encoding="utf-8")
     output = tmp_path / f"forecast.{output_format}"
 
-    assert (
-        main([str(source), "--horizon", "3", "--format", output_format, "--output", str(output)])
-        == 0
-    )
+    arguments = [
+        str(source),
+        "--horizon",
+        "3",
+        "--format",
+        output_format,
+        "--output",
+        str(output),
+    ]
+    assert main(arguments) == 0
     frame = pl.read_csv(output) if output_format == "csv" else pl.read_parquet(output)
 
     assert set(frame.columns) == {
@@ -53,7 +65,7 @@ def test_cli_writes_tabular_forecast_formats(tmp_path, output_format: str) -> No
 def test_cli_requires_output_for_tabular_formats(tmp_path) -> None:
     source = tmp_path / "history.csv"
     source.write_text(
-        "series_id,timestamp,demand\\nsku-a,2026-01-01,1\\n",
+        "series_id,timestamp,demand\nsku-a,2026-01-01,1\n",
         encoding="utf-8",
     )
 
