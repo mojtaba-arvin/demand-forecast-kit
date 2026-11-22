@@ -85,7 +85,9 @@ def estimate_demand_driver_effects(
     predicted = tuple(intercept + price_effect * row[1] + promotion_effect * row[2] for row in rows)
     mean_demand = fsum(demand) / len(demand)
     total = fsum((actual - mean_demand) ** 2 for actual in demand)
-    residual = fsum((actual - estimate) ** 2 for actual, estimate in zip(demand, predicted, strict=True))
+    residual = fsum(
+        (actual - estimate) ** 2 for actual, estimate in zip(demand, predicted, strict=True)
+    )
     r_squared = (
         1.0
         if total <= 1e-12 and residual <= 1e-12
