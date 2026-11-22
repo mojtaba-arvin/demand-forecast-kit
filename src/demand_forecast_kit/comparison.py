@@ -5,7 +5,7 @@ from __future__ import annotations
 import random
 from collections.abc import Mapping
 from dataclasses import dataclass
-from math import ceil, isfinite
+from math import isfinite
 
 
 @dataclass(frozen=True, slots=True)
@@ -119,8 +119,9 @@ def aggregate_macro_and_volume_weighted(
     """Report unweighted series macro mean beside a volume-weighted mean."""
     if not values or set(values) != set(weights):
         raise ValueError("values and weights must contain the same non-empty series IDs")
-    normalized_values = tuple(float(value) for value in values.values())
-    normalized_weights = tuple(float(weight) for weight in weights.values())
+    series_ids = sorted(values)
+    normalized_values = tuple(float(values[series_id]) for series_id in series_ids)
+    normalized_weights = tuple(float(weights[series_id]) for series_id in series_ids)
     if any(not isfinite(value) for value in normalized_values):
         raise ValueError("metric values must be finite")
     if any(not isfinite(weight) or weight < 0.0 for weight in normalized_weights):
