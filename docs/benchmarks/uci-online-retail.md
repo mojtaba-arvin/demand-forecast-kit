@@ -137,6 +137,83 @@ No calibration parameter was tuned on these evaluation outcomes. The next
 valid experiment must fit any bias/scale/conformal adjustment using only earlier
 calibration origins and evaluate it on a later, untouched chronological block.
 
+
+## Purged temporal holdout: residual-width and median-bias adjustments
+
+The runner now exports each calibrated forecast origin and compares two
+post-calibration adjustments without using the holdout outcomes for fitting.
+The experiment ran successfully on commit
+`5c9af0014c6854204fefd20fe5b21dd062eeb765`:
+
+- [Temporal holdout workflow](https://github.com/mojtaba-arvin/demand-forecast-kit/actions/runs/45050049303)
+- [Schema v2 JSON artifact](https://github.com/mojtaba-arvin/demand-forecast-kit/actions/runs/45050049303/artifacts/14765157630)
+
+### Split and fitting protocol
+
+For each SKU/model/lead-time series, the 16 eligible prequential origins are
+ordered chronologically. The split is fixed before scoring:
+
+- Calibration offsets: 0, 2, 4, and 6 (four non-overlapping 14-day target windows).
+- Holdout offsets: 10, 12, and 14 (three non-overlapping 14-day target windows).
+- The other nine offsets are purged. The gap between the final calibration
+  origin and first holdout origin is also greater than the 14-day target horizon.
+- Per cohort/model/lead-time slice this yields 40 calibration observations
+  (10 SKUs × 4 origins) and 30 holdout observations (10 SKUs × 3 origins).
+
+Two adjustments are fit on the calibration block only:
+
+1. **Width scaling:** multiply the distances from calibrated P50 to P10/P90 by
+   one factor selected from `[0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4]`, minimizing
+   the combined P10 and P90 pinball loss on calibration observations.
+2. **Median bias + width scaling:** shift all quantiles by the median
+   `actual - calibrated P50` error from the calibration block, then fit the
+   width factor using the same calibration-only pinball objective.
+
+The fitted parameters remain fixed for the later holdout origins. The underlying
+forecast and residual-path calibrator continue their normal prequential updates
+using only observations available before each forecast origin.
+
+### Holdout results
+
+The table equally averages the six model/lead-time slices within each cohort.
+Tail pinball is the sum of P10 and P90 pinball losses (lower is better).
+Demand units differ substantially across cohorts, so compare methods within a
+cohort, not across cohorts.
+
+| Cohort | Baseline P80 | Width-scaled P80 | Bias+width P80 | Baseline tail pinball | Width-scaled tail pinball | Baseline / scaled interval width |
+|---|---:|---:|---:|---:|---:|---:|
+| Dense | 0.550 | 0.733 | 0.678 | 50.435 | 56.540 | 211.50 / 371.43 |
+| Intermittent | 0.639 | 0.772 | 0.800 | 71.880 | 70.693 | 241.25 / 390.95 |
+| Very intermittent | 0.839 | 0.861 | 0.861 | 2.755 | 2.986 | 12.74 / 16.84 |
+
+Across the 18 cohort/model/lead-time slices:
+
+- Width scaling increased holdout P80 coverage in 12/18 slices. However,
+  P10+P90 pinball worsened in 8/18 slices and improved in only 5/18.
+- Median-bias plus width scaling increased P80 coverage in 13/18 slices, but
+  tail pinball worsened in 10/18 and improved in 6/18.
+- Dense coverage improved on average, but tail pinball rose about 12% and
+  mean interval width rose about 76% under width scaling. This is a substantial
+  sharpness penalty, not a free calibration improvement.
+- Intermittent results are the most promising: bias+width reached 0.800 mean
+  P80 coverage versus 0.639 baseline, with a small reduction in mean tail
+  pinball. But mean interval width increased about 62%, and each slice has only
+  30 holdout observations.
+- Very-intermittent coverage was already near nominal. Scaling increased width
+  and tail pinball without a meaningful coverage need.
+
+### Decision
+
+**Do not enable a global scale or bias correction by default.** The holdout
+shows a coverage/sharpness trade-off, not a uniformly superior calibration
+method. Intermittent-specific scaling is a candidate for a larger follow-up,
+but this sample is too small to promote it. The holdout is chronological and
+purged within the same retailer/SKU sample; it is not an independent dataset.
+The three non-overlapping holdout origins per SKU are insufficient for strong
+significance claims, and common retailer-wide shocks can still correlate SKUs.
+No inventory-policy savings or production-readiness claim follows from this
+experiment.
+
 ## Real-data run: 2026-11-22
 
 The first run on commit `da76574...` used full-history cohort assignment and is
