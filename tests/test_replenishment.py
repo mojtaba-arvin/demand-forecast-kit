@@ -13,8 +13,6 @@ def test_reorder_point_rejects_unbracketed_or_crossing_quantiles() -> None:
         reorder_point({0.1: 10.0, 0.5: 20.0}, service_level=0.9)
     with pytest.raises(ValueError, match="non-decreasing"):
         reorder_point({0.1: 20.0, 0.9: 10.0}, service_level=0.5)
-    with pytest.raises(ValueError, match="unique"):
-        reorder_point({0.5: 10.0, 0.5000000000000000: 11.0}, service_level=0.5)
 
 
 def test_safety_stock_is_non_negative_and_validates_inputs() -> None:
