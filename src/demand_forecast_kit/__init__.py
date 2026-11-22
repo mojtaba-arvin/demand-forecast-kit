@@ -20,14 +20,25 @@ from demand_forecast_kit.metrics import (
     pinball_loss,
     weighted_quantile_loss,
 )
-from demand_forecast_kit.models import ForecastAdapter, SeasonalNaiveAdapter
+from demand_forecast_kit.models import (
+    AutoARIMAAdapter,
+    AutoETSAdapter,
+    CrostonAdapter,
+    ForecastAdapter,
+    SeasonalNaiveAdapter,
+    ThetaAdapter,
+    TSBAdapter,
+)
 
 __version__ = "0.1.0"
 
 __all__ = [
     "ArtifactMetadata",
+    "AutoARIMAAdapter",
+    "AutoETSAdapter",
     "BacktestConfig",
     "BacktestReport",
+    "CrostonAdapter",
     "ForecastAdapter",
     "FoldEvaluation",
     "ModelSummary",
@@ -36,6 +47,8 @@ __all__ = [
     "RollingOriginSplit",
     "SeasonalNaiveAdapter",
     "SkippedSeries",
+    "TSBAdapter",
+    "ThetaAdapter",
     "interval_coverage",
     "mean_absolute_scaled_error",
     "newsvendor_order",

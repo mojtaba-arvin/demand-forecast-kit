@@ -4,7 +4,7 @@
 
 Demand Forecast Kit is an open-source library and API for turning sales and inventory history into demand distributions and replenishment recommendations. It is designed for small and medium-sized businesses, product developers, and researchers who need a reproducible forecasting workflow without operating a distributed data platform.
 
-> **Project status: early development.** The package includes canonical input validation, a model-adapter contract, a deterministic seasonal-naive reference adapter, a newsvendor decision primitive, and a rolling-origin evaluation engine. It is not yet an end-to-end production forecasting service. Performance and accuracy targets in the engineering brief have not been measured.
+> **Project status: early development.** The package includes canonical input validation, a model-adapter contract, a deterministic seasonal-naive reference adapter, optional statistical forecasting adapters, a newsvendor decision primitive, and a rolling-origin evaluation engine. It is not yet an end-to-end production forecasting service. Performance and accuracy targets in the engineering brief have not been measured.
 
 ## Design principles
 
@@ -20,14 +20,49 @@ Demand Forecast Kit is an open-source library and API for turning sales and inve
 - Scan CSV and Parquet input through Polars lazy frames.
 - Validate required series, timestamp, and non-negative finite demand fields.
 - Represent horizon-aligned, monotone quantile forecasts.
-- Run a deterministic seasonal-naive reference adapter.
+- Run a deterministic seasonal-naive reference adapter without scientific-model dependencies.
+- Run optional StatsForecast-backed AutoETS, AutoARIMA, and Theta adapters for dense demand.
+- Run CrostonClassic, CrostonOptimized, CrostonSBA, and TSB adapters for intermittent demand, with conformal prediction intervals.
 - Convert a supplied lead-time demand quantile curve and inventory position into a pack-size-aware newsvendor order quantity.
 - Generate deterministic synthetic daily demand for tests and examples.
 - Run chronological rolling-origin backtests across multiple adapters and demand series.
 - Report MASE, normalized WQL, per-quantile pinball loss, and central interval coverage.
 - Write deterministic JSON evaluation artifacts with a SHA-256 dataset fingerprint and artifact digest.
 
-Not implemented yet: automatic model routing, AutoETS/ARIMA/Theta/Croston adapters, foundation-model adapters, conformal calibration, hierarchical reconciliation, a persistent run registry, FastAPI endpoints, CLI commands, Rust extensions, and benchmark claims.
+Not implemented yet: automatic model routing, foundation-model adapters, conformal calibration outside the intermittent-model interval backend, hierarchical reconciliation, a persistent run registry, FastAPI endpoints, CLI commands, Rust extensions, and benchmark claims.
+
+## Statistical adapters
+
+The core install still requires only Polars. Install the optional statistical backend when you need the model adapters:
+
+```bash
+python -m pip install "demand-forecast-kit[stats]"
+```
+
+The adapters use [Nixtla StatsForecast](https://nixtlaverse.nixtla.io/statsforecast/src/core/models.html). AutoETS, AutoARIMA, and Theta use their native prediction intervals. Croston and TSB use StatsForecast conformal intervals fitted only on the training history. The package imports this backend lazily and raises an actionable installation message when the `stats` extra is missing.
+
+Example:
+
+```python
+from demand_forecast_kit.backtesting import BacktestConfig, run_backtest
+from demand_forecast_kit.models.seasonal_naive import SeasonalNaiveAdapter
+from demand_forecast_kit.models.statistical import AutoETSAdapter, ThetaAdapter
+from demand_forecast_kit.data import scan_history
+
+history = scan_history("sales.parquet")
+report = run_backtest(
+    history,
+    [
+        SeasonalNaiveAdapter(season_length=7),
+        AutoETSAdapter(season_length=7),
+        ThetaAdapter(season_length=7, decomposition_type="additive"),
+    ],
+    BacktestConfig(initial_train_size=56, horizon=14, step=7, season_length=7),
+)
+print(report.model_summaries)
+```
+
+StatsForecast interval bounds are mapped to marginal quantiles; negative lower bounds are clipped to zero. These forecasts do not encode dependence between future periods and must not be summed to obtain cumulative lead-time demand quantiles. Validate coverage and decision cost on the target dataset before operational use.
 
 ## Input contract
 
@@ -50,22 +85,6 @@ Python 3.13 or newer is required.
 python -m pip install ".[dev]"
 ```
 
-```python
-from demand_forecast_kit.backtesting import BacktestConfig, run_backtest, write_evaluation_artifact
-from demand_forecast_kit.models.seasonal_naive import SeasonalNaiveAdapter
-from demand_forecast_kit.data import scan_history
-
-history = scan_history("sales.parquet")
-report = run_backtest(
-    history,
-    [SeasonalNaiveAdapter(season_length=7)],
-    BacktestConfig(initial_train_size=56, horizon=14, step=7, season_length=7),
-)
-artifact = write_evaluation_artifact(report, "artifacts/seasonal-naive-evaluation.json")
-print(report.model_summaries)
-print(artifact.sha256)
-```
-
 ## Metric definitions
 
 - **MASE:** mean absolute median-forecast error divided by the in-sample seasonal-naive scale. Undefined scales are reported as null.
@@ -73,7 +92,7 @@ print(artifact.sha256)
 - **Pinball loss:** reported separately for each requested quantile.
 - **Coverage:** empirical inclusion rate for symmetric central intervals. Defaults are P10-P90 (80%) and P05-P95 (90%).
 
-Model summaries are macro-averages over series/folds, not volume-weighted pooled metrics. Only compare results with matching dataset fingerprints, split configurations, quantile levels, and seeds. The seasonal-naive adapter's marginal quantiles are not a joint path or cumulative lead-time distribution.
+Model summaries are macro-averages over series/folds, not volume-weighted pooled metrics. Only compare results with matching dataset fingerprints, split configurations, quantile levels, and seeds. The seasonal-naive adapter's marginal quantiles are not a joint path or cumulative lead-time distribution. The same restriction applies to the marginal quantiles returned by the statistical adapters.
 
 ## Development
 
@@ -85,7 +104,7 @@ pyright
 pytest
 ```
 
-CI runs offline with respect to datasets: tests use generated fixtures and do not download evaluation data. Dependency installation still uses the package index. Dataset acquisition and model-weight downloads are separate, opt-in evaluation workflows and must be recorded in datasets/DATASETS.lock or the model registry before use.
+The core test suite does not require the optional StatsForecast extra. Its model-integration suite runs in a separate CI job with the `stats` extra installed. CI does not download evaluation datasets or model weights. Dependency installation uses the package index; external evaluation data and pretrained weights are outside the automated test workflow.
 
 ## Repository map
 
@@ -98,7 +117,7 @@ CI runs offline with respect to datasets: tests use generated fixtures and do no
 - docs/specs/: executable work specifications.
 - evals/: evaluation methodology and leakage controls.
 - rust/: reserved for profiled hot paths; no Rust code is shipped yet.
-- tests/: deterministic offline test suite.
+- tests/: deterministic offline test suite and optional-backend integration tests.
 
 ## License
 

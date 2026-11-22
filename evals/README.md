@@ -1,18 +1,31 @@
 # Evaluation
 
-Evaluation is separate from unit tests and model training. The initial repository contains no third-party datasets and performs no network dataset or model-weight download in CI.
+Evaluation is separate from unit tests and model training. The repository contains no third-party evaluation datasets and does not download evaluation data or model weights in CI.
 
 ## Rolling-origin evaluation
 
-Run the deterministic synthetic smoke evaluation locally with:
+Run the deterministic baseline smoke evaluation locally with:
 
-\`\`\`bash
+```bash
 python evals/run_synthetic_smoke.py
-\`\`\`
+```
 
-The command creates artifacts/synthetic-baseline-evaluation.json. GitHub Actions uploads the same generated report as the synthetic-evaluation-report artifact. It is a pipeline smoke artifact, not a benchmark result or a claim of forecasting quality.
+It creates `artifacts/synthetic-baseline-evaluation.json`. GitHub Actions uploads the same generated report as the `synthetic-evaluation-report` artifact. It is a pipeline smoke artifact, not a benchmark result or a claim of forecasting quality.
 
-Use demand_forecast_kit.backtesting.run_backtest for user datasets and compare models only with matching dataset fingerprints, split settings, quantile levels, and seeds.
+## Statistical-adapter comparison
+
+Install the optional StatsForecast dependency and run the dense/intermittent adapter comparison:
+
+```bash
+python -m pip install -e ".[stats]"
+python evals/run_statistical_smoke.py
+```
+
+The command compares the seasonal-naive reference against AutoETS, AutoARIMA, and Theta on one deterministic dense synthetic series, then compares the baseline against CrostonOptimized and TSB on a deterministic intermittent synthetic series. It writes separate JSON reports under `artifacts/`. CI uploads both reports as the `statistical-adapter-evaluation` artifact.
+
+These synthetic comparisons verify adapter execution, rolling-origin integration, and artifact serialization only. They are not evidence that one model is more accurate than another and must not be presented as benchmark performance.
+
+Use `demand_forecast_kit.backtesting.run_backtest` for user datasets and compare models only with matching dataset fingerprints, split settings, quantile levels, and seeds.
 
 ## Metrics and interpretation
 

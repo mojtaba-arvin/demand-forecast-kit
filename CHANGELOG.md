@@ -8,6 +8,9 @@ This project follows Semantic Versioning and Keep a Changelog.
 
 ### Added
 
+- Optional StatsForecast-backed AutoETS, AutoARIMA, and Theta adapters for dense demand series.
+- Optional CrostonClassic, CrostonOptimized, CrostonSBA, and TSB adapters with conformal prediction intervals.
+- A dedicated statistical-adapter integration workflow and synthetic dense/intermittent rolling-origin evaluation artifacts.
 - Rolling-origin expanding/sliding-window evaluation for multiple model adapters and demand series.
 - MASE, normalized WQL, per-quantile pinball loss, and central interval coverage metrics.
 - Deterministic JSON evaluation reports with dataset fingerprints and artifact SHA-256 digests.
