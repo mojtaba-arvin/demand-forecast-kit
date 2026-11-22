@@ -94,7 +94,10 @@ def quantile_coverage_estimates(
 
     return {
         level: wilson_coverage_interval(
-            tuple(actual <= predicted for actual, predicted in zip(observed, normalized[level], strict=True)),
+            tuple(
+                actual <= predicted
+                for actual, predicted in zip(observed, normalized[level], strict=True)
+            ),
             confidence_z=confidence_z,
         )
         for level in levels
