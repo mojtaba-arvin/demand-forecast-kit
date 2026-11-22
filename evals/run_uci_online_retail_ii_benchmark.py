@@ -6,7 +6,6 @@ import argparse
 import json
 from pathlib import Path
 from typing import cast
-
 import polars as pl
 
 from demand_forecast_kit.backtesting import BacktestConfig, run_backtest
