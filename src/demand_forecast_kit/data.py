@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
+from math import isfinite
 from pathlib import Path
 
 import polars as pl
@@ -212,10 +213,8 @@ def count_demand_outliers(
     values differing from the median are flagged; constant series have no
     outliers. This is a review signal, not an instruction to clip or delete data.
     """
-    if not isinstance(threshold, (int, float)) or not float(threshold) > 0.0:
-        raise ValueError("threshold must be positive")
-    if not float(threshold) < float("inf"):
-        raise ValueError("threshold must be finite")
+    if type(threshold) not in (int, float) or not isfinite(threshold) or threshold <= 0.0:
+        raise ValueError("threshold must be finite and positive")
     required = {"series_id", "demand"}
     missing = sorted(required - set(frame.columns))
     if missing:
@@ -225,7 +224,7 @@ def count_demand_outliers(
     for series in frame.partition_by("series_id", maintain_order=True):
         series_id = str(series["series_id"][0])
         values = [float(value) for value in series.get_column("demand").to_list()]
-        if not values or any(not value == value or abs(value) == float("inf") for value in values):
+        if not values or any(not isfinite(value) for value in values):
             raise ValueError("demand must contain finite values")
         ordered = sorted(values)
         middle = len(ordered) // 2
