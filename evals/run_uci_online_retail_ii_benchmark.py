@@ -106,10 +106,7 @@ def run_benchmark(
                         "pinball_losses": {
                             str(level): value for level, value in item.pinball_losses.items()
                         },
-                        "interval_coverages": {
-                            str(level): value
-                            for level, value in item.interval_coverages.items()
-                        },
+                        "interval_coverages": {str(level): value for level, value in item.interval_coverages.items()},
                     }
                 )
             skipped.extend(
@@ -131,9 +128,7 @@ def run_benchmark(
         "provenance": {
             "dataset": "UCI Online Retail II",
             "creator": "Daqing Chen",
-            "citation": (
-                "Chen, D. (2012). Online Retail II. UCI Machine Learning Repository."
-            ),
+            "citation": ("Chen, D. (2012). Online Retail II. UCI Machine Learning Repository."),
             "doi": DATASET_DOI,
             "source_url": DATASET_URL,
             "license": "CC BY 4.0",
