@@ -8,7 +8,6 @@ from pathlib import Path
 
 import polars as pl
 
-
 INITIAL_TRAIN_SIZE = 180
 COHORTS = ("dense", "intermittent", "very-intermittent")
 
