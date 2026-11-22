@@ -128,7 +128,7 @@ class _StatsForecastAdapter:
         model_class = getattr(models_module, self._model_class_name)
         kwargs = self._model_kwargs()
         if self._requires_conformal_intervals:
-            conformal_class = getattr(utils_module, "ConformalIntervals")
+            conformal_class = utils_module.ConformalIntervals
             kwargs["prediction_intervals"] = conformal_class(
                 n_windows=self.conformal_windows,
                 h=horizon,
