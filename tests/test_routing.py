@@ -15,7 +15,7 @@ from demand_forecast_kit.backtesting import (
 )
 from demand_forecast_kit.contracts import QuantileForecast
 from demand_forecast_kit.models.seasonal_naive import SeasonalNaiveAdapter
-from demand_forecast_kit.routing import ModelRouter, RoutingDecision, write_routing_artifact
+from demand_forecast_kit.routing import ModelRouter, write_routing_artifact
 
 
 class StubAdapter:

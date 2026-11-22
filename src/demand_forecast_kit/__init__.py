@@ -20,12 +20,6 @@ from demand_forecast_kit.metrics import (
     pinball_loss,
     weighted_quantile_loss,
 )
-from demand_forecast_kit.routing import (
-    CandidateScore,
-    ModelRouter,
-    RoutingDecision,
-    write_routing_artifact,
-)
 from demand_forecast_kit.models import (
     AutoARIMAAdapter,
     AutoETSAdapter,
@@ -34,6 +28,13 @@ from demand_forecast_kit.models import (
     SeasonalNaiveAdapter,
     ThetaAdapter,
     TSBAdapter,
+)
+
+from demand_forecast_kit.routing import (
+    CandidateScore,
+    ModelRouter,
+    RoutingDecision,
+    write_routing_artifact,
 )
 
 __version__ = "0.1.0"

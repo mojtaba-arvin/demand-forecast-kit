@@ -6,11 +6,8 @@ from collections.abc import Sequence
 from datetime import timedelta
 from pathlib import Path
 
-import polars as pl
-
 from demand_forecast_kit.backtesting import BacktestConfig, run_backtest
 from demand_forecast_kit.contracts import QuantileForecast
-from demand_forecast_kit.models.base import ForecastAdapter
 from demand_forecast_kit.models.seasonal_naive import SeasonalNaiveAdapter
 from demand_forecast_kit.routing import ModelRouter, write_routing_artifact
 from demand_forecast_kit.synthetic import generate_synthetic_history
