@@ -103,7 +103,10 @@ def _eligible_residual_paths(
             raise ValueError("backtest evaluations must contain median (0.5) forecasts")
         if len(item.actuals) != report.config.horizon or len(median) != report.config.horizon:
             raise ValueError("backtest residual paths must match the configured horizon")
-        residuals = tuple(actual - forecast for actual, forecast in zip(item.actuals, median, strict=True))
+        residuals = tuple(
+            actual - forecast
+            for actual, forecast in zip(item.actuals, median, strict=True)
+        )
         if any(not isfinite(value) for value in residuals):
             raise ValueError("backtest residual paths must contain only finite values")
         selected.append((item, residuals))
@@ -243,7 +246,10 @@ def backtest_lead_time_calibration(
     losses = {level: 0.0 for level in levels}
     interval_hits: dict[float, int] = {}
     interval_levels = tuple(
-        level for level in (0.8, 0.9) if any(isclose(value, (1.0 - level) / 2.0, abs_tol=1e-10) for value in levels) and any(isclose(value, (1.0 + level) / 2.0, abs_tol=1e-10) for value in levels)
+        level
+        for level in (0.8, 0.9)
+        if any(isclose(value, (1.0 - level) / 2.0, abs_tol=1e-10) for value in levels)
+        and any(isclose(value, (1.0 + level) / 2.0, abs_tol=1e-10) for value in levels)
     )
     for nominal in interval_levels:
         interval_hits[nominal] = 0
