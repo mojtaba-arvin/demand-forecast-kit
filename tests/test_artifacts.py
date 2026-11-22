@@ -40,7 +40,7 @@ def test_artifact_store_detects_corruption(tmp_path) -> None:
 def test_artifact_store_rejects_non_bytes(tmp_path) -> None:
     store = FileArtifactStore(tmp_path / "artifacts")
 
-    with pytest.raises(TypeError, match="bytes"):
+    with pytest.raises(TypeError, match="encoded"):
         store.put("not bytes")  # type: ignore[arg-type]
 
 
@@ -57,3 +57,40 @@ def test_artifact_store_rejects_symlinked_digest_directory(tmp_path) -> None:
         store.put(b"payload")
     with pytest.raises(OSError, match="directory"):
         store.get(digest)
+
+
+def test_artifact_store_rejects_symlinked_artifact_file(tmp_path) -> None:
+    root = tmp_path / "artifacts"
+    store = FileArtifactStore(root)
+    artifact = store.put(b"payload")
+    outside = tmp_path / "outside.bin"
+    outside.write_bytes(b"payload")
+    path = store.root / artifact.path
+    path.unlink()
+    path.symlink_to(outside)
+
+    with pytest.raises(OSError, match="symbolic link"):
+        store.get(artifact.sha256)
+
+
+def test_artifact_store_handles_concurrent_identical_write(tmp_path, monkeypatch) -> None:
+    import os
+
+    root = tmp_path / "artifacts"
+    store = FileArtifactStore(root)
+    payload = b"concurrent"
+    digest = hashlib.sha256(payload).hexdigest()
+    target = root / digest[:2] / digest[2:]
+    target.parent.mkdir(parents=True)
+
+    def concurrent_link(source: str, destination: str) -> None:
+        Path(destination).write_bytes(payload)
+        raise FileExistsError(destination)
+
+    from pathlib import Path
+
+    monkeypatch.setattr(os, "link", concurrent_link)
+    artifact = store.put(payload)
+
+    assert artifact.sha256 == digest
+    assert store.get(digest) == payload
