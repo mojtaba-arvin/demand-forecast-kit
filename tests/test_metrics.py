@@ -1,4 +1,5 @@
 import pytest
+
 from demand_forecast_kit.metrics import (
     interval_coverage,
     mean_absolute_scaled_error,
