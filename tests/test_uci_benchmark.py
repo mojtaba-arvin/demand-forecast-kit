@@ -16,7 +16,6 @@ from evals.run_uci_online_retail_benchmark import (
 )
 
 
-
 def test_prepare_daily_demand_excludes_cancellations_and_returns() -> None:
     source = pl.DataFrame(
         {
