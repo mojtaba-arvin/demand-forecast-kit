@@ -20,22 +20,18 @@ def test_evaluation_cli_emits_reproducible_json(tmp_path, capsys) -> None:
         }
     ).write_csv(source)
 
-    assert (
-        main(
-            [
-                str(source),
-                "--initial-train-size",
-                "6",
-                "--horizon",
-                "2",
-                "--step",
-                "2",
-                "--season-length",
-                "2",
-            ]
-        )
-        == 0
-    )
+    arguments = [
+        str(source),
+        "--initial-train-size",
+        "6",
+        "--horizon",
+        "2",
+        "--step",
+        "2",
+        "--season-length",
+        "2",
+    ]
+    assert main(arguments) == 0
     payload = json.loads(capsys.readouterr().out)
     assert payload["config"]["initial_train_size"] == 6
     assert payload["dataset_fingerprint"]
@@ -55,10 +51,16 @@ def test_evaluation_cli_writes_json_artifact(tmp_path) -> None:
         }
     ).write_csv(source)
 
-    assert (
-        main([str(source), "--initial-train-size", "6", "--horizon", "2", "--output", str(output)])
-        == 0
-    )
+    arguments = [
+        str(source),
+        "--initial-train-size",
+        "6",
+        "--horizon",
+        "2",
+        "--output",
+        str(output),
+    ]
+    assert main(arguments) == 0
     assert json.loads(output.read_text(encoding="utf-8"))["model_summaries"]
 
 
