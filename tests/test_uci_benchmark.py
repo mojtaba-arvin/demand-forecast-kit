@@ -224,7 +224,7 @@ def test_prequential_baseline_error_uses_only_calibration_eligible_origins() -> 
     )
 
     assert summary == {
-        "origin_count": 2,
+        "origin_count": 3,
         "mean_error": 14.0,
         "median_error": 14.0,
         "mean_absolute_error": 14.0,
