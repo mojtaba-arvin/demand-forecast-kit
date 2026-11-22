@@ -29,7 +29,6 @@ from demand_forecast_kit.models import (
     ThetaAdapter,
     TSBAdapter,
 )
-
 from demand_forecast_kit.routing import (
     CandidateScore,
     ModelRouter,
