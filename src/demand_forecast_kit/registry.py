@@ -77,7 +77,7 @@ class SQLiteRunRegistry:
             )
 
     @contextmanager
-    def _connect(self) -> Generator[sqlite3.Connection, None, None]:
+    def _connect(self) -> Generator[sqlite3.Connection]:
         connection = sqlite3.connect(self.database, timeout=10.0)
         try:
             connection.row_factory = sqlite3.Row
