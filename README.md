@@ -201,6 +201,13 @@ Python 3.13 or newer is required.
 python -m pip install ".[dev]"
 ```
 
+## Further documentation
+
+- [Quick start](docs/quickstart.md)
+- [Benchmarking protocol](docs/benchmarking-protocol.md)
+- [Statistical and operational limitations](docs/limitations.md)
+- [Independent UCI Electricity benchmark](docs/benchmarks/uci-electricity-load.md)
+
 ## Metric definitions
 
 - **MASE:** mean absolute median-forecast error divided by the in-sample seasonal-naive scale. Undefined scales are reported as null.
