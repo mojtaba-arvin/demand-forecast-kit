@@ -229,9 +229,7 @@ def count_demand_outliers(
         ordered = sorted(values)
         middle = len(ordered) // 2
         median = (
-            ordered[middle]
-            if len(ordered) % 2
-            else (ordered[middle - 1] + ordered[middle]) / 2.0
+            ordered[middle] if len(ordered) % 2 else (ordered[middle - 1] + ordered[middle]) / 2.0
         )
         deviations = sorted(abs(value - median) for value in values)
         deviation_middle = len(deviations) // 2
@@ -243,8 +241,6 @@ def count_demand_outliers(
         if mad == 0.0:
             count = sum(value != median for value in values)
         else:
-            count = sum(
-                abs(0.6745 * (value - median) / mad) > threshold for value in values
-            )
+            count = sum(abs(0.6745 * (value - median) / mad) > threshold for value in values)
         results[series_id] = count
     return dict(sorted(results.items()))
