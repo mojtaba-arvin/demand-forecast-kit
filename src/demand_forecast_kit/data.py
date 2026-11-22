@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from math import isfinite
+from statistics import median
 from pathlib import Path
 
 import polars as pl
@@ -239,8 +240,8 @@ def count_demand_outliers(
             else (deviations[deviation_middle - 1] + deviations[deviation_middle]) / 2.0
         )
         if mad == 0.0:
-            count = sum(value != median for value in values)
+            count = sum(value != median_value for value in values)
         else:
-            count = sum(abs(0.6745 * (value - median) / mad) > threshold for value in values)
+            count = sum(abs(0.6745 * (value - median_value) / mad) > threshold for value in values)
         results[series_id] = count
     return dict(sorted(results.items()))
