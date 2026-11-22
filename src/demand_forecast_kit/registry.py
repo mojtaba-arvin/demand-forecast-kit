@@ -149,6 +149,33 @@ class SQLiteRunRegistry:
         assert row is not None
         return self._record(row)
 
+    def fail_run(self, run_id: int, error: str) -> RunRecord:
+        """Mark a created run failed; identical retries are idempotent."""
+        if not error.strip():
+            raise ValueError("error must not be blank")
+        result_json = self._json({"error": error})
+        with self._connect() as connection:
+            cursor = connection.execute(
+                """
+                UPDATE forecast_runs SET status = 'failed', result_json = ?
+                WHERE run_id = ? AND status = 'created'
+                """,
+                (result_json, run_id),
+            )
+            if cursor.rowcount == 0:
+                row = connection.execute(
+                    "SELECT * FROM forecast_runs WHERE run_id = ?", (run_id,)
+                ).fetchone()
+                if row is None:
+                    raise KeyError(f"unknown run_id: {run_id}")
+                if row["status"] != "failed" or row["result_json"] != result_json:
+                    raise ValueError("run cannot be failed from its current state")
+            row = connection.execute(
+                "SELECT * FROM forecast_runs WHERE run_id = ?", (run_id,)
+            ).fetchone()
+        assert row is not None
+        return self._record(row)
+
     def get_run(self, run_id: int) -> RunRecord:
         """Retrieve a run by its stable numeric identifier."""
         with self._connect() as connection:
