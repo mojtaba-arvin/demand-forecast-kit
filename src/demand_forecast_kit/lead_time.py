@@ -131,6 +131,7 @@ def calibrate_lead_time_demand(
     model_id: str,
     forecast_origin: str | date | datetime,
     baseline_median: Sequence[float],
+    expected_model_version: str | None = None,
     lead_time: int,
     quantile_levels: Sequence[float] = (0.1, 0.5, 0.9),
     bootstrap_samples: int = 1000,
@@ -146,6 +147,8 @@ def calibrate_lead_time_demand(
     """
     if not series_id.strip() or not model_id.strip():
         raise ValueError("series_id and model_id must be non-blank")
+    if expected_model_version is not None and not expected_model_version.strip():
+        raise ValueError("expected_model_version must be non-blank when provided")
     if type(lead_time) is not int or not 1 <= lead_time <= report.config.horizon:
         raise ValueError("lead_time must be an integer within the backtest horizon")
     if type(bootstrap_samples) is not int or bootstrap_samples < 1:
@@ -169,6 +172,12 @@ def calibrate_lead_time_demand(
             f"insufficient non-overlapping calibration paths: {len(paths)}; "
             f"need at least {min_calibration_paths}"
         )
+    model_version = paths[0][0].model_version
+    if expected_model_version is not None and model_version != expected_model_version:
+        raise ValueError(
+            f"calibration model version mismatch: expected {expected_model_version!r}, "
+            f"found {model_version!r}"
+        )
 
     rng = random.Random(seed)
     cumulative_samples: list[float] = []
@@ -184,7 +193,7 @@ def calibrate_lead_time_demand(
     return LeadTimeDemandDistribution(
         series_id=series_id,
         model_id=model_id,
-        model_version=paths[-1][0].model_version,
+        model_version=model_version,
         forecast_origin=origin.isoformat(),
         lead_time=lead_time,
         quantiles={level: _empirical_quantile(cumulative_samples, level) for level in levels},
@@ -266,6 +275,7 @@ def backtest_lead_time_calibration(
             model_id=model_id,
             forecast_origin=origin,
             baseline_median=median[:lead_time],
+            expected_model_version=target.model_version,
             lead_time=lead_time,
             quantile_levels=levels,
             bootstrap_samples=bootstrap_samples,
