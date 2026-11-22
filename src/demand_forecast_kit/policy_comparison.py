@@ -5,7 +5,11 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
-from demand_forecast_kit.inventory import InventoryEvaluationReport, InventoryScenario, evaluate_inventory_policy
+from demand_forecast_kit.inventory import (
+    InventoryEvaluationReport,
+    InventoryScenario,
+    evaluate_inventory_policy,
+)
 
 
 @dataclass(frozen=True, slots=True)
