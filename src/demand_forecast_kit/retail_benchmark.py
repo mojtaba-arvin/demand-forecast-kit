@@ -18,13 +18,19 @@ def prepare_daily_demand(transactions: pl.DataFrame) -> pl.DataFrame:
     Returns are deliberately excluded rather than netted against sales: this
     benchmark measures gross outbound unit demand, not net accounting movement.
     """
-    required = {"InvoiceNo", "StockCode", "Quantity", "InvoiceDate"}
+    required = {"StockCode", "Quantity", "InvoiceDate"}
     missing = sorted(required - set(transactions.columns))
+    invoice_column = next(
+        (name for name in ("InvoiceNo", "Invoice") if name in transactions.columns),
+        None,
+    )
+    if invoice_column is None:
+        missing.append("InvoiceNo or Invoice")
     if missing:
         raise ValueError(f"UCI workbook is missing columns: {', '.join(missing)}")
 
     normalized = transactions.select(
-        pl.col("InvoiceNo").cast(pl.String, strict=False).alias("invoice_no"),
+        pl.col(invoice_column).cast(pl.String, strict=False).alias("invoice_no"),
         pl.col("StockCode").cast(pl.String, strict=False).str.strip_chars().alias("series_id"),
         pl.col("Quantity").cast(pl.Float64, strict=False).alias("quantity"),
         pl.col("InvoiceDate").cast(pl.Datetime, strict=False).dt.date().alias("day"),
