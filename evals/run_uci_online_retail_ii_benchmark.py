@@ -10,15 +10,10 @@ from typing import cast
 
 import polars as pl
 
-from run_uci_online_retail_benchmark import (
-    COHORTS,
-    build_cohort_panel,
-    prepare_daily_demand,
-)
-
 from demand_forecast_kit.backtesting import BacktestConfig, run_backtest
 from demand_forecast_kit.models.seasonal_naive import SeasonalNaiveAdapter
 from demand_forecast_kit.models.statistical import CrostonAdapter, TSBAdapter
+from demand_forecast_kit.retail_benchmark import COHORTS, build_cohort_panel, prepare_daily_demand
 
 
 DATASET_DOI = "https://doi.org/10.24432/C5CG6D"
