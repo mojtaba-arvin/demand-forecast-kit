@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from collections.abc import Mapping
 from pathlib import Path
 from typing import cast
 
@@ -21,6 +22,10 @@ from demand_forecast_kit.retail_benchmark import (
 
 DATASET_DOI = "https://doi.org/10.24432/C5CG6D"
 DATASET_URL = "https://archive.ics.uci.edu/dataset/502/online+retail+ii"
+
+
+def _stringify_levels(values: Mapping[float, float]) -> dict[str, float]:
+    return {str(level): value for level, value in values.items()}
 
 
 def _read_workbook(path: Path) -> tuple[pl.DataFrame, list[str]]:
@@ -88,7 +93,7 @@ def run_benchmark(
                         "mean_mase": item.mean_mase,
                         "mean_wql": item.mean_wql,
                         "mean_pinball_loss": item.mean_pinball_loss,
-                        "interval_coverages": {str(level): value for level, value in item.interval_coverages.items()},
+                        "interval_coverages": _stringify_levels(item.interval_coverages),
                     }
                 )
             for item in report.evaluations:
