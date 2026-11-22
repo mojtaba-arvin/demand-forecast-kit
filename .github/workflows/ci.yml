@@ -10,6 +10,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   quality:
     name: Python 3.13 quality gates
@@ -41,7 +45,7 @@ jobs:
         run: pytest
 
       - name: Audit Python dependencies
-        run: pip-audit
+        run: pip-audit --skip-editable
 
       - name: Check REUSE compliance
         run: reuse lint
