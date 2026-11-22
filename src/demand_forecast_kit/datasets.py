@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+
 import polars as pl
 UCI_ELECTRICITY_DOI = "https://doi.org/10.24432/C58C86"
 UCI_ELECTRICITY_SOURCE = (
