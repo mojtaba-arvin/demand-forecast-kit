@@ -150,7 +150,7 @@ def test_validate_history_rejects_timezone_aware_timestamps() -> None:
     frame = pl.DataFrame(
         {
             "series_id": ["sku-1"],
-            "timestamp": [datetime(2024, 1, 1, tzinfo=__import__("datetime").UTC)],
+            "timestamp": [datetime(2024, 1, 1, tzinfo=UTC)],
             "demand": [1.0],
         }
     )
@@ -159,7 +159,9 @@ def test_validate_history_rejects_timezone_aware_timestamps() -> None:
 
 
 def test_count_missing_periods_validates_interval() -> None:
-    frame = pl.DataFrame({"series_id": ["sku-1"], "timestamp": [datetime(2024, 1, 1)]})
+    frame = pl.DataFrame(
+        {"series_id": ["sku-1"], "timestamp": [datetime(2024, 1, 1)]}
+    )
     with pytest.raises(ValueError, match="interval must be positive"):
         count_missing_periods(frame, interval=timedelta(0))
 
