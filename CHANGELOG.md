@@ -10,7 +10,8 @@ This project follows Semantic Versioning and Keep a Changelog.
 
 - Opt-in UCI Online Retail empirical benchmark for lead-time calibration across dense, intermittent, and very-intermittent SKU cohorts, comparing Seasonal Naive, Croston SBA, and TSB.
 - Deterministic daily panel construction, explicit return/cancellation policy, per-SKU prequential calibration diagnostics, dataset provenance, and macro cohort summaries.
-- Unit tests for real-data benchmark preprocessing and cohort construction.
+- Unit tests for real-data benchmark preprocessing, cohort construction, and per-SKU calibration diagnostics.
+- Per-SKU P80 dispersion, empirical tail-quantile coverage, and prequential baseline median-bias diagnostics for the UCI benchmark.
 - Leakage-safe cohort assignment frozen to the initial training window; corrected UCI results recorded in the benchmark report.
 
 - Leakage-aware cumulative lead-time demand calibration from complete out-of-sample residual paths, with prequential coverage/pinball diagnostics and inventory-scenario integration.
