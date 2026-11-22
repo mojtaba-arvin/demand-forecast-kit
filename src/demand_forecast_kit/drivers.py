@@ -73,7 +73,10 @@ def estimate_demand_driver_effects(
     if len(set(promoted)) != 2 or len(set(price)) < 2:
         raise ValueError("both promotion states and at least two price levels are required")
 
-    rows = tuple((1.0, price_value, promo) for price_value, promo in zip(price, promoted, strict=True))
+    rows = tuple(
+        (1.0, price_value, promo)
+        for price_value, promo in zip(price, promoted, strict=True)
+    )
     matrix = [
         [fsum(row[left] * row[right] for row in rows) for right in range(3)]
         for left in range(3)
@@ -88,7 +91,10 @@ def estimate_demand_driver_effects(
     )
     mean_demand = fsum(demand) / len(demand)
     total = fsum((actual - mean_demand) ** 2 for actual in demand)
-    residual = fsum((actual - estimate) ** 2 for actual, estimate in zip(demand, predicted, strict=True))
+    residual = fsum(
+        (actual - estimate) ** 2
+        for actual, estimate in zip(demand, predicted, strict=True)
+    )
     r_squared = 1.0 if total <= 1e-12 and residual <= 1e-12 else (
         0.0 if total <= 1e-12 else 1.0 - residual / total
     )
