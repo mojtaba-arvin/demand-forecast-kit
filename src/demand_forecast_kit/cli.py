@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 import argparse
 import json
 from pathlib import Path
-from collections.abc import Sequence
 
 from demand_forecast_kit.data import scan_history, validate_history
 from demand_forecast_kit.models.seasonal_naive import SeasonalNaiveAdapter
