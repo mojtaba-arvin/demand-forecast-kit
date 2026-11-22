@@ -8,6 +8,9 @@ This project follows Semantic Versioning and Keep a Changelog.
 
 ### Added
 
+- Leakage-aware cumulative lead-time demand calibration from complete out-of-sample residual paths, with prequential coverage/pinball diagnostics and inventory-scenario integration.
+- A deterministic synthetic lead-time calibration smoke and CI artifact.
+
 - Lead-time inventory policy evaluation against realized cumulative demand, with holding/shortage costs, unit fill rate, and cycle service level.
 - A deterministic synthetic inventory evaluation smoke and CI artifact.
 - Leakage-aware per-SKU model routing from historical rolling-origin evidence, with strict forecast-origin guards, model-version validation, deterministic fallback, and routing artifacts.
