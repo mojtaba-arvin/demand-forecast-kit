@@ -26,11 +26,7 @@ class SeasonalNaiveAdapter:
     """
 
     def __init__(self, season_length: int = 7) -> None:
-        if (
-            isinstance(season_length, bool)
-            or not isinstance(season_length, int)
-            or season_length < 1
-        ):
+        if type(season_length) is not int or season_length < 1:
             raise ValueError("season_length must be a positive integer")
         self.season_length = season_length
 
@@ -51,9 +47,9 @@ class SeasonalNaiveAdapter:
         quantile_levels: Sequence[float],
         seed: int = 0,
     ) -> QuantileForecast:
-        if isinstance(horizon, bool) or not isinstance(horizon, int) or horizon < 1:
+        if type(horizon) is not int or horizon < 1:
             raise ValueError("horizon must be a positive integer")
-        if isinstance(seed, bool) or not isinstance(seed, int) or seed < 0:
+        if type(seed) is not int or seed < 0:
             raise ValueError("seed must be a non-negative integer")
         values = tuple(float(value) for value in history)
         if not values:

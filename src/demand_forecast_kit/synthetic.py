@@ -16,9 +16,9 @@ def generate_synthetic_history(
 ) -> pl.DataFrame:
     """Generate reproducible daily demand with trend, weekly seasonality, and noise."""
     for name, value in (("series_count", series_count), ("periods", periods)):
-        if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+        if type(value) is not int or value < 1:
             raise ValueError(f"{name} must be a positive integer")
-    if isinstance(seed, bool) or not isinstance(seed, int) or seed < 0:
+    if type(seed) is not int or seed < 0:
         raise ValueError("seed must be a non-negative integer")
 
     rng = random.Random(seed)

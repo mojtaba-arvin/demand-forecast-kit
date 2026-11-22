@@ -55,6 +55,8 @@ include = ["src"]
 pythonVersion = "3.13"
 typeCheckingMode = "strict"
 reportMissingTypeStubs = false
+# Polars' expression DSL exposes partially typed extension methods; keep strict checking elsewhere.
+reportUnknownMemberType = false
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

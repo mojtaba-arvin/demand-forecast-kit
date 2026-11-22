@@ -46,7 +46,7 @@ def newsvendor_order(
         raise ValueError("underage_cost and overage_cost must be finite and positive")
     if not isfinite(inventory_position):
         raise ValueError("inventory_position must be finite")
-    if isinstance(pack_size, bool) or not isinstance(pack_size, int) or pack_size < 1:
+    if type(pack_size) is not int or pack_size < 1:
         raise ValueError("pack_size must be a positive integer")
     if not lead_time_demand_quantiles:
         raise ValueError("at least one lead-time demand quantile is required")
