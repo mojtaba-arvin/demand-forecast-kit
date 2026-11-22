@@ -62,10 +62,7 @@ def calculate_echelon_positions(nodes: Sequence[InventoryNode]) -> tuple[Echelon
     if not roots:
         raise ValueError("inventory network contains a cycle or has no root")
 
-    local = {
-        node.node_id: node.on_hand + node.confirmed_inbound - node.backorders
-        for node in nodes
-    }
+    local = {node.node_id: node.on_hand + node.confirmed_inbound - node.backorders for node in nodes}
     visiting: set[str] = set()
     calculated: dict[str, float] = {}
 
