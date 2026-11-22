@@ -62,6 +62,7 @@ reportUnknownMemberType = false
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
 addopts = [
   "--strict-markers",
   "--strict-config",
