@@ -8,6 +8,15 @@ This project follows Semantic Versioning and Keep a Changelog.
 
 ### Added
 
+- Robust per-SKU level-shift diagnostics for monitoring demand-regime changes.
+- Quantile calibration hit-rate estimates with Wilson uncertainty intervals for P10/P50/P80/P90.
+- Cumulative lead-time reorder-point interpolation and non-negative safety-stock calculation.
+- Missing-period, timezone-ambiguity, and non-destructive robust outlier diagnostics for demand histories.
+- Independent UCI Electricity Load Diagrams dataset adapter and opt-in 370-client benchmark workflow.
+- Optional FastAPI forecast, backtest, and replenishment endpoints with bounded request sizes and concurrent-request tests.
+- SQLite run-registry idempotency identity checks, immutable failure outcomes, and concurrent-create coverage.
+- Quick-start, benchmarking protocol, limitations, versioning, and release-candidate documentation.
+
 - Opt-in UCI Online Retail empirical benchmark for lead-time calibration across dense, intermittent, and very-intermittent SKU cohorts, comparing Seasonal Naive, Croston SBA, and TSB.
 - Deterministic daily panel construction, explicit return/cancellation policy, per-SKU prequential calibration diagnostics, dataset provenance, and macro cohort summaries.
 - Unit tests for real-data benchmark preprocessing, cohort construction, and per-SKU calibration diagnostics.
