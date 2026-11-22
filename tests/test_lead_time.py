@@ -58,7 +58,9 @@ def _report(fold_count: int = 12) -> BacktestReport:
         evaluations=tuple(evaluations),
         skipped_series=(),
         model_summaries=(),
-        series_history_ranges={"sku-1": (start.isoformat(), (start + timedelta(days=40)).isoformat())},
+        series_history_ranges={
+            "sku-1": (start.isoformat(), (start + timedelta(days=40)).isoformat())
+        },
     )
 
 
@@ -124,7 +126,9 @@ def test_calibration_rejects_future_leakage_and_insufficient_paths() -> None:
         ({"series_id": "sku-1", "model_id": "seasonal-naive", "lead_time": 3}, "lead_time"),
     ],
 )
-def test_calibration_rejects_invalid_identity_and_horizon(kwargs: dict[str, object], message: str) -> None:
+def test_calibration_rejects_invalid_identity_and_horizon(
+    kwargs: dict[str, object], message: str
+) -> None:
     arguments: dict[str, object] = {
         "series_id": "sku-1",
         "model_id": "seasonal-naive",
