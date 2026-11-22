@@ -31,6 +31,20 @@ Demand Forecast Kit is an open-source library and API for turning sales and inve
 - Select a model independently for each SKU from historical rolling-origin evidence, with a strict forecast-origin cutoff, model-version checks, minimum evidence folds, and an explicit Seasonal Naive fallback.
 - Write auditable, deterministic routing decision artifacts.
 - Calibrate cumulative lead-time demand from same-series, same-model out-of-sample residual paths, with strict forecast-origin filtering and prequential coverage diagnostics.\n- Evaluate replenishment policies against realized cumulative lead-time demand, reporting shortage/holding costs, unit fill rate, and cycle service level.
+- Run an opt-in real-data benchmark on UCI Online Retail across dense, intermittent, and very-intermittent SKU cohorts.
+
+## Empirical lead-time calibration benchmark
+
+Phase 7 adds an opt-in benchmark using the [UCI Online Retail dataset](https://archive.ics.uci.edu/dataset/352/online-retail) (Daqing Chen, 2015; DOI [10.24432/C5BW33](https://doi.org/10.24432/C5BW33), CC BY 4.0). The raw workbook is not committed and CI does not download it.
+
+Install the optional dependencies and download `Online Retail.xlsx` from UCI:
+
+```bash
+python -m pip install -e ".[benchmark,dev]"
+python evals/run_uci_online_retail_benchmark.py "/path/to/Online Retail.xlsx"
+```
+
+The runner constructs complete daily SKU histories, excludes cancellation invoices and non-positive quantities (returns), samples deterministic dense/intermittent/very-intermittent cohorts, and compares Seasonal Naive, Croston SBA, and TSB with prequential lead-time calibration for 7- and 14-day lead times. It writes a provenance-rich JSON report under `artifacts/`. See [the benchmark protocol](docs/benchmarks/uci-online-retail.md) for preprocessing, evaluation settings, and interpretation limits. The benchmark is opt-in and has not been run by CI.
 
 Not implemented yet: online model learning, automatic retraining, foundation-model adapters, conformal calibration outside the intermittent-model interval backend, hierarchical reconciliation, a persistent run registry, FastAPI endpoints, CLI commands, Rust extensions, and benchmark claims.
 
