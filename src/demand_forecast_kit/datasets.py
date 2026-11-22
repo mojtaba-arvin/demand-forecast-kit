@@ -7,10 +7,7 @@ from pathlib import Path
 import polars as pl
 
 UCI_ELECTRICITY_DOI = "https://doi.org/10.24432/C58C86"
-UCI_ELECTRICITY_SOURCE = (
-    "https://archive.ics.uci.edu/ml/machine-learning-databases/00321/"
-    "LD2011_2014.txt.zip"
-)
+UCI_ELECTRICITY_SOURCE = "https://archive.ics.uci.edu/ml/machine-learning-databases/00321/LD2011_2014.txt.zip"
 
 
 def prepare_uci_electricity(
@@ -86,12 +83,16 @@ def prepare_uci_electricity(
     )
     output_path.parent.mkdir(parents=True, exist_ok=True)
     daily.sink_parquet(output_path)
-    summary = daily.select(
-        pl.len().alias("row_count"),
-        pl.col("series_id").n_unique().alias("series_count"),
-        pl.col("timestamp").min().alias("start_date"),
-        pl.col("timestamp").max().alias("end_date"),
-    ).collect().row(0, named=True)
+    summary = (
+        daily.select(
+            pl.len().alias("row_count"),
+            pl.col("series_id").n_unique().alias("series_count"),
+            pl.col("timestamp").min().alias("start_date"),
+            pl.col("timestamp").max().alias("end_date"),
+        )
+        .collect()
+        .row(0, named=True)
+    )
     return {
         "row_count": int(summary["row_count"]),
         "series_count": int(summary["series_count"]),
