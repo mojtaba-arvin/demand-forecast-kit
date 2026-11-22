@@ -199,3 +199,53 @@ def count_missing_periods(
             absent += max(0, steps - 1)
         counts[series_id] = absent
     return dict(sorted(counts.items()))
+
+
+def count_demand_outliers(
+    frame: pl.DataFrame,
+    *,
+    threshold: float = 3.5,
+) -> dict[str, int]:
+    """Count robust median/MAD outliers per series without altering observations.
+
+    Uses the modified z-score 0.6745 * (value - median) / MAD. If MAD is zero,
+    values differing from the median are flagged; constant series have no
+    outliers. This is a review signal, not an instruction to clip or delete data.
+    """
+    if not isinstance(threshold, (int, float)) or not float(threshold) > 0.0:
+        raise ValueError("threshold must be positive")
+    if not float(threshold) < float("inf"):
+        raise ValueError("threshold must be finite")
+    required = {"series_id", "demand"}
+    missing = sorted(required - set(frame.columns))
+    if missing:
+        raise ValueError(f"missing canonical columns: {', '.join(missing)}")
+
+    results: dict[str, int] = {}
+    for series in frame.partition_by("series_id", maintain_order=True):
+        series_id = str(series["series_id"][0])
+        values = [float(value) for value in series.get_column("demand").to_list()]
+        if not values or any(not value == value or abs(value) == float("inf") for value in values):
+            raise ValueError("demand must contain finite values")
+        ordered = sorted(values)
+        middle = len(ordered) // 2
+        median = (
+            ordered[middle]
+            if len(ordered) % 2
+            else (ordered[middle - 1] + ordered[middle]) / 2.0
+        )
+        deviations = sorted(abs(value - median) for value in values)
+        deviation_middle = len(deviations) // 2
+        mad = (
+            deviations[deviation_middle]
+            if len(deviations) % 2
+            else (deviations[deviation_middle - 1] + deviations[deviation_middle]) / 2.0
+        )
+        if mad == 0.0:
+            count = sum(value != median for value in values)
+        else:
+            count = sum(
+                abs(0.6745 * (value - median) / mad) > threshold for value in values
+            )
+        results[series_id] = count
+    return dict(sorted(results.items()))
