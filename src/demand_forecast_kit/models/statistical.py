@@ -192,9 +192,7 @@ class _StatsForecastAdapter:
             if isclose(quantile, 0.5, abs_tol=1e-12):
                 forecasts[quantile] = point
                 continue
-            interval = int(
-                round(100.0 * (1.0 - 2.0 * min(quantile, 1.0 - quantile)))
-            )
+            interval = int(round(100.0 * (1.0 - 2.0 * min(quantile, 1.0 - quantile))))
             bound = "lo" if quantile < 0.5 else "hi"
             key = f"{bound}-{interval}"
             forecasts[quantile] = _forecast_values(

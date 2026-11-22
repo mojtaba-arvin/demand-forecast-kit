@@ -18,17 +18,11 @@ pytest.importorskip("statsforecast")
 
 
 def dense_history() -> tuple[float, ...]:
-    return tuple(
-        24.0 + 0.08 * index + 3.0 * sin(tau * index / 7.0)
-        for index in range(84)
-    )
+    return tuple(24.0 + 0.08 * index + 3.0 * sin(tau * index / 7.0) for index in range(84))
 
 
 def intermittent_history() -> tuple[float, ...]:
-    return tuple(
-        0.0 if index % 5 else float(6 + (index % 4) * 3)
-        for index in range(84)
-    )
+    return tuple(0.0 if index % 5 else float(6 + (index % 4) * 3) for index in range(84))
 
 
 @pytest.mark.parametrize(
