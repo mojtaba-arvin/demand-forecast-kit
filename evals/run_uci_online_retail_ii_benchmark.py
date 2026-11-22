@@ -19,7 +19,6 @@ from demand_forecast_kit.retail_benchmark import (
     sha256_file,
 )
 
-
 DATASET_DOI = "https://doi.org/10.24432/C5CG6D"
 DATASET_URL = "https://archive.ics.uci.edu/dataset/502/online+retail+ii"
 
