@@ -91,7 +91,9 @@ def compare_paired_series_metrics(
         lower = int(position)
         upper = min(lower + 1, len(bootstrap_means) - 1)
         fraction = position - lower
-        return bootstrap_means[lower] + fraction * (bootstrap_means[upper] - bootstrap_means[lower])
+        return bootstrap_means[lower] + fraction * (
+            bootstrap_means[upper] - bootstrap_means[lower]
+        )
 
     extreme = 0
     for _ in range(permutation_samples):
