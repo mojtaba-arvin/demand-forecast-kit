@@ -19,7 +19,7 @@ def test_prepare_daily_demand_excludes_cancellations_and_returns() -> None:
             "InvoiceDate": [
                 datetime(2011, 1, 1),
                 datetime(2011, 1, 1),
-                datetime(2011, 1, 2),
+                date(2011, 1, 2),
                 datetime(2011, 1, 2),
                 datetime(2011, 1, 3),
             ],
@@ -38,11 +38,29 @@ def test_build_cohort_panel_fills_no_sale_days_and_is_deterministic() -> None:
     start = date(2011, 1, 1)
     rows = []
     for day in range(200):
-        rows.append({"series_id": "dense", "day": start.fromordinal(start.toordinal() + day), "demand": 1.0})
+        rows.append(
+            {
+                "series_id": "dense",
+                "day": start.fromordinal(start.toordinal() + day),
+                "demand": 1.0,
+            }
+        )
     for day in range(0, 200, 4):
-        rows.append({"series_id": "intermittent", "day": start.fromordinal(start.toordinal() + day), "demand": 2.0})
+        rows.append(
+            {
+                "series_id": "intermittent",
+                "day": start.fromordinal(start.toordinal() + day),
+                "demand": 2.0,
+            }
+        )
     for day in range(0, 200, 25):
-        rows.append({"series_id": "very-intermittent", "day": start.fromordinal(start.toordinal() + day), "demand": 1.0})
+        rows.append(
+            {
+                "series_id": "very-intermittent",
+                "day": start.fromordinal(start.toordinal() + day),
+                "demand": 1.0,
+            }
+        )
     daily = pl.DataFrame(rows)
 
     first, counts = build_cohort_panel(daily, max_skus_per_cohort=5)
