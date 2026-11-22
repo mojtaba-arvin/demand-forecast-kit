@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 from pathlib import Path
 from typing import cast
@@ -13,20 +12,17 @@ import polars as pl
 from demand_forecast_kit.backtesting import BacktestConfig, run_backtest
 from demand_forecast_kit.models.seasonal_naive import SeasonalNaiveAdapter
 from demand_forecast_kit.models.statistical import CrostonAdapter, TSBAdapter
-from demand_forecast_kit.retail_benchmark import COHORTS, build_cohort_panel, prepare_daily_demand
+from demand_forecast_kit.retail_benchmark import (
+    COHORTS,
+    build_cohort_panel,
+    prepare_daily_demand,
+    sha256_file,
+)
 
 
 DATASET_DOI = "https://doi.org/10.24432/C5CG6D"
 DATASET_URL = "https://archive.ics.uci.edu/dataset/502/online+retail+ii"
 
-
-def sha256_file(path: Path) -> str:
-    """Hash the original workbook in bounded memory."""
-    digest = hashlib.sha256()
-    with path.open("rb") as source:
-        for chunk in iter(lambda: source.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
 
 
 def _read_workbook(path: Path) -> tuple[pl.DataFrame, list[str]]:
