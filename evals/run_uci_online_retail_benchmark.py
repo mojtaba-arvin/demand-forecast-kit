@@ -8,7 +8,7 @@ import argparse
 import hashlib
 import json
 from collections import defaultdict
-from datetime import date, timedelta
+from datetime import timedelta
 from pathlib import Path
 
 import polars as pl
@@ -251,7 +251,9 @@ def run_benchmark(
                     sum(int(item["origin_count"]) for item in items) / len(items)
                 ),
                 "macro_quantile_coverage": {
-                    level: sum(float(item["quantile_coverage"][level]) for item in items) / len(items)
+                    level: (
+                        sum(float(item["quantile_coverage"][level]) for item in items) / len(items)
+                    )
                     for level in ("0.1", "0.5", "0.9")
                 },
                 "macro_mean_pinball_loss": {
