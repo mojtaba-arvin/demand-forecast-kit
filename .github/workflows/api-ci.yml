@@ -9,7 +9,7 @@ on:
       - "pyproject.toml"
       - ".github/workflows/api-ci.yml"
   pull_request:
-    branches: ["main", "work/**"]
+    branches: ["main", "work/**", "integration/**"]
     paths:
       - "src/demand_forecast_kit/api.py"
       - "tests/test_api.py"
@@ -20,7 +20,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: api-ci-${{ github.ref }}
+  group: api-ci-${{ github.event.pull_request.head.ref || github.ref }}
   cancel-in-progress: true
 
 jobs:
