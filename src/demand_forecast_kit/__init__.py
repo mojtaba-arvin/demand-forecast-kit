@@ -14,6 +14,12 @@ from demand_forecast_kit.backtesting import (
 )
 from demand_forecast_kit.contracts import QuantileForecast
 from demand_forecast_kit.decisions import OrderRecommendation, newsvendor_order
+from demand_forecast_kit.inventory import (
+    InventoryEvaluationReport,
+    InventoryScenario,
+    ScenarioDecision,
+    evaluate_inventory_policy,
+)
 from demand_forecast_kit.metrics import (
     interval_coverage,
     mean_absolute_scaled_error,
@@ -48,16 +54,20 @@ __all__ = [
     "CrostonAdapter",
     "ForecastAdapter",
     "FoldEvaluation",
+    "InventoryEvaluationReport",
+    "InventoryScenario",
     "ModelRouter",
     "ModelSummary",
     "OrderRecommendation",
     "QuantileForecast",
     "RollingOriginSplit",
     "RoutingDecision",
+    "ScenarioDecision",
     "SeasonalNaiveAdapter",
     "SkippedSeries",
     "TSBAdapter",
     "ThetaAdapter",
+    "evaluate_inventory_policy",
     "interval_coverage",
     "mean_absolute_scaled_error",
     "newsvendor_order",

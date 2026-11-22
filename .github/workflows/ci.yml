@@ -58,6 +58,17 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      - name: Generate synthetic inventory policy evaluation
+        run: python evals/run_inventory_smoke.py
+
+      - name: Upload inventory evaluation artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: synthetic-inventory-evaluation
+          path: artifacts/synthetic-inventory-evaluation.json
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Upload evaluation artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:

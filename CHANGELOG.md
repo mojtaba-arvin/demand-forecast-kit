@@ -8,6 +8,8 @@ This project follows Semantic Versioning and Keep a Changelog.
 
 ### Added
 
+- Lead-time inventory policy evaluation against realized cumulative demand, with holding/shortage costs, unit fill rate, and cycle service level.
+- A deterministic synthetic inventory evaluation smoke and CI artifact.
 - Leakage-aware per-SKU model routing from historical rolling-origin evidence, with strict forecast-origin guards, model-version validation, deterministic fallback, and routing artifacts.
 - Per-series history timestamp ranges in version 2 of evaluation reports.
 - A synthetic model-routing smoke evaluation in the base CI workflow.

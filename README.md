@@ -29,7 +29,7 @@ Demand Forecast Kit is an open-source library and API for turning sales and inve
 - Report MASE, normalized WQL, per-quantile pinball loss, and central interval coverage.
 - Write deterministic JSON evaluation artifacts with a SHA-256 dataset fingerprint and artifact digest.
 - Select a model independently for each SKU from historical rolling-origin evidence, with a strict forecast-origin cutoff, model-version checks, minimum evidence folds, and an explicit Seasonal Naive fallback.
-- Write auditable, deterministic routing decision artifacts.
+- Write auditable, deterministic routing decision artifacts.\n- Evaluate replenishment policies against realized cumulative lead-time demand, reporting shortage/holding costs, unit fill rate, and cycle service level.
 
 Not implemented yet: online model learning, automatic retraining, foundation-model adapters, conformal calibration outside the intermittent-model interval backend, hierarchical reconciliation, a persistent run registry, FastAPI endpoints, CLI commands, Rust extensions, and benchmark claims.
 
@@ -102,6 +102,33 @@ selected_adapter = next(
 Routing defaults to WQL; MASE and mean pinball loss are supported as explicit alternatives. Undefined metrics and candidates with fewer than the configured number of defined historical folds are excluded. Evidence must match the currently registered adapter version. Ties within a configurable tolerance prefer the Seasonal Naive fallback. When no candidate has enough evidence, the fallback is returned with `used_fallback=True` and a null score.
 
 The caller must pass only observations available at the selected forecast origin when invoking the chosen adapter. Routing is a reproducible selector, not an automatic trainer or a guarantee of future model superiority.
+
+## Inventory policy evaluation
+
+Evaluate a replenishment policy using an independently validated quantile curve for cumulative demand over the full replenishment lead time. The evaluator deliberately does not sum daily marginal quantiles: the current forecast contract does not encode cross-period dependence.
+
+```python
+from demand_forecast_kit.inventory import InventoryScenario, evaluate_inventory_policy
+
+report = evaluate_inventory_policy(
+    [
+        InventoryScenario(
+            scenario_id="origin-001",
+            lead_time_demand_quantiles={0.1: 8.0, 0.5: 12.0, 0.9: 18.0},
+            realized_lead_time_demand=15.0,
+            inventory_position=4.0,
+        )
+    ],
+    underage_cost=9.0,
+    overage_cost=1.0,
+    holding_cost_per_unit=0.5,
+    shortage_cost_per_unit=4.0,
+    pack_size=2,
+)
+print(report.fill_rate, report.cycle_service_level, report.total_cost)
+```
+
+Inventory position means on-hand plus confirmed inbound stock minus backorders. The current evaluation assumes no intra-lead-time replenishment or salvage value. Holding/shortage costs are computed from realized ending inventory and unmet demand; the underage/overage ratio selects the target quantile. See SPEC 0004 and ADR 0007 for the complete assumptions. The synthetic CI report verifies calculation plumbing only, not forecast quality or business savings.
 
 ## Input contract
 
