@@ -9,7 +9,6 @@ import polars as pl
 import pytest
 
 from demand_forecast_kit.retail_benchmark import sha256_file
-
 from evals.run_uci_online_retail_benchmark import (
     _baseline_error_summary,
     _coverage_diagnostics,
