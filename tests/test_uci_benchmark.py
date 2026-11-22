@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: MIT
 """Tests for the opt-in UCI Online Retail benchmark preprocessing."""
 
-from datetime import date, datetime
 import hashlib
+from datetime import date, datetime
 
 import polars as pl
 import pytest
