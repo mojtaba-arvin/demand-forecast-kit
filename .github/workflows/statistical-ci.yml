@@ -8,8 +8,14 @@ on:
       - "src/demand_forecast_kit/models/statistical.py"
       - "tests/test_statistical_*.py"
       - "evals/run_statistical_smoke.py"
+      - "evals/run_uci_online_retail_benchmark.py"
+      - "evals/run_uci_online_retail_ii_benchmark.py"
+      - "src/demand_forecast_kit/retail_benchmark.py"
+      - "evals/run_uci_online_retail_benchmark.py"
+      - "evals/run_uci_online_retail_ii_benchmark.py"
+      - "src/demand_forecast_kit/retail_benchmark.py"
   pull_request:
-    branches: ["main", "work/**"]
+    branches: ["main", "work/**", "integration/**"]
     paths:
       - "pyproject.toml"
       - "src/demand_forecast_kit/models/statistical.py"
