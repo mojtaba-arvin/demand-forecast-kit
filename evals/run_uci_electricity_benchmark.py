@@ -11,7 +11,11 @@ import polars as pl
 
 from demand_forecast_kit.backtesting import BacktestConfig, run_backtest
 from demand_forecast_kit.data import scan_history
-from demand_forecast_kit.datasets import UCI_ELECTRICITY_DOI, UCI_ELECTRICITY_SOURCE, prepare_uci_electricity
+from demand_forecast_kit.datasets import (
+    UCI_ELECTRICITY_DOI,
+    UCI_ELECTRICITY_SOURCE,
+    prepare_uci_electricity,
+)
 from demand_forecast_kit.models.seasonal_naive import SeasonalNaiveAdapter
 from demand_forecast_kit.models.statistical import AutoETSAdapter, ThetaAdapter
 
