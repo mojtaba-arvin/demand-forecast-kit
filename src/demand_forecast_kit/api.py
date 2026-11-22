@@ -23,7 +23,7 @@ def create_app() -> Any:
         model_config = ConfigDict(extra="forbid")
 
         series_id: str = Field(min_length=1)
-        history: list[float] = Field(min_length=1)
+        history: list[float] = Field(min_length=1, max_length=100_000)
         horizon: int = Field(default=14, ge=1, le=3650)
         season_length: int = Field(default=7, ge=1, le=3650)
         quantiles: list[float] = Field(default_factory=lambda: [0.1, 0.5, 0.9])
@@ -71,7 +71,7 @@ def create_app() -> Any:
         model_config = ConfigDict(extra="forbid")
 
         series_id: str = Field(min_length=1)
-        observations: list[Observation] = Field(min_length=3)
+        observations: list[Observation] = Field(min_length=3, max_length=100_000)
         initial_train_size: int = Field(default=30, ge=2)
         horizon: int = Field(default=7, ge=1)
         step: int = Field(default=1, ge=1)
