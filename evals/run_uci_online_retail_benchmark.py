@@ -184,16 +184,16 @@ def _prequential_baseline_error(
             ),
             key=lambda item: (datetime.fromisoformat(item.test_start_timestamp), item.fold),
         )
-        selected = []
+        selected_count = 0
         previous_end: datetime | None = None
         for candidate in candidates:
             start = datetime.fromisoformat(candidate.test_start_timestamp)
             end = datetime.fromisoformat(candidate.test_end_timestamp)
             if previous_end is not None and start <= previous_end:
                 continue
-            selected.append(candidate)
+            selected_count += 1
             previous_end = end
-        if len(selected) < min_calibration_paths:
+        if selected_count < min_calibration_paths:
             continue
         actual = sum(target.actuals[:lead_time])
         median_forecast = sum(target.quantile_forecasts[0.5][:lead_time])
