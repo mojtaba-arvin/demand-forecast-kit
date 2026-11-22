@@ -65,9 +65,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "model_id": adapter.model_id,
             "model_version": adapter.model_version,
             "horizon": forecast.horizon,
-            "quantiles": {
-                str(level): list(values) for level, values in forecast.quantiles.items()
-            },
+            "quantiles": {str(level): list(values) for level, values in forecast.quantiles.items()},
         }
         forecasts.append(forecast_record)
         for level, values in forecast.quantiles.items():
