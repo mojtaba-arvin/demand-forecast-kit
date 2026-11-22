@@ -69,21 +69,26 @@ def main(argv: Sequence[str] | None = None) -> int:
         })
         for level, values in forecast.quantiles.items():
             for step, value in enumerate(values):
-                table_rows.append({
-                    "series_id": series_id,
-                    "model_id": adapter.model_id,
-                    "model_version": adapter.model_version,
-                    "horizon_step": step + 1,
-                    "quantile": level,
-                    "forecast": value,
-                })
+                table_rows.append(
+                    {
+                        "series_id": series_id,
+                        "model_id": adapter.model_id,
+                        "model_version": adapter.model_version,
+                        "horizon_step": step + 1,
+                        "quantile": level,
+                        "forecast": value,
+                    }
+                )
     if args.format == "json":
-        payload = json.dumps(
-            {"schema_version": 1, "forecasts": forecasts},
-            sort_keys=True,
-            indent=2,
-            allow_nan=False,
-        ) + "\n"
+        payload = (
+            json.dumps(
+                {"schema_version": 1, "forecasts": forecasts},
+                sort_keys=True,
+                indent=2,
+                allow_nan=False,
+            )
+            + "\n"
+        )
         if args.output is None:
             print(payload, end="")
         else:
