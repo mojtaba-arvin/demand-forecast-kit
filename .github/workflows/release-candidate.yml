@@ -65,7 +65,7 @@ jobs:
       - name: Install wheel in isolated environment
         run: |
           python -m venv /tmp/demand-forecast-release
-          /tmp/demand-forecast-release/bin/python -m pip install --no-index --no-deps dist/*.whl
+          /tmp/demand-forecast-release/bin/python -m pip install dist/*.whl
           /tmp/demand-forecast-release/bin/python -c "import demand_forecast_kit; print(demand_forecast_kit.__version__)"
       - name: Generate release checksums
         run: |
