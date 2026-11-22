@@ -1,6 +1,6 @@
 # SPEC 0005: Lead-time demand calibration from residual paths
 
-- Status: implemented on `work/lead-time-demand-calibration`; CI verification pending.
+- Status: implemented and CI-verified on `work/lead-time-demand-calibration` (run 45029964498, 2026-11-22).
 - Scope: estimate cumulative lead-time demand quantiles from rolling-origin out-of-sample forecast residual paths and assess them prequentially.
 - Non-goals: infer dependence from marginal quantiles, pool unrelated SKUs, claim universal calibration, optimize inventory costs, or claim business savings.
 
