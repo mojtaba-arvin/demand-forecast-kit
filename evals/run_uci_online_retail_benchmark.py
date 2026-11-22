@@ -292,8 +292,8 @@ def _temporal_scale_experiment(
             ):
                 raise RuntimeError("temporal calibration and holdout origins must be disjoint")
             if (
-                selected_holdout[0]["forecast_origin"]
-                <= selected_calibration[-1]["forecast_origin"]
+                str(selected_holdout[0]["forecast_origin"])
+                <= str(selected_calibration[-1]["forecast_origin"])
             ):
                 raise RuntimeError("holdout origins must follow the calibration block")
             calibration.extend(selected_calibration)
