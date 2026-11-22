@@ -2,7 +2,7 @@
 
 - Status: implemented and executed as an opt-in benchmark; SKU-level coverage and baseline-bias diagnostics are recorded in the reproducible artifact.
 - Scope: compare Phase 6 residual-path calibration on deterministic dense, intermittent, and very-intermittent SKU cohorts from UCI Online Retail.
-- Non-goals: ship raw transaction data, download datasets in CI, claim generalization beyond one retailer, or claim inventory savings.
+- Non-goals: commit or redistribute raw transaction data, download datasets in regular quality CI, claim generalization beyond one retailer, or claim inventory savings.
 
 ## Data contract
 
@@ -30,5 +30,5 @@
 - Offline tests cover cancellation/return filtering, daily aggregation, zero filling, deterministic cohort assignment, and invalid sample size.
 - The benchmark runner accepts a local workbook path; the dedicated GitHub Actions workflow downloads the official UCI archive at run time, while the regular quality CI remains dataset-independent.
 - The schema v2 output includes source attribution, license, source-file hash, preprocessing, model/split configuration, per-SKU results, per-origin forecasts, per-SKU coverage/bias diagnostics, macro cohort summaries, and purged temporal scale-experiment results.
-- CI runs only offline unit tests; it does not download or redistribute the dataset.
+- Regular quality CI runs offline unit tests and does not download the dataset. The dedicated opt-in UCI workflow downloads the public workbook at runtime; the raw workbook is neither committed nor uploaded as an artifact.
 - The benchmark has been run on 30 SKUs (10 per cohort) with 180 model/lead-time evaluations and no skipped evaluations. The temporal scale experiment uses 40 calibration and 30 holdout observations per cohort/model/lead-time slice, with nine origin offsets purged per SKU. Results remain descriptive for this retailer/sample; no universal accuracy or inventory-savings claim is made, and no correction is enabled by default.
