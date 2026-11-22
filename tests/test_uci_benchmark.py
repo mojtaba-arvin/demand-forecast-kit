@@ -69,15 +69,17 @@ def test_build_cohort_panel_fills_no_sale_days_and_is_deterministic() -> None:
     assert counts == {"dense": 1, "intermittent": 1, "very-intermittent": 1}
     assert first.equals(second)
     assert first.height == 600
-    dense_zero = first.filter(
-        (pl.col("series_id") == "intermittent") & (pl.col("timestamp") == date(2011, 1, 2))
-    ).get_column("demand").item()
+    dense_zero = (
+        first.filter(
+            (pl.col("series_id") == "intermittent") & (pl.col("timestamp") == date(2011, 1, 2))
+        )
+        .get_column("demand")
+        .item()
+    )
     assert dense_zero == 0.0
 
 
 def test_build_cohort_panel_rejects_invalid_sample_size() -> None:
-    daily = pl.DataFrame(
-        {"series_id": ["A"], "day": [date(2011, 1, 1)], "demand": [1.0]}
-    )
+    daily = pl.DataFrame({"series_id": ["A"], "day": [date(2011, 1, 1)], "demand": [1.0]})
     with pytest.raises(ValueError, match="positive integer"):
         build_cohort_panel(daily, max_skus_per_cohort=0)
