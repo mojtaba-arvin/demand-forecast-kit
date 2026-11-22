@@ -8,6 +8,7 @@ import argparse
 import json
 from collections import defaultdict
 from datetime import datetime
+from datetime import datetime
 from pathlib import Path
 from typing import cast
 
@@ -29,6 +30,15 @@ DATASET_URL = "https://archive.ics.uci.edu/dataset/352/online-retail"
 QUANTILES = (0.1, 0.5, 0.9)
 LEAD_TIMES = (7, 14)
 INITIAL_TRAIN_SIZE = 180
+def sha256_file(path: Path) -> str:
+    """Hash the source workbook in bounded memory."""
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def _baseline_error_summary(
     observations: list[dict[str, object]],
 ) -> dict[str, float | int]:
