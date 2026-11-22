@@ -48,13 +48,11 @@ def _parse_timestamp(value: str | date | datetime, field: str) -> datetime:
         parsed = value
     elif isinstance(value, date):
         parsed = datetime.combine(value, datetime.min.time())
-    elif isinstance(value, str):
+    else:
         try:
             parsed = datetime.fromisoformat(value)
         except ValueError as exc:
             raise ValueError(f"{field} must be an ISO date or datetime") from exc
-    else:
-        raise ValueError(f"{field} must be an ISO date or datetime")
     if parsed.tzinfo is not None:
         raise ValueError(f"{field} must use the same timezone-naive convention as backtest data")
     return parsed
