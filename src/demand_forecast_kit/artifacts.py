@@ -36,6 +36,8 @@ class FileArtifactStore:
         digest = self._digest(payload)
         directory = self.root / digest[:2]
         directory.mkdir(parents=True, exist_ok=True)
+        if directory.is_symlink():
+            raise OSError("artifact directory must not be a symbolic link")
         target = directory / digest[2:]
         if target.exists():
             if target.is_symlink() or target.read_bytes() != payload:
@@ -63,7 +65,10 @@ class FileArtifactStore:
             or any(character not in "0123456789abcdef" for character in sha256)
         ):
             raise ValueError("sha256 must be a lowercase 64-character hexadecimal digest")
-        path = self.root / sha256[:2] / sha256[2:]
+        directory = self.root / sha256[:2]
+        if directory.is_symlink():
+            raise OSError("artifact directory must not be a symbolic link")
+        path = directory / sha256[2:]
         if path.is_symlink():
             raise OSError("artifact path must not be a symbolic link")
         payload = path.read_bytes()
