@@ -51,7 +51,7 @@ class FileArtifactStore:
                     os.fsync(stream.fileno())
                 try:
                     os.link(temporary_name, target)
-                except FileExistsError:
+                except FileExistsError as exc:
                     if target.is_symlink() or target.read_bytes() != payload:
                         raise OSError("concurrent artifact write failed integrity check") from exc
             finally:
