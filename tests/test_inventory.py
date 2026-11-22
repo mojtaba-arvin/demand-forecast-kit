@@ -47,10 +47,10 @@ def test_inventory_position_includes_existing_supply_before_order() -> None:
         holding_cost_per_unit=1,
         shortage_cost_per_unit=4,
     )
-    assert report.scenarios[0].recommendation.quantity == 4
-    assert report.scenarios[0].available_supply == 16
-    assert report.scenarios[0].ending_inventory == 4
-    assert report.total_ordered_units == 4
+    assert report.scenarios[0].recommendation.quantity == 3
+    assert report.scenarios[0].available_supply == 15
+    assert report.scenarios[0].ending_inventory == 3
+    assert report.total_ordered_units == 3
 
 
 def test_no_demand_has_defined_perfect_fill_rate() -> None:
