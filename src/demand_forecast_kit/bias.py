@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from math import isfinite
 
+from demand_forecast_kit.backtesting import BacktestReport, FoldEvaluation
+
 
 @dataclass(frozen=True, slots=True)
 class TemporalBiasCorrection:
@@ -44,7 +46,7 @@ def _parse_origin(value: str | date | datetime) -> datetime:
 
 
 def estimate_temporal_bias_correction(
-    report: object,
+    report: BacktestReport,
     *,
     series_id: str,
     model_id: str,
@@ -58,10 +60,6 @@ def estimate_temporal_bias_correction(
     whose end timestamp is strictly earlier than the requested origin. The
     evaluation/holdout window is never read or used to fit the correction.
     """
-    from demand_forecast_kit.backtesting import BacktestReport
-
-    if not isinstance(report, BacktestReport):
-        raise TypeError("report must be a BacktestReport")
     if not series_id.strip() or not model_id.strip():
         raise ValueError("series_id and model_id must be non-blank")
     if expected_model_version is not None and not expected_model_version.strip():
@@ -70,7 +68,7 @@ def estimate_temporal_bias_correction(
         raise ValueError("min_calibration_paths must be an integer >= 2")
 
     origin = _parse_origin(forecast_origin)
-    candidates = []
+    candidates: list[FoldEvaluation] = []
     for item in report.evaluations:
         if item.series_id != series_id or item.model_id != model_id:
             continue
@@ -80,7 +78,7 @@ def estimate_temporal_bias_correction(
     candidates.sort(key=lambda item: (_parse_origin(item.test_start_timestamp), item.fold))
 
     selected: list[float] = []
-    selected_folds = []
+    selected_folds: list[FoldEvaluation] = []
     previous_end: datetime | None = None
     versions: set[str] = set()
     for item in candidates:
