@@ -61,10 +61,23 @@ class SQLiteRunRegistry:
                 )
                 """
             )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS inventory_decisions (
+                    decision_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    run_id INTEGER NOT NULL REFERENCES forecast_runs(run_id) ON DELETE CASCADE,
+                    decision_key TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    decision_json TEXT NOT NULL,
+                    UNIQUE(run_id, decision_key)
+                )
+                """
+            )
 
     def _connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.database, timeout=10.0)
         connection.row_factory = sqlite3.Row
+        connection.execute("PRAGMA foreign_keys = ON")
         return connection
 
     @staticmethod
