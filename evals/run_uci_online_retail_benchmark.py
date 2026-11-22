@@ -5,9 +5,9 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 from collections import defaultdict
+from datetime import datetime
 from pathlib import Path
 from typing import cast
 
@@ -17,7 +17,12 @@ from demand_forecast_kit.backtesting import BacktestConfig, run_backtest
 from demand_forecast_kit.lead_time import backtest_lead_time_calibration
 from demand_forecast_kit.models.seasonal_naive import SeasonalNaiveAdapter
 from demand_forecast_kit.models.statistical import CrostonAdapter, TSBAdapter
-from demand_forecast_kit.retail_benchmark import COHORTS, build_cohort_panel, prepare_daily_demand
+from demand_forecast_kit.retail_benchmark import (
+    COHORTS,
+    build_cohort_panel,
+    prepare_daily_demand,
+    sha256_file,
+)
 
 DATASET_DOI = "https://doi.org/10.24432/C5BW33"
 DATASET_URL = "https://archive.ics.uci.edu/dataset/352/online-retail"
@@ -521,3 +526,12 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+def sha256_file(path: str | Path) -> str:
+    """Hash a source dataset in bounded memory for reproducible benchmark manifests."""
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
