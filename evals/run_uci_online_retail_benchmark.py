@@ -350,7 +350,8 @@ def run_benchmark(
                     )
                     if baseline_error["origin_count"] != diagnostic.origin_count:
                         raise RuntimeError(
-                            "baseline error and calibrated coverage used different evaluation origins"
+                            "baseline error and calibrated coverage used "
+                            "different evaluation origins"
                         )
                     results.append(
                         {
