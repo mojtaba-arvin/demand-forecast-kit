@@ -119,7 +119,7 @@ def main() -> None:
     )
     args = parser.parse_args()
     result = run_benchmark(args.source, max_series=args.max_series, output=args.output)
-    print(json.dumps(result["evaluation"]["model_summaries"], indent=2))
+    print(json.dumps(result, indent=2))
 
 
 if __name__ == "__main__":
