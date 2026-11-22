@@ -185,6 +185,13 @@ def test_prequential_backtest_uses_prior_folds_only_and_reports_coverage() -> No
     assert result.origin_count >= 5
     assert set(result.quantile_coverage) == {0.1, 0.5, 0.9}
     assert set(result.mean_pinball_loss) == {0.1, 0.5, 0.9}
+    assert len(result.observations) == result.origin_count
+    assert all(item.calibration_path_count >= 5 for item in result.observations)
+    assert [item.fold for item in result.observations] == sorted(
+        item.fold for item in result.observations
+    )
+    assert all(item.actual >= 0.0 for item in result.observations)
+    assert all(item.quantiles[0.1] <= item.quantiles[0.5] <= item.quantiles[0.9] for item in result.observations)
 
 
 def test_calibration_rejects_model_version_mismatch() -> None:
