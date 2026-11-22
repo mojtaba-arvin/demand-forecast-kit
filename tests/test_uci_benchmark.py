@@ -178,7 +178,6 @@ def test_coverage_diagnostics_exposes_sku_dispersion_and_tail_miscalibration() -
     ]
 
 
-
 def test_baseline_error_summary_uses_actual_minus_uncalibrated_median() -> None:
     summary = _baseline_error_summary(
         [
