@@ -153,7 +153,6 @@ def build_cohort_panel(
     return panel, {cohort: len(selected[cohort]) for cohort in COHORTS}
 
 
-
 def _prequential_baseline_error(
     report: BacktestReport,
     *,
