@@ -7,7 +7,13 @@ from datetime import date, datetime
 import polars as pl
 import pytest
 
-from evals.run_uci_online_retail_benchmark import build_cohort_panel, prepare_daily_demand
+from demand_forecast_kit.backtesting import BacktestConfig, BacktestReport, FoldEvaluation
+from evals.run_uci_online_retail_benchmark import (
+    _coverage_diagnostics,
+    _prequential_baseline_error,
+    build_cohort_panel,
+    prepare_daily_demand,
+)
 
 
 def test_prepare_daily_demand_excludes_cancellations_and_returns() -> None:
@@ -121,3 +127,114 @@ def test_build_cohort_panel_requires_full_assignment_window() -> None:
     )
     with pytest.raises(ValueError, match="at least 180 are required"):
         build_cohort_panel(daily)
+
+
+
+def test_coverage_diagnostics_exposes_sku_dispersion_and_tail_miscalibration() -> None:
+    rows = [
+        {
+            "cohort": "dense",
+            "series_id": "A",
+            "model_id": "croston-sba",
+            "lead_time": 7,
+            "interval_coverage": {"0.8": 0.5},
+            "quantile_coverage": {"0.1": 0.2, "0.5": 0.4, "0.9": 0.85},
+            "baseline_median_error": {
+                "mean_error": 2.0,
+                "mean_absolute_error": 3.0,
+            },
+        },
+        {
+            "cohort": "dense",
+            "series_id": "B",
+            "model_id": "croston-sba",
+            "lead_time": 7,
+            "interval_coverage": {"0.8": 1.0},
+            "quantile_coverage": {"0.1": 0.0, "0.5": 0.6, "0.9": 0.95},
+            "baseline_median_error": {
+                "mean_error": -1.0,
+                "mean_absolute_error": 2.0,
+            },
+        },
+    ]
+
+    summary = _coverage_diagnostics(rows)
+
+    assert summary == [
+        {
+            "cohort": "dense",
+            "model_id": "croston-sba",
+            "lead_time": 7,
+            "series_count": 2,
+            "macro_interval_coverage": 0.75,
+            "min_series_interval_coverage": 0.5,
+            "max_series_interval_coverage": 1.0,
+            "series_below_nominal_p80": 1,
+            "macro_quantile_coverage": {"0.1": 0.1, "0.5": 0.5, "0.9": 0.8999999999999999},
+            "macro_baseline_median_error": 0.5,
+            "macro_baseline_median_absolute_error": 2.5,
+            "series_with_mean_underforecast": 1,
+            "series_with_mean_overforecast": 1,
+        }
+    ]
+
+
+def test_prequential_baseline_error_uses_only_calibration_eligible_origins() -> None:
+    config = BacktestConfig(
+        initial_train_size=180,
+        horizon=14,
+        step=14,
+        season_length=7,
+        quantile_levels=(0.1, 0.5, 0.9),
+        coverage_levels=(0.8,),
+    )
+    evaluations = []
+    start = date(2020, 1, 1)
+    for fold in range(1, 9):
+        test_start = start.fromordinal(start.toordinal() + (fold - 1) * 14)
+        test_end = start.fromordinal(test_start.toordinal() + 13)
+        evaluations.append(
+            FoldEvaluation(
+                model_id="croston-sba",
+                model_version="1",
+                series_id="SKU-1",
+                fold=fold,
+                train_size=180 + (fold - 1) * 14,
+                train_end_timestamp=start.fromordinal(test_start.toordinal() - 1).isoformat(),
+                test_start_timestamp=test_start.isoformat(),
+                test_end_timestamp=test_end.isoformat(),
+                actuals=(3.0,) * 14,
+                quantile_forecasts={
+                    0.1: (0.0,) * 14,
+                    0.5: (1.0,) * 14,
+                    0.9: (2.0,) * 14,
+                },
+                mase=None,
+                wql=None,
+                pinball_losses={0.1: 0.0, 0.5: 0.0, 0.9: 0.0},
+                interval_coverages={0.8: 0.0},
+            )
+        )
+    report = BacktestReport(
+        dataset_fingerprint="fixture",
+        config=config,
+        evaluations=tuple(evaluations),
+        skipped_series=(),
+        model_summaries=(),
+        series_history_ranges={},
+    )
+
+    summary = _prequential_baseline_error(
+        report,
+        series_id="SKU-1",
+        model_id="croston-sba",
+        lead_time=7,
+    )
+
+    assert summary == {
+        "origin_count": 2,
+        "mean_error": 14.0,
+        "median_error": 14.0,
+        "mean_absolute_error": 14.0,
+        "underforecast_rate": 1.0,
+    }
