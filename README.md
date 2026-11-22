@@ -36,16 +36,16 @@ Demand Forecast Kit is an open-source library and API for turning sales and inve
 
 ## Empirical lead-time calibration benchmark
 
-Phase 7 adds an opt-in benchmark using the [UCI Online Retail dataset](https://archive.ics.uci.edu/dataset/352/online-retail) (Daqing Chen, 2015; DOI [10.24432/C5BW33](https://doi.org/10.24432/C5BW33), CC BY 4.0). The raw workbook is not committed and CI does not download it.
+Phase 7 adds an opt-in benchmark using the [UCI Online Retail dataset](https://archive.ics.uci.edu/dataset/352/online-retail) (Daqing Chen, 2015; DOI [10.24432/C5BW33](https://doi.org/10.24432/C5BW33), CC BY 4.0). The raw workbook is not committed. A dedicated GitHub Actions workflow downloads the official UCI archive and uploads a reproducible JSON artifact; the regular quality CI remains dataset-independent.
 
-Install the optional dependencies and download `Online Retail.xlsx` from UCI:
+Install the optional dependencies and download `Online Retail.xlsx` from UCI for a local run:
 
 ```bash
 python -m pip install -e ".[benchmark,dev]"
 python evals/run_uci_online_retail_benchmark.py "/path/to/Online Retail.xlsx"
 ```
 
-The runner constructs complete daily SKU histories, excludes cancellation invoices and non-positive quantities (returns), samples deterministic dense/intermittent/very-intermittent cohorts, and compares Seasonal Naive, Croston SBA, and TSB with prequential lead-time calibration for 7- and 14-day lead times. It writes a provenance-rich JSON report under `artifacts/`. See [the benchmark protocol](docs/benchmarks/uci-online-retail.md) for preprocessing, evaluation settings, and interpretation limits. The benchmark is opt-in and has not been run by CI.
+The runner constructs complete daily SKU histories, excludes cancellation invoices and non-positive quantities (returns), freezes deterministic dense/intermittent/very-intermittent cohorts using only the initial 180-day training window, and compares Seasonal Naive, Croston SBA, and TSB with prequential lead-time calibration for 7- and 14-day lead times. It writes a provenance-rich JSON report under `artifacts/`. See [the benchmark protocol](docs/benchmarks/uci-online-retail.md) for preprocessing, evaluation settings, and real-data results.
 
 Not implemented yet: online model learning, automatic retraining, foundation-model adapters, conformal calibration outside the intermittent-model interval backend, hierarchical reconciliation, a persistent run registry, FastAPI endpoints, CLI commands, Rust extensions, and benchmark claims.
 
@@ -220,7 +220,7 @@ pyright
 pytest
 ```
 
-The core test suite does not require the optional StatsForecast extra. Its model-integration suite runs in a separate CI job with the `stats` extra installed. CI does not download evaluation datasets or model weights. Dependency installation uses the package index; external evaluation data and pretrained weights are outside the automated test workflow.
+The core test suite does not require the optional StatsForecast extra. Its model-integration suite runs in a separate CI job with the `stats` extra installed. The regular quality CI does not download evaluation datasets or model weights; the dedicated UCI benchmark workflow downloads only its explicitly versioned public dataset. Dependency installation uses the package index; pretrained weights are outside the automated test workflow.
 
 ## Repository map
 
