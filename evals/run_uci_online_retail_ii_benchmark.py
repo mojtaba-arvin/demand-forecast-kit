@@ -23,7 +23,6 @@ DATASET_DOI = "https://doi.org/10.24432/C5CG6D"
 DATASET_URL = "https://archive.ics.uci.edu/dataset/502/online+retail+ii"
 
 
-
 def _read_workbook(path: Path) -> tuple[pl.DataFrame, list[str]]:
     """Read and combine the two official historical worksheets."""
     loaded = pl.read_excel(path, sheet_id=0)
