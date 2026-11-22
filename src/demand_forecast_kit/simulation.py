@@ -111,7 +111,7 @@ def simulate_inventory_policy(
             lost_sales = quantity - fulfilled
             unmet = lost_sales
 
-        if unmet > 0.0:
+        if unmet > 0.0 or backorders > 0.0:
             stockout_days += 1
         total_fulfilled += fulfilled
         total_lost_sales += lost_sales
