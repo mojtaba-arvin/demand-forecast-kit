@@ -10,9 +10,10 @@ job alone is not sufficient evidence of production readiness.
 - [ ] Run Ruff lint and format checks.
 - [ ] Run strict Pyright checks.
 - [ ] Run core tests with the configured branch coverage threshold.
-- [ ] Run optional StatsForecast integration tests.
+- [ ] Run optional StatsForecast and API integration tests when those extras change.
 - [ ] Test installation from the built wheel in a clean Python 3.13 environment.
 - [ ] Verify optional extras fail with actionable messages when absent.
+- [ ] Confirm the Git tag matches the package version in pyproject.toml.
 
 ## Forecast and decision quality
 
@@ -31,7 +32,7 @@ job alone is not sufficient evidence of production readiness.
 - [ ] Build wheel and source distribution and inspect their contents.
 - [ ] Verify package metadata and version consistency.
 - [ ] Generate release notes from verified changes only.
-- [ ] Publish checksums for release artifacts.
+- [ ] Publish SHA-256 checksums for release artifacts.
 - [ ] Keep raw third-party benchmark datasets out of Git and release artifacts.
 
 ## Release decision
