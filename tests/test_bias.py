@@ -40,7 +40,7 @@ def test_bias_correction_uses_only_pre_origin_completed_folds() -> None:
         series_id="sku-1",
         model_id="seasonal-naive",
         forecast_origin="2024-01-21",
-        expected_model_version="1.0.0",
+        expected_model_version="0.1.0",
     )
 
     assert correction.calibration_path_count > 2
