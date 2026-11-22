@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date, timedelta
 
 import pytest
@@ -110,3 +111,23 @@ def test_replenishment_endpoint_rejects_unbracketed_service_level(client: TestCl
         },
     )
     assert response.status_code == 422
+
+
+def test_forecast_endpoint_handles_independent_concurrent_requests() -> None:
+    payload = {
+        "series_id": "sku-concurrent",
+        "history": [float(index % 7) for index in range(28)],
+        "horizon": 4,
+        "season_length": 7,
+    }
+
+    def send_request(_: int) -> dict[str, object]:
+        with TestClient(create_app()) as concurrent_client:
+            response = concurrent_client.post("/v1/forecasts", json=payload)
+            assert response.status_code == 200
+            return response.json()
+
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        responses = list(executor.map(send_request, range(8)))
+
+    assert all(response == responses[0] for response in responses)
