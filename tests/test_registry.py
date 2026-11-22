@@ -171,8 +171,6 @@ def test_inventory_decision_requires_existing_run(tmp_path: Path) -> None:
     registry = SQLiteRunRegistry(tmp_path / "decisions.sqlite")
 
     with pytest.raises(KeyError, match="unknown run_id"):
-        registry.record_inventory_decision(
-            404, decision_key="decision", decision={"quantity": 1}
-        )
+        registry.record_inventory_decision(404, decision_key="decision", decision={"quantity": 1})
     with pytest.raises(KeyError, match="unknown run_id"):
         registry.list_inventory_decisions(404)
