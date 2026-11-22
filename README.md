@@ -28,8 +28,10 @@ Demand Forecast Kit is an open-source library and API for turning sales and inve
 - Run chronological rolling-origin backtests across multiple adapters and demand series.
 - Report MASE, normalized WQL, per-quantile pinball loss, and central interval coverage.
 - Write deterministic JSON evaluation artifacts with a SHA-256 dataset fingerprint and artifact digest.
+- Select a model independently for each SKU from historical rolling-origin evidence, with a strict forecast-origin cutoff, model-version checks, minimum evidence folds, and an explicit Seasonal Naive fallback.
+- Write auditable, deterministic routing decision artifacts.
 
-Not implemented yet: automatic model routing, foundation-model adapters, conformal calibration outside the intermittent-model interval backend, hierarchical reconciliation, a persistent run registry, FastAPI endpoints, CLI commands, Rust extensions, and benchmark claims.
+Not implemented yet: online model learning, automatic retraining, foundation-model adapters, conformal calibration outside the intermittent-model interval backend, hierarchical reconciliation, a persistent run registry, FastAPI endpoints, CLI commands, Rust extensions, and benchmark claims.
 
 ## Statistical adapters
 
@@ -63,6 +65,43 @@ print(report.model_summaries)
 ```
 
 StatsForecast interval bounds are mapped to marginal quantiles; negative lower bounds are clipped to zero. These forecasts do not encode dependence between future periods and must not be summed to obtain cumulative lead-time demand quantiles. Validate coverage and decision cost on the target dataset before operational use.
+
+## Per-series model routing
+
+Use a historical backtest report to select a model independently for each SKU. The report records the observed start/end timestamps for every series. Routing rejects a report unless the target series' complete history ends strictly before the forecast origin.
+
+```python
+from datetime import date
+
+from demand_forecast_kit.backtesting import BacktestConfig, run_backtest
+from demand_forecast_kit.models.seasonal_naive import SeasonalNaiveAdapter
+from demand_forecast_kit.models.statistical import AutoETSAdapter, ThetaAdapter
+from demand_forecast_kit.routing import ModelRouter
+
+adapters = [
+    SeasonalNaiveAdapter(season_length=7),
+    AutoETSAdapter(season_length=7),
+    ThetaAdapter(season_length=7, decomposition_type="additive"),
+]
+report = run_backtest(
+    history,
+    adapters,
+    BacktestConfig(initial_train_size=56, horizon=14, step=7, season_length=7),
+)
+router = ModelRouter(adapters, metric="wql", min_folds=3)
+decision = router.select(
+    report,
+    series_id="sku-123",
+    forecast_origin=date(2026, 1, 1),
+)
+selected_adapter = next(
+    adapter for adapter in adapters if adapter.model_id == decision.chosen_model_id
+)
+```
+
+Routing defaults to WQL; MASE and mean pinball loss are supported as explicit alternatives. Undefined metrics and candidates with fewer than the configured number of defined historical folds are excluded. Evidence must match the currently registered adapter version. Ties within a configurable tolerance prefer the Seasonal Naive fallback. When no candidate has enough evidence, the fallback is returned with `used_fallback=True` and a null score.
+
+The caller must pass only observations available at the selected forecast origin when invoking the chosen adapter. Routing is a reproducible selector, not an automatic trainer or a guarantee of future model superiority.
 
 ## Input contract
 

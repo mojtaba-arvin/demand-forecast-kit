@@ -180,13 +180,21 @@ class BacktestReport:
     evaluations: tuple[FoldEvaluation, ...]
     skipped_series: tuple[SkippedSeries, ...]
     model_summaries: tuple[ModelSummary, ...]
-    schema_version: int = 1
+    series_history_ranges: dict[str, tuple[str, str]]
+    schema_version: int = 2
 
     def to_dict(self) -> dict[str, object]:
         """Return a JSON-compatible representation with stable quantile keys."""
         return {
             "schema_version": self.schema_version,
             "dataset_fingerprint": self.dataset_fingerprint,
+            "series_history_ranges": {
+                series_id: {
+                    "start_timestamp": time_range[0],
+                    "end_timestamp": time_range[1],
+                }
+                for series_id, time_range in sorted(self.series_history_ranges.items())
+            },
             "config": {
                 "initial_train_size": self.config.initial_train_size,
                 "horizon": self.config.horizon,
@@ -386,6 +394,7 @@ def run_backtest(
     fingerprint = _fingerprint_history(normalized)
     evaluations: list[FoldEvaluation] = []
     skipped: list[SkippedSeries] = []
+    series_history_ranges: dict[str, tuple[str, str]] = {}
     required_count = config.initial_train_size + config.horizon
 
     groups = normalized.partition_by("series_id", maintain_order=True)
@@ -393,6 +402,10 @@ def run_backtest(
         series_id = str(group.get_column("series_id")[0])
         timestamps = group.get_column("timestamp").to_list()
         values = tuple(float(value) for value in group.get_column("demand").to_list())
+        series_history_ranges[series_id] = (
+            _iso_timestamp(timestamps[0]),
+            _iso_timestamp(timestamps[-1]),
+        )
         if len(values) < required_count:
             skipped.append(
                 SkippedSeries(
@@ -477,6 +490,7 @@ def run_backtest(
         evaluations=tuple(evaluations),
         skipped_series=tuple(skipped),
         model_summaries=summaries,
+        series_history_ranges=dict(sorted(series_history_ranges.items())),
     )
 
 

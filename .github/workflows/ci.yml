@@ -47,6 +47,17 @@ jobs:
       - name: Generate deterministic synthetic evaluation
         run: python evals/run_synthetic_smoke.py
 
+      - name: Generate synthetic per-series routing artifact
+        run: python evals/run_routing_smoke.py
+
+      - name: Upload routing artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: synthetic-model-routing-report
+          path: artifacts/synthetic-model-routing.json
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Upload evaluation artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:

@@ -8,6 +8,9 @@ This project follows Semantic Versioning and Keep a Changelog.
 
 ### Added
 
+- Leakage-aware per-SKU model routing from historical rolling-origin evidence, with strict forecast-origin guards, model-version validation, deterministic fallback, and routing artifacts.
+- Per-series history timestamp ranges in version 2 of evaluation reports.
+- A synthetic model-routing smoke evaluation in the base CI workflow.
 - Optional StatsForecast-backed AutoETS, AutoARIMA, and Theta adapters for dense demand series.
 - Optional CrostonClassic, CrostonOptimized, CrostonSBA, and TSB adapters with conformal prediction intervals.
 - A dedicated statistical-adapter integration workflow and synthetic dense/intermittent rolling-origin evaluation artifacts.

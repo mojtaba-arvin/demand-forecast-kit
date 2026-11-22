@@ -142,6 +142,15 @@ def test_run_backtest_is_reproducible_and_writes_a_digest_checked_artifact(
 
     assert first.dataset_fingerprint == second.dataset_fingerprint
     assert first.to_json_bytes() == second.to_json_bytes()
+    assert first.schema_version == 2
+    assert first.series_history_ranges == {
+        "sku-1": ("2024-01-01", "2024-01-10"),
+        "sku-2": ("2024-01-01", "2024-01-10"),
+    }
+    assert first.to_dict()["series_history_ranges"]["sku-1"] == {
+        "start_timestamp": "2024-01-01",
+        "end_timestamp": "2024-01-10",
+    }
 
     destination = tmp_path / "nested" / "evaluation.json"
     metadata = write_evaluation_artifact(first, destination)

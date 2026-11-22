@@ -27,6 +27,18 @@ These synthetic comparisons verify adapter execution, rolling-origin integration
 
 Use `demand_forecast_kit.backtesting.run_backtest` for user datasets and compare models only with matching dataset fingerprints, split settings, quantile levels, and seeds.
 
+## Per-series model routing
+
+Run the deterministic model-routing smoke locally with:
+
+```bash
+python evals/run_routing_smoke.py
+```
+
+It creates `artifacts/synthetic-model-routing.json`. GitHub Actions uploads the same report as the `synthetic-model-routing-report` artifact. The script demonstrates per-series WQL selection, minimum evidence folds, explicit forecast-origin cutoffs, and deterministic routing artifact output. It is a pipeline smoke test, not proof of model superiority.
+
+A routing report must end strictly before the forecast origin for the target series. Rebuild evaluation evidence whenever the forecast origin advances beyond the report's observed history. The caller remains responsible for passing only pre-origin observations to the selected adapter.
+
 ## Metrics and interpretation
 
 - MASE is the median-forecast MAE divided by the in-sample seasonal-naive scale. A zero or unavailable scale is undefined (null).

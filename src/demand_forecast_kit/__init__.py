@@ -20,6 +20,12 @@ from demand_forecast_kit.metrics import (
     pinball_loss,
     weighted_quantile_loss,
 )
+from demand_forecast_kit.routing import (
+    CandidateScore,
+    ModelRouter,
+    RoutingDecision,
+    write_routing_artifact,
+)
 from demand_forecast_kit.models import (
     AutoARIMAAdapter,
     AutoETSAdapter,
@@ -38,13 +44,16 @@ __all__ = [
     "AutoETSAdapter",
     "BacktestConfig",
     "BacktestReport",
+    "CandidateScore",
     "CrostonAdapter",
     "ForecastAdapter",
     "FoldEvaluation",
+    "ModelRouter",
     "ModelSummary",
     "OrderRecommendation",
     "QuantileForecast",
     "RollingOriginSplit",
+    "RoutingDecision",
     "SeasonalNaiveAdapter",
     "SkippedSeries",
     "TSBAdapter",
@@ -57,4 +66,5 @@ __all__ = [
     "run_backtest",
     "weighted_quantile_loss",
     "write_evaluation_artifact",
+    "write_routing_artifact",
 ]
