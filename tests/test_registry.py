@@ -93,3 +93,44 @@ def test_idempotency_key_cannot_be_reused_for_different_run_inputs(tmp_path: Pat
             model_version="1",
             config={"horizon": 14},
         )
+
+
+def test_failed_run_is_immutable_and_idempotent(tmp_path: Path) -> None:
+    registry = SQLiteRunRegistry(tmp_path / "runs.sqlite")
+    created = registry.create_run(
+        idempotency_key="failure-key",
+        dataset_fingerprint="dataset",
+        model_id="model",
+        model_version="1",
+        config={"seed": 1},
+    )
+
+    failed = registry.fail_run(created.run_id, "forecast adapter failed")
+    retry = registry.fail_run(created.run_id, "forecast adapter failed")
+
+    assert failed.status == "failed"
+    assert failed.result == {"error": "forecast adapter failed"}
+    assert retry == failed
+    with pytest.raises(ValueError, match="current state"):
+        registry.complete_run(created.run_id, {"forecast": []})
+    with pytest.raises(ValueError, match="must not be blank"):
+        registry.fail_run(created.run_id, " ")
+
+
+def test_concurrent_idempotent_creates_return_one_run(tmp_path: Path) -> None:
+    registry = SQLiteRunRegistry(tmp_path / "concurrent.sqlite")
+
+    def create() -> int:
+        return registry.create_run(
+            idempotency_key="concurrent-key",
+            dataset_fingerprint="dataset",
+            model_id="model",
+            model_version="1",
+            config={"horizon": 7},
+        ).run_id
+
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        identifiers = list(executor.map(lambda _: create(), range(16)))
+
+    assert len(set(identifiers)) == 1
+    assert registry.get_run(identifiers[0]).status == "created"
