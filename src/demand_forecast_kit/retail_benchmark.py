@@ -24,10 +24,10 @@ def prepare_daily_demand(transactions: pl.DataFrame) -> pl.DataFrame:
         (name for name in ("InvoiceNo", "Invoice") if name in transactions.columns),
         None,
     )
-    if invoice_column is None:
-        missing.append("InvoiceNo or Invoice")
     if missing:
         raise ValueError(f"UCI workbook is missing columns: {', '.join(missing)}")
+    if invoice_column is None:
+        raise ValueError("UCI workbook is missing columns: InvoiceNo or Invoice")
 
     normalized = transactions.select(
         pl.col(invoice_column).cast(pl.String, strict=False).alias("invoice_no"),
@@ -106,8 +106,9 @@ def build_cohort_panel(
         else:
             candidates = summary.filter(pl.col("activity_rate") < 0.05)
 
+        series_ids = cast(list[str], candidates.get_column("series_id").to_list())
         ranked = sorted(
-            candidates.get_column("series_id").to_list(),
+            series_ids,
             key=lambda value: hashlib.sha256(value.encode("utf-8")).hexdigest(),
         )
         selected[cohort] = ranked[:max_skus_per_cohort]
