@@ -106,7 +106,10 @@ def fit_adaptive_interval_calibrator(
     if len(labels) != len(observed) or any(not label.strip() for label in labels):
         raise ValueError("regimes must be non-blank and match the calibration length")
 
-    scores = tuple(max(lo - actual, actual - hi, 0.0) for actual, lo, hi in zip(observed, low, high, strict=True))
+    scores = tuple(
+        max(lo - actual, actual - hi, 0.0)
+        for actual, lo, hi in zip(observed, low, high, strict=True)
+    )
     global_correction = _finite_sample_correction(scores, coverage)
     grouped: dict[str, list[float]] = defaultdict(list)
     for label, score in zip(labels, scores, strict=True):
