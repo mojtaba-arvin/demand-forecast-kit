@@ -43,10 +43,7 @@ class QuantileForecast:
         levels = tuple(ordered)
         for step in range(next(iter(lengths))):
             step_values = tuple(ordered[level][step] for level in levels)
-            if any(
-                left > right
-                for left, right in zip(step_values, step_values[1:], strict=False)
-            ):
+            if any(left > right for left, right in zip(step_values, step_values[1:], strict=False)):
                 raise ValueError("forecast values must be non-decreasing across quantile levels")
 
         object.__setattr__(self, "quantiles", MappingProxyType(ordered))

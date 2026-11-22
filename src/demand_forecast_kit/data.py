@@ -102,20 +102,27 @@ def validate_history(frame: pl.DataFrame | pl.LazyFrame) -> DataQualityReport:
         pl.col("timestamp").cast(pl.Datetime, strict=False).alias("timestamp"),
         pl.col("demand").cast(pl.Float64, strict=False).alias("demand"),
     )
-    summary = normalized.select(
-        pl.len().alias("row_count"),
-        pl.col("series_id").n_unique().alias("series_count"),
-        (
-            pl.col("series_id").null_count()
-            + pl.col("timestamp").null_count()
-            + pl.col("demand").null_count()
-        ).alias("null_values"),
-        (pl.col("demand") < 0.0).fill_null(False).sum().alias("negative_demand"),
-        (~pl.col("demand").is_finite()).fill_null(False).sum().alias("non_finite_demand"),
-        pl.col("series_id").str.strip_chars().eq("").fill_null(False).sum().alias(
-            "empty_series_ids"
-        ),
-    ).collect().row(0, named=True)
+    summary = (
+        normalized.select(
+            pl.len().alias("row_count"),
+            pl.col("series_id").n_unique().alias("series_count"),
+            (
+                pl.col("series_id").null_count()
+                + pl.col("timestamp").null_count()
+                + pl.col("demand").null_count()
+            ).alias("null_values"),
+            (pl.col("demand") < 0.0).fill_null(False).sum().alias("negative_demand"),
+            (~pl.col("demand").is_finite()).fill_null(False).sum().alias("non_finite_demand"),
+            pl.col("series_id")
+            .str.strip_chars()
+            .eq("")
+            .fill_null(False)
+            .sum()
+            .alias("empty_series_ids"),
+        )
+        .collect()
+        .row(0, named=True)
+    )
 
     duplicate_keys = (
         normalized.group_by(["series_id", "timestamp"])

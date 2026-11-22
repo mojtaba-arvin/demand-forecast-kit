@@ -65,9 +65,7 @@ def newsvendor_order(
 
     levels = tuple(sorted(normalized))
     values = tuple(normalized[level] for level in levels)
-    if any(
-        left > right for left, right in zip(values, values[1:], strict=False)
-    ):
+    if any(left > right for left, right in zip(values, values[1:], strict=False)):
         raise ValueError("demand values must be non-decreasing across quantile levels")
 
     target_service_level = underage_cost / (underage_cost + overage_cost)
@@ -86,9 +84,7 @@ def newsvendor_order(
         )
 
     unrounded_quantity = max(0.0, target_stock_level - inventory_position)
-    rounded_quantity = (
-        ceil(unrounded_quantity / pack_size) * pack_size if unrounded_quantity else 0
-    )
+    rounded_quantity = ceil(unrounded_quantity / pack_size) * pack_size if unrounded_quantity else 0
     return OrderRecommendation(
         quantity=rounded_quantity,
         target_stock_level=target_stock_level,

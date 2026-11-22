@@ -70,18 +70,14 @@ class SeasonalNaiveAdapter:
 
         period = min(self.season_length, len(values))
         residuals = [
-            values[index] - values[index - period]
-            for index in range(period, len(values))
+            values[index] - values[index - period] for index in range(period, len(values))
         ] or [0.0]
         seasonal_profile = values[-period:]
-        baseline = tuple(
-            seasonal_profile[(step - 1) % period] for step in range(1, horizon + 1)
-        )
+        baseline = tuple(seasonal_profile[(step - 1) % period] for step in range(1, horizon + 1))
 
         forecasts = {
             level: tuple(
-                max(0.0, point + _empirical_quantile(residuals, level))
-                for point in baseline
+                max(0.0, point + _empirical_quantile(residuals, level)) for point in baseline
             )
             for level in levels
         }

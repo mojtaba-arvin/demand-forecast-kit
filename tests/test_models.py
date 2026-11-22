@@ -14,12 +14,8 @@ def test_seasonal_naive_returns_reproducible_monotone_quantiles() -> None:
     adapter = SeasonalNaiveAdapter(season_length=3)
     history = [10, 12, 14, 11, 13, 15, 12, 14, 16]
 
-    first = adapter.predict(
-        "sku-1", history, horizon=5, quantile_levels=(0.9, 0.1, 0.5), seed=7
-    )
-    second = adapter.predict(
-        "sku-1", history, horizon=5, quantile_levels=(0.1, 0.5, 0.9), seed=7
-    )
+    first = adapter.predict("sku-1", history, horizon=5, quantile_levels=(0.9, 0.1, 0.5), seed=7)
+    second = adapter.predict("sku-1", history, horizon=5, quantile_levels=(0.1, 0.5, 0.9), seed=7)
 
     assert first == second
     assert first.horizon == 5
@@ -61,9 +57,7 @@ def test_seasonal_naive_handles_short_history_and_zero_floor() -> None:
         ({"history": [1], "horizon": 1, "quantile_levels": (0.5,), "seed": -1}, "seed"),
     ],
 )
-def test_seasonal_naive_rejects_invalid_inputs(
-    kwargs: dict[str, object], message: str
-) -> None:
+def test_seasonal_naive_rejects_invalid_inputs(kwargs: dict[str, object], message: str) -> None:
     adapter = SeasonalNaiveAdapter()
     with pytest.raises(ValueError, match=message):
         adapter.predict("sku", **kwargs)  # type: ignore[arg-type]
@@ -76,5 +70,8 @@ def test_seasonal_naive_rejects_invalid_season_length_and_horizon() -> None:
         SeasonalNaiveAdapter(season_length=1.5)  # type: ignore[arg-type]
     with pytest.raises(ValueError, match="horizon"):
         SeasonalNaiveAdapter().predict(
-            "sku", [1.0], horizon=1.5, quantile_levels=(0.5,)  # type: ignore[arg-type]
+            "sku",
+            [1.0],
+            horizon=1.5,
+            quantile_levels=(0.5,),  # type: ignore[arg-type]
         )
