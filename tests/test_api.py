@@ -3,10 +3,10 @@ from datetime import date, timedelta
 
 import pytest
 
+from demand_forecast_kit.api import create_app
+
 testclient = pytest.importorskip("fastapi.testclient")
 TestClient = testclient.TestClient
-
-from demand_forecast_kit.api import create_app
 
 
 @pytest.fixture
