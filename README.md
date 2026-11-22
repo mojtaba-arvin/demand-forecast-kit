@@ -29,7 +29,8 @@ Demand Forecast Kit is an open-source library and API for turning sales and inve
 - Report MASE, normalized WQL, per-quantile pinball loss, and central interval coverage.
 - Write deterministic JSON evaluation artifacts with a SHA-256 dataset fingerprint and artifact digest.
 - Select a model independently for each SKU from historical rolling-origin evidence, with a strict forecast-origin cutoff, model-version checks, minimum evidence folds, and an explicit Seasonal Naive fallback.
-- Write auditable, deterministic routing decision artifacts.\n- Evaluate replenishment policies against realized cumulative lead-time demand, reporting shortage/holding costs, unit fill rate, and cycle service level.
+- Write auditable, deterministic routing decision artifacts.
+- Calibrate cumulative lead-time demand from same-series, same-model out-of-sample residual paths, with strict forecast-origin filtering and prequential coverage diagnostics.\n- Evaluate replenishment policies against realized cumulative lead-time demand, reporting shortage/holding costs, unit fill rate, and cycle service level.
 
 Not implemented yet: online model learning, automatic retraining, foundation-model adapters, conformal calibration outside the intermittent-model interval backend, hierarchical reconciliation, a persistent run registry, FastAPI endpoints, CLI commands, Rust extensions, and benchmark claims.
 
@@ -129,6 +130,39 @@ print(report.fill_rate, report.cycle_service_level, report.total_cost)
 ```
 
 Inventory position means on-hand plus confirmed inbound stock minus backorders. The current evaluation assumes no intra-lead-time replenishment or salvage value. Holding/shortage costs are computed from realized ending inventory and unmet demand; the underage/overage ratio selects the target quantile. See SPEC 0004 and ADR 0007 for the complete assumptions. The synthetic CI report verifies calculation plumbing only, not forecast quality or business savings.
+
+## Lead-time demand calibration
+
+Build a cumulative lead-time distribution from rolling-origin out-of-sample residual trajectories. The calibration routine requires a caller-supplied median daily baseline for the target lead time and only admits completed historical folds for the same SKU and model.
+
+```python
+from datetime import date
+
+from demand_forecast_kit.lead_time import (
+    calibrate_lead_time_demand,
+    to_inventory_scenario,
+)
+
+distribution = calibrate_lead_time_demand(
+    report,
+    series_id="sku-123",
+    model_id="seasonal-naive",
+    forecast_origin=date(2026, 1, 1),
+    baseline_median=target_median_forecast[:14],
+    lead_time=14,
+    quantile_levels=(0.1, 0.5, 0.9),
+    min_calibration_paths=5,
+    seed=42,
+)
+scenario = to_inventory_scenario(
+    distribution,
+    scenario_id="sku-123-2026-01-01",
+    realized_lead_time_demand=175.0,
+    inventory_position=40.0,
+)
+```
+
+The bootstrap resamples complete residual paths rather than individual daily errors, retaining within-horizon temporal dependence. Overlapping backtest windows are excluded, and every calibration window must end strictly before the target forecast origin. `backtest_lead_time_calibration` performs a prequential diagnostic: each later fold is calibrated only from earlier completed folds and reports cumulative quantile coverage and pinball loss. The method assumes historical residual paths remain representative; it does not guarantee calibration under regime shifts. See SPEC 0005 and ADR 0008. Synthetic CI output validates implementation plumbing only, not forecast accuracy or business savings.
 
 ## Input contract
 
