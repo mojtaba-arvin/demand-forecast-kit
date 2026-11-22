@@ -229,7 +229,9 @@ def count_demand_outliers(
         ordered = sorted(values)
         middle = len(ordered) // 2
         median = (
-            ordered[middle] if len(ordered) % 2 else (ordered[middle - 1] + ordered[middle]) / 2.0
+            ordered[middle]
+            if len(ordered) % 2
+            else (ordered[middle - 1] + ordered[middle]) / 2.0
         )
         deviations = sorted(abs(value - median) for value in values)
         deviation_middle = len(deviations) // 2
