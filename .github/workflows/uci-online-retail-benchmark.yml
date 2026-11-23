@@ -4,7 +4,7 @@ name: UCI Online Retail real-data benchmark
 
 on:
   push:
-    branches: ["work/uci-real-data-benchmark"]
+    branches: ["work/uci-real-data-benchmark", "work/evaluation-infrastructure"]
     paths:
       - ".github/workflows/uci-online-retail-benchmark.yml"
       - "evals/**"
@@ -71,6 +71,21 @@ jobs:
             "data/raw/Online Retail.xlsx" \
             --max-skus-per-cohort 10 \
             --output artifacts/uci-online-retail-calibration.json
+
+      - name: Run real-data forecast-to-inventory decision pipeline
+        run: |
+          python evals/run_uci_online_retail_e2e.py \
+            "data/raw/Online Retail.xlsx" \
+            --origin-offset-days 300 \
+            --output artifacts/uci-online-retail-end-to-end.json
+
+      - name: Upload real-data end-to-end decision
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: uci-online-retail-end-to-end-decision
+          path: artifacts/uci-online-retail-end-to-end.json
+          if-no-files-found: error
+          retention-days: 30
 
       - name: Upload reproducible benchmark report
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
