@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import argparse
+import json
 from collections.abc import Sequence
 from pathlib import Path
 
 from demand_forecast_kit.backtesting import BacktestConfig, run_backtest
 from demand_forecast_kit.data import scan_history
 from demand_forecast_kit.models.seasonal_naive import SeasonalNaiveAdapter
+from demand_forecast_kit.run_service import RunService
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -21,6 +23,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--season-length", type=int, default=7)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--output", type=Path, help="write canonical JSON to this path")
+    parser.add_argument("--state-dir", type=Path, default=Path(".demand-forecast-kit"))
     args = parser.parse_args(argv)
 
     try:
@@ -40,12 +43,44 @@ def main(argv: Sequence[str] | None = None) -> int:
     except (OSError, ValueError) as exc:
         parser.error(str(exc))
 
-    payload = report.to_json_bytes()
+    service = RunService(args.state_dir)
+    report_payload = report.to_dict()
+    model = report.model_summaries[0]
+    config = {
+        "initial_train_size": config.initial_train_size,
+        "horizon": config.horizon,
+        "step": config.step,
+        "season_length": config.season_length,
+        "quantile_levels": list(config.quantile_levels),
+        "coverage_levels": list(config.coverage_levels),
+        "seed": config.seed,
+    }
+    run = service.record_run(
+        idempotency_key=service.idempotency_key(
+            dataset_fingerprint=report.dataset_fingerprint,
+            model_id=model.model_id,
+            model_version=model.model_version,
+            config=config,
+        ),
+        dataset_fingerprint=report.dataset_fingerprint,
+        model_id=model.model_id,
+        model_version=model.model_version,
+        config=config,
+        result=report_payload,
+        artifact_payload=report.to_json_bytes(),
+    )
+    payload = json.dumps(
+        {**report_payload, "run": run.to_dict()},
+        ensure_ascii=False,
+        sort_keys=True,
+        indent=2,
+        allow_nan=False,
+    ) + "\\n"
     if args.output is None:
-        print(payload.decode("utf-8"), end="")
+        print(payload, end="")
     else:
         args.output.parent.mkdir(parents=True, exist_ok=True)
-        args.output.write_bytes(payload)
+        args.output.write_text(payload, encoding="utf-8")
     return 0
 
 
