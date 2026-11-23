@@ -8,7 +8,6 @@ import argparse
 import json
 from datetime import timedelta
 from pathlib import Path
-from tempfile import TemporaryDirectory
 
 import polars as pl
 
@@ -149,127 +148,130 @@ def run_real_data_e2e(
     dataset_fingerprint = f"{source_sha256}:{report.dataset_fingerprint}"
 
     output.parent.mkdir(parents=True, exist_ok=True)
-    with TemporaryDirectory(prefix="demand-forecast-uci-e2e-") as temporary:
-        root = Path(temporary)
-        registry = SQLiteRunRegistry(root / "runs.sqlite")
-        artifact_store = FileArtifactStore(root / "artifacts")
-        run = registry.create_run(
-            idempotency_key=f"uci-e2e:{source_sha256}:{series_id}:{forecast_origin.isoformat()}",
-            dataset_fingerprint=dataset_fingerprint,
-            model_id=adapter.model_id,
-            model_version=adapter.model_version,
-            config={
-                "forecast_origin": forecast_origin.isoformat(),
-                "forecast_origin_offset_days": forecast_origin_offset_days,
-                "initial_train_size": config.initial_train_size,
-                "horizon": config.horizon,
-                "step": config.step,
-                "seed": config.seed,
-            },
-        )
-        stored = artifact_store.put(report.to_json_bytes())
-        if artifact_store.get(stored.sha256) != report.to_json_bytes():
-            raise RuntimeError("stored evaluation artifact failed SHA-256 retrieval verification")
-        completed = registry.complete_run(
-            run.run_id,
-            {
-                "artifact_sha256": stored.sha256,
-                "source_sha256": source_sha256,
-                "forecast_quantiles": {
-                    str(level): list(values) for level, values in forecast.quantiles.items()
-                },
-                "rolling_origin_fold_count": len(report.evaluations),
-            },
-        )
-        decision = registry.record_inventory_decision(
-            run.run_id,
-            decision_key=scenario.scenario_id,
-            decision={
-                "policy": "high-service",
-                "order_quantity": selected.quantity,
-                "target_stock_level": selected.target_stock_level,
-                "realized_demand_from_uci": scenario.realized_lead_time_demand,
-                "lead_time_demand_quantiles": {
-                    str(level): value for level, value in distribution.quantiles.items()
-                },
-                "inventory_position_assumption": inventory_position,
-                "supplier_lead_time_days_assumption": 3,
-            },
-        )
-        assert registry.list_inventory_decisions(run.run_id) == (decision,)
-        payload: dict[str, object] = {
-            "schema_version": 1,
-            "provenance": {
-                "dataset": "UCI Online Retail",
-                "doi": DATASET_DOI,
-                "source_sha256": source_sha256,
-                "report_dataset_fingerprint": report.dataset_fingerprint,
-                "cohort_counts": cohort_counts,
-            },
-            "series_id": series_id,
-            "history_start": str(history.get_column("timestamp").min()),
+    registry_path = output.parent / "uci-online-retail-runs.sqlite"
+    artifact_root = output.parent / "uci-online-retail-artifacts"
+    registry = SQLiteRunRegistry(registry_path)
+    artifact_store = FileArtifactStore(artifact_root)
+    root = Path(temporary)
+    registry = SQLiteRunRegistry(root / "runs.sqlite")
+    artifact_store = FileArtifactStore(root / "artifacts")
+    run = registry.create_run(
+        idempotency_key=f"uci-e2e:{source_sha256}:{series_id}:{forecast_origin.isoformat()}",
+        dataset_fingerprint=dataset_fingerprint,
+        model_id=adapter.model_id,
+        model_version=adapter.model_version,
+        config={
             "forecast_origin": forecast_origin.isoformat(),
-            "holdout_end_exclusive": holdout_end.isoformat(),
-            "holdout_actual_demand": future_values,
-            "rolling_origin": {
-                "fold_count": len(report.evaluations),
-                "mean_wql": report.model_summaries[0].mean_wql,
-                "mean_mase": report.model_summaries[0].mean_mase,
-            },
+            "forecast_origin_offset_days": forecast_origin_offset_days,
+            "initial_train_size": config.initial_train_size,
+            "horizon": config.horizon,
+            "step": config.step,
+            "seed": config.seed,
+        },
+    )
+    stored = artifact_store.put(report.to_json_bytes())
+    if artifact_store.get(stored.sha256) != report.to_json_bytes():
+        raise RuntimeError("stored evaluation artifact failed SHA-256 retrieval verification")
+    completed = registry.complete_run(
+        run.run_id,
+        {
+            "artifact_sha256": stored.sha256,
+            "source_sha256": source_sha256,
             "forecast_quantiles": {
                 str(level): list(values) for level, values in forecast.quantiles.items()
             },
-            "lead_time_calibration": {
-                "path_count": distribution.calibration_path_count,
-                "quantiles": {
-                    str(level): value for level, value in distribution.quantiles.items()
-                },
+            "rolling_origin_fold_count": len(report.evaluations),
+        },
+    )
+    decision = registry.record_inventory_decision(
+        run.run_id,
+        decision_key=scenario.scenario_id,
+        decision={
+            "policy": "high-service",
+            "order_quantity": selected.quantity,
+            "target_stock_level": selected.target_stock_level,
+            "realized_demand_from_uci": scenario.realized_lead_time_demand,
+            "lead_time_demand_quantiles": {
+                str(level): value for level, value in distribution.quantiles.items()
             },
-            "policy_comparison": {
-                name: {
-                    "total_cost": result.total_cost,
-                    "fill_rate": result.fill_rate,
-                    "cycle_service_level": result.cycle_service_level,
-                    "order_quantity": result.scenarios[0].recommendation.quantity,
-                }
-                for name, result in policies.items()
+            "inventory_position_assumption": inventory_position,
+            "supplier_lead_time_days_assumption": 3,
+        },
+    )
+    assert registry.list_inventory_decisions(run.run_id) == (decision,)
+    payload: dict[str, object] = {
+        "schema_version": 1,
+        "provenance": {
+            "dataset": "UCI Online Retail",
+            "doi": DATASET_DOI,
+            "source_sha256": source_sha256,
+            "report_dataset_fingerprint": report.dataset_fingerprint,
+            "cohort_counts": cohort_counts,
+        },
+        "series_id": series_id,
+        "history_start": str(history.get_column("timestamp").min()),
+        "forecast_origin": forecast_origin.isoformat(),
+        "holdout_end_exclusive": holdout_end.isoformat(),
+        "holdout_actual_demand": future_values,
+        "rolling_origin": {
+            "fold_count": len(report.evaluations),
+            "mean_wql": report.model_summaries[0].mean_wql,
+            "mean_mase": report.model_summaries[0].mean_mase,
+        },
+        "forecast_quantiles": {
+            str(level): list(values) for level, values in forecast.quantiles.items()
+        },
+        "lead_time_calibration": {
+            "path_count": distribution.calibration_path_count,
+            "quantiles": {
+                str(level): value for level, value in distribution.quantiles.items()
             },
-            "inventory_simulation": {
-                "days": len(simulation.days),
-                "stockout_days": simulation.stockout_days,
-                "total_fulfilled": simulation.total_fulfilled,
-                "total_lost_sales": simulation.total_lost_sales,
-                "ending_backorders": simulation.ending_backorders,
-                "fill_rate": simulation.fill_rate,
-            },
-            "assumptions": {
-                "inventory_position": inventory_position,
-                "supplier_lead_time_days": 3,
-                "costs": "explicit synthetic scenario assumptions; not present in UCI source",
-            },
-            "registry": {
-                "run_id": completed.run_id,
-                "status": completed.status,
-                "inventory_decision_id": decision.decision_id,
-                "decision_key": decision.decision_key,
-            },
-            "artifact": {
-                "sha256": stored.sha256,
-                "size_bytes": stored.size_bytes,
-                "path": stored.path,
-            },
-        }
-        output.write_text(
-            json.dumps(
-                payload,
-                ensure_ascii=False,
-                sort_keys=True,
-                separators=(",", ":"),
-                allow_nan=False,
-            )
-            + "\n",
-            encoding="utf-8",
+        },
+        "policy_comparison": {
+            name: {
+                "total_cost": result.total_cost,
+                "fill_rate": result.fill_rate,
+                "cycle_service_level": result.cycle_service_level,
+                "order_quantity": result.scenarios[0].recommendation.quantity,
+            }
+            for name, result in policies.items()
+        },
+        "inventory_simulation": {
+            "days": len(simulation.days),
+            "stockout_days": simulation.stockout_days,
+            "total_fulfilled": simulation.total_fulfilled,
+            "total_lost_sales": simulation.total_lost_sales,
+            "ending_backorders": simulation.ending_backorders,
+            "fill_rate": simulation.fill_rate,
+        },
+        "assumptions": {
+            "inventory_position": inventory_position,
+            "supplier_lead_time_days": 3,
+            "costs": "explicit synthetic scenario assumptions; not present in UCI source",
+        },
+        "registry": {
+            "run_id": completed.run_id,
+            "status": completed.status,
+            "inventory_decision_id": decision.decision_id,
+            "decision_key": decision.decision_key,
+        },
+        "artifact": {
+            "sha256": stored.sha256,
+            "size_bytes": stored.size_bytes,
+            "path": stored.path,
+        },
+    }
+    output.write_text(
+        json.dumps(
+            payload,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
         )
+        + "\n",
+        encoding="utf-8",
+    )
     return payload
 
 
