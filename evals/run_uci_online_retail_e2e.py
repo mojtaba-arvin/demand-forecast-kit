@@ -152,11 +152,6 @@ def run_real_data_e2e(
     artifact_root = output.parent / "uci-online-retail-artifacts"
     registry = SQLiteRunRegistry(registry_path)
     artifact_store = FileArtifactStore(artifact_root)
-    root = Path(temporary)
-    registry_path = output.parent / "uci-online-retail-runs.sqlite"
-    artifact_root = output.parent / "uci-online-retail-artifacts"
-    registry = SQLiteRunRegistry(registry_path)
-    artifact_store = FileArtifactStore(artifact_root)
     run = registry.create_run(
         idempotency_key=f"uci-e2e:{source_sha256}:{series_id}:{forecast_origin.isoformat()}",
         dataset_fingerprint=dataset_fingerprint,
