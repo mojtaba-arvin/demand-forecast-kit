@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from demand_forecast_kit.artifacts import FileArtifactStore
-from demand_forecast_kit.observability import InMemoryMetrics, JsonLogFormatter
+from demand_forecast_kit.observability import InMemoryMetrics, JsonLogFormatter, MetricsSnapshot
 from demand_forecast_kit.registry import SQLiteRunRegistry
 
 
@@ -57,8 +57,13 @@ class RunService:
         return hashlib.sha256(payload).hexdigest()
 
     @staticmethod
-    def idempotency_key(*, dataset_fingerprint: str, model_id: str,
-                        model_version: str, config: dict[str, Any]) -> str:
+    def idempotency_key(
+        *,
+        dataset_fingerprint: str,
+        model_id: str,
+        model_version: str,
+        config: dict[str, Any],
+    ) -> str:
         """Derive a stable run key from dataset, model, version, and configuration."""
         identity = json.dumps(
             {
@@ -160,6 +165,6 @@ class RunService:
             "decision_key": stored.decision_key,
         }
 
-    def metrics_snapshot(self) -> dict[str, object]:
+    def metrics_snapshot(self) -> MetricsSnapshot:
         """Return a detached snapshot suitable for an authenticated metrics endpoint."""
         return self.metrics.snapshot()
