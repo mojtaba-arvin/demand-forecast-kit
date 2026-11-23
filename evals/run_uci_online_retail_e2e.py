@@ -168,6 +168,8 @@ def run_real_data_e2e(
             },
         )
         stored = artifact_store.put(report.to_json_bytes())
+        if artifact_store.get(stored.sha256) != report.to_json_bytes():
+            raise RuntimeError("stored evaluation artifact failed SHA-256 retrieval verification")
         completed = registry.complete_run(
             run.run_id,
             {
