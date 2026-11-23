@@ -7,8 +7,20 @@ on:
     branches: ["work/uci-real-data-benchmark", "work/evaluation-infrastructure"]
     paths:
       - ".github/workflows/uci-online-retail-benchmark.yml"
-      - "evals/**"
-      - "src/**"
+      - "evals/run_uci_online_retail_benchmark.py"
+      - "evals/run_uci_online_retail_e2e.py"
+      - "src/demand_forecast_kit/retail_benchmark.py"
+      - "src/demand_forecast_kit/backtesting.py"
+      - "src/demand_forecast_kit/contracts.py"
+      - "src/demand_forecast_kit/lead_time.py"
+      - "src/demand_forecast_kit/inventory.py"
+      - "src/demand_forecast_kit/policy_comparison.py"
+      - "src/demand_forecast_kit/decisions.py"
+      - "src/demand_forecast_kit/simulation.py"
+      - "src/demand_forecast_kit/registry.py"
+      - "src/demand_forecast_kit/artifacts.py"
+      - "src/demand_forecast_kit/models/seasonal_naive.py"
+      - "src/demand_forecast_kit/models/statistical.py"
       - "pyproject.toml"
   workflow_dispatch:
 
