@@ -69,13 +69,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         result=report_payload,
         artifact_payload=report.to_json_bytes(),
     )
-    payload = json.dumps(
-        {**report_payload, "run": run.to_dict()},
-        ensure_ascii=False,
-        sort_keys=True,
-        indent=2,
-        allow_nan=False,
-    ) + "\n"
+    payload = (
+        json.dumps(
+            {**report_payload, "run": run.to_dict()},
+            ensure_ascii=False,
+            sort_keys=True,
+            indent=2,
+            allow_nan=False,
+        )
+        + "\n"
+    )
     if args.output is None:
         print(payload, end="")
     else:
