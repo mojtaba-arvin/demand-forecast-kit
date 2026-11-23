@@ -224,9 +224,7 @@ def run_real_data_e2e(
         },
         "lead_time_calibration": {
             "path_count": distribution.calibration_path_count,
-            "quantiles": {
-                str(level): value for level, value in distribution.quantiles.items()
-            },
+            "quantiles": {str(level): value for level, value in distribution.quantiles.items()},
         },
         "policy_comparison": {
             name: {
