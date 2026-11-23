@@ -217,7 +217,7 @@ python -m pip install ".[dev]"
 - [Structured logging and process-local metrics](docs/observability.md)
 - [Incremental and hierarchical data](docs/hierarchical-data.md)
 - [Inventory simulation](docs/inventory-simulation.md)
-- [End-to-end forecast-to-decision smoke](docs/end-to-end-smoke.md)
+- [End-to-end forecast-to-decision smoke, including UCI real-demand run](docs/end-to-end-smoke.md)
 - [Benchmarking protocol](docs/benchmarking-protocol.md)
 - [Statistical and operational limitations](docs/limitations.md)
 - [Independent UCI Electricity benchmark](docs/benchmarks/uci-electricity-load.md)
