@@ -49,9 +49,7 @@ def test_run_service_uses_environment_state_directory(tmp_path, monkeypatch) -> 
     assert (state_dir / "runs.sqlite").is_file()
 
 
-def test_run_service_marks_failed_runs_when_artifact_storage_fails(
-    tmp_path, monkeypatch
-) -> None:
+def test_run_service_marks_failed_runs_when_artifact_storage_fails(tmp_path, monkeypatch) -> None:
     import sqlite3
 
     import pytest
