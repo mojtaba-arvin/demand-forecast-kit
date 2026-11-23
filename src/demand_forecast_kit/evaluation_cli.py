@@ -77,7 +77,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             indent=2,
             allow_nan=False,
         )
-        + "\n"
+            + "\n",
     )
     if args.output is None:
         print(payload, end="")
