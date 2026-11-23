@@ -104,6 +104,29 @@ def test_replenishment_endpoint_uses_cumulative_quantiles(client: TestClient) ->
     assert response.json()["quantity"] == 30
 
 
+def test_replenishment_endpoint_records_immutable_decision(client: TestClient) -> None:
+    forecast = client.post(
+        "/v1/forecasts",
+        json={"series_id": "sku-decision", "history": [1, 2, 3, 4, 5, 6, 7]},
+    )
+    run_id = forecast.json()["run"]["run_id"]
+    response = client.post(
+        "/v1/replenishment/recommendations",
+        json={
+            "lead_time_demand_quantiles": {"0.1": 10, "0.5": 20, "0.9": 40},
+            "underage_cost": 9,
+            "overage_cost": 1,
+            "inventory_position": 12,
+            "run_id": run_id,
+            "decision_key": "sku-decision:2026-01-01",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["decision"]["run_id"] == run_id
+    assert response.json()["decision"]["decision_id"] > 0
+
+
 def test_replenishment_endpoint_rejects_unbracketed_service_level(client: TestClient) -> None:
     response = client.post(
         "/v1/replenishment/recommendations",
