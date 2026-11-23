@@ -15,3 +15,10 @@ fold is evaluated using only observations before its test window. The CLI does
 not tune calibration or model parameters on holdout observations. Defaults are
 intended for small examples; choose split sizes that match the cadence and
 history length of the dataset.
+
+
+The command also persists the report as an idempotent run and a SHA-256
+content-addressed artifact. Its JSON response includes the run ID and artifact
+digest. Use `--state-dir PATH` to choose the registry/artifact directory; the
+default `.demand-forecast-kit/` directory is shared with the Forecast CLI and
+the FastAPI app when they use the same location.
