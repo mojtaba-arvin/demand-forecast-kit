@@ -65,13 +65,6 @@ jobs:
           print(f"Extracted {target} ({target.stat().st_size:,} bytes)")
           PY
 
-      - name: Run real-data calibration benchmark
-        run: |
-          python evals/run_uci_online_retail_benchmark.py \
-            "data/raw/Online Retail.xlsx" \
-            --max-skus-per-cohort 10 \
-            --output artifacts/uci-online-retail-calibration.json
-
       - name: Run real-data forecast-to-inventory decision pipeline
         run: |
           python evals/run_uci_online_retail_e2e.py \
@@ -89,6 +82,13 @@ jobs:
             artifacts/uci-online-retail-artifacts/
           if-no-files-found: error
           retention-days: 30
+
+      - name: Run real-data calibration benchmark
+        run: |
+          python evals/run_uci_online_retail_benchmark.py \
+            "data/raw/Online Retail.xlsx" \
+            --max-skus-per-cohort 10 \
+            --output artifacts/uci-online-retail-calibration.json
 
       - name: Upload reproducible benchmark report
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
