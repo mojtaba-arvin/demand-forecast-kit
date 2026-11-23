@@ -11,6 +11,7 @@ import polars as pl
 
 from demand_forecast_kit.data import scan_history, validate_history
 from demand_forecast_kit.models.seasonal_naive import SeasonalNaiveAdapter
+from demand_forecast_kit.run_service import RunService
 
 
 def _quantiles(raw: str) -> tuple[float, ...]:
@@ -34,6 +35,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--quantiles", type=_quantiles, default=(0.1, 0.5, 0.9))
     parser.add_argument("--format", choices=("json", "csv", "parquet"), default="json")
     parser.add_argument("--output", type=Path, help="write output to this path instead of stdout")
+    parser.add_argument("--state-dir", type=Path, default=Path(".demand-forecast-kit"))
     args = parser.parse_args(argv)
     if args.horizon < 1 or args.season_length < 1:
         parser.error("horizon and season-length must be positive")
@@ -47,6 +49,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         parser.error("--output is required for CSV and Parquet formats")
 
     adapter = SeasonalNaiveAdapter(season_length=args.season_length)
+    service = RunService(args.state_dir)
     forecasts: list[dict[str, object]] = []
     table_rows: list[dict[str, str | int | float]] = []
     for series in history.sort(["series_id", "timestamp"]).partition_by(
@@ -67,6 +70,40 @@ def main(argv: Sequence[str] | None = None) -> int:
             "horizon": forecast.horizon,
             "quantiles": {str(level): list(values) for level, values in forecast.quantiles.items()},
         }
+        config = {
+            "horizon": args.horizon,
+            "season_length": args.season_length,
+            "quantiles": list(args.quantiles),
+            "seed": 0,
+        }
+        dataset_bytes = json.dumps(
+            {
+                "series_id": series_id,
+                "timestamps": [value.isoformat() for value in series["timestamp"].to_list()],
+                "demand": [float(value) for value in series["demand"].to_list()],
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        ).encode("utf-8")
+        dataset_fingerprint = service.fingerprint(dataset_bytes)
+        run = service.record_run(
+            idempotency_key=service.idempotency_key(
+                dataset_fingerprint=dataset_fingerprint,
+                model_id=adapter.model_id,
+                model_version=adapter.model_version,
+                config=config,
+            ),
+            dataset_fingerprint=dataset_fingerprint,
+            model_id=adapter.model_id,
+            model_version=adapter.model_version,
+            config=config,
+            result=forecast_record,
+            artifact_payload=json.dumps(
+                forecast_record, sort_keys=True, separators=(",", ":"), allow_nan=False
+            ).encode("utf-8"),
+        )
+        forecast_record["run"] = run.to_dict()
         forecasts.append(forecast_record)
         for level, values in forecast.quantiles.items():
             for step, value in enumerate(values):
@@ -78,6 +115,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                         "horizon_step": step + 1,
                         "quantile": level,
                         "forecast": value,
+                        "run_id": run.run_id,
+                        "artifact_sha256": run.artifact_sha256,
                     }
                 )
     if args.format == "json":
