@@ -1,14 +1,18 @@
 """Optional FastAPI surface for forecast, backtest, and replenishment contracts."""
 
 from datetime import date
+import json
 from math import isfinite
 from typing import Any
 
 import polars as pl
 
+from demand_forecast_kit.run_service import RunService
 
-def create_app() -> Any:
+
+def create_app(run_service: RunService | None = None) -> Any:
     """Create the API application; FastAPI remains an optional dependency."""
+    service = run_service or RunService.from_environment()
     try:
         from fastapi import FastAPI, HTTPException
         from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -105,6 +109,8 @@ def create_app() -> Any:
         overage_cost: float = Field(gt=0)
         inventory_position: float
         pack_size: int = Field(default=1, ge=1)
+        run_id: int | None = Field(default=None, ge=1)
+        decision_key: str | None = Field(default=None, min_length=1, max_length=512)
 
         @field_validator("underage_cost", "overage_cost", "inventory_position")
         @classmethod
@@ -133,13 +139,43 @@ def create_app() -> Any:
             quantile_levels=request.quantiles,
             seed=0,
         )
-        return {
+        payload: dict[str, object] = {
             "series_id": result.series_id,
             "model_id": adapter.model_id,
             "model_version": adapter.model_version,
             "horizon": result.horizon,
             "quantiles": {str(level): list(values) for level, values in result.quantiles.items()},
         }
+        config = {
+            "horizon": request.horizon,
+            "season_length": request.season_length,
+            "quantiles": request.quantiles,
+            "seed": 0,
+        }
+        dataset_bytes = json.dumps(
+            {"series_id": request.series_id, "history": request.history},
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        ).encode("utf-8")
+        dataset_fingerprint = service.fingerprint(dataset_bytes)
+        run = service.record_run(
+            idempotency_key=service.idempotency_key(
+                dataset_fingerprint=dataset_fingerprint,
+                model_id=adapter.model_id,
+                model_version=adapter.model_version,
+                config=config,
+            ),
+            dataset_fingerprint=dataset_fingerprint,
+            model_id=adapter.model_id,
+            model_version=adapter.model_version,
+            config=config,
+            result=payload,
+            artifact_payload=json.dumps(
+                payload, sort_keys=True, separators=(",", ":"), allow_nan=False
+            ).encode("utf-8"),
+        )
+        return {**payload, "run": run.to_dict()}
 
     @app.post("/v1/backtests")
     def backtest(request: BacktestRequest) -> dict[str, object]:
@@ -174,7 +210,29 @@ def create_app() -> Any:
             [SeasonalNaiveAdapter(season_length=request.season_length)],
             config,
         )
-        return report.to_dict()
+        payload = report.to_dict()
+        config = {
+            "initial_train_size": request.initial_train_size,
+            "horizon": request.horizon,
+            "step": request.step,
+            "season_length": request.season_length,
+            "quantiles": request.quantiles,
+        }
+        run = service.record_run(
+            idempotency_key=service.idempotency_key(
+                dataset_fingerprint=report.dataset_fingerprint,
+                model_id=report.model_summaries[0].model_id,
+                model_version=report.model_summaries[0].model_version,
+                config=config,
+            ),
+            dataset_fingerprint=report.dataset_fingerprint,
+            model_id=report.model_summaries[0].model_id,
+            model_version=report.model_summaries[0].model_version,
+            config=config,
+            result=payload,
+            artifact_payload=report.to_json_bytes(),
+        )
+        return {**payload, "run": run.to_dict()}
 
     @app.post("/v1/replenishment/recommendations")
     def replenishment(request: ReplenishmentRequest) -> dict[str, object]:
@@ -188,12 +246,28 @@ def create_app() -> Any:
             )
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
-        return {
+        payload: dict[str, object] = {
             "quantity": result.quantity,
             "target_stock_level": result.target_stock_level,
             "inventory_position": result.inventory_position,
             "target_service_level": result.target_service_level,
             "unrounded_quantity": result.unrounded_quantity,
         }
+        if (request.run_id is None) != (request.decision_key is None):
+            raise HTTPException(
+                status_code=422,
+                detail="run_id and decision_key must be provided together",
+            )
+        if request.run_id is not None and request.decision_key is not None:
+            try:
+                payload["decision"] = service.record_inventory_decision(
+                    request.run_id,
+                    decision_key=request.decision_key,
+                    decision=payload,
+                )
+            except (KeyError, ValueError) as exc:
+                raise HTTPException(status_code=422, detail=str(exc)) from exc
+        return payload
 
+    app.state.run_service = service
     return app
