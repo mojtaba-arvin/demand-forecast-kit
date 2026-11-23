@@ -30,6 +30,8 @@ job alone is not sufficient evidence of production readiness.
 - [ ] Run a forecast through the public API and Forecast CLI from the same canonical input.
 - [ ] Run rolling-origin evaluation through the independent Evaluation CLI and API.
 - [ ] Verify run idempotency, immutable inventory-decision persistence, and SHA-256 artifact retrieval.
+- [ ] Run Forecast API, Forecast CLI, and Evaluation CLI against one shared state directory; verify SQLite run identity, artifact hashes, and retry idempotency.
+- [ ] Verify RunService structured JSON events and thread-safe metrics snapshots without exposing an unauthenticated metrics endpoint.
 - [ ] Verify structured JSON logs and concurrent in-process metrics snapshots.
 - [ ] Exercise incremental ingestion with duplicate and late-arriving rows; verify missing-period and timezone policy.
 - [ ] Exercise SKU/location hierarchy rollups and confirm aggregate axes are not double-counted.
