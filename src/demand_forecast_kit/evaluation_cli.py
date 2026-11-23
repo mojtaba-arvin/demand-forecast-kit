@@ -75,7 +75,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         sort_keys=True,
         indent=2,
         allow_nan=False,
-    ) + "\\n"
+    ) + "\n"
     if args.output is None:
         print(payload, end="")
     else:
