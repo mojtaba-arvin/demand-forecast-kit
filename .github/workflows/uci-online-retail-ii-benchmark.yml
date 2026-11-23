@@ -19,7 +19,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: uci-online-retail-ii-benchmark-${{ github.ref }}
+  group: uci-online-retail-ii-benchmark-${{ github.ref_name }}
   cancel-in-progress: false
 
 jobs:
