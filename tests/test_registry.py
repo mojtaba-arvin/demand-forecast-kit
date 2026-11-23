@@ -1,3 +1,4 @@
+import sqlite3
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -174,3 +175,35 @@ def test_inventory_decision_requires_existing_run(tmp_path: Path) -> None:
         registry.record_inventory_decision(404, decision_key="decision", decision={"quantity": 1})
     with pytest.raises(KeyError, match="unknown run_id"):
         registry.list_inventory_decisions(404)
+
+
+
+def test_inventory_decisions_cannot_be_mutated_or_deleted_via_sql(tmp_path: Path) -> None:
+    database = tmp_path / "immutable-decisions.sqlite"
+    registry = SQLiteRunRegistry(database)
+    run = registry.create_run(
+        idempotency_key="immutable-run",
+        dataset_fingerprint="dataset",
+        model_id="model",
+        model_version="1",
+        config={},
+    )
+    decision = registry.record_inventory_decision(
+        run.run_id,
+        decision_key="sku-1:2026-01-01",
+        decision={"sku": "sku-1", "quantity": 12},
+    )
+
+    with sqlite3.connect(database) as connection:
+        with pytest.raises(sqlite3.IntegrityError, match="inventory decisions are immutable"):
+            connection.execute(
+                "UPDATE inventory_decisions SET decision_json = ? WHERE decision_id = ?",
+                ('{"sku":"sku-1","quantity":99}', decision.decision_id),
+            )
+        with pytest.raises(sqlite3.IntegrityError, match="inventory decisions are immutable"):
+            connection.execute(
+                "DELETE FROM inventory_decisions WHERE decision_id = ?",
+                (decision.decision_id,),
+            )
+
+    assert registry.list_inventory_decisions(run.run_id) == (decision,)
