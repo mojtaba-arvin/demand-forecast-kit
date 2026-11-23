@@ -169,7 +169,7 @@ def create_app(run_service: RunService | None = None) -> Any:
             dataset_fingerprint=dataset_fingerprint,
             model_id=adapter.model_id,
             model_version=adapter.model_version,
-            config=config,
+            config=run_config,
             result=payload,
             artifact_payload=json.dumps(
                 payload, sort_keys=True, separators=(",", ":"), allow_nan=False
@@ -197,7 +197,7 @@ def create_app(run_service: RunService | None = None) -> Any:
                 "demand": [item.demand for item in request.observations],
             }
         )
-        config = BacktestConfig(
+        backtest_config = BacktestConfig(
             initial_train_size=request.initial_train_size,
             horizon=request.horizon,
             step=request.step,
@@ -208,10 +208,10 @@ def create_app(run_service: RunService | None = None) -> Any:
         report = run_backtest(
             history,
             [SeasonalNaiveAdapter(season_length=request.season_length)],
-            config,
+            backtest_config,
         )
         payload = report.to_dict()
-        config = {
+        run_config = {
             "initial_train_size": request.initial_train_size,
             "horizon": request.horizon,
             "step": request.step,
@@ -223,7 +223,7 @@ def create_app(run_service: RunService | None = None) -> Any:
                 dataset_fingerprint=report.dataset_fingerprint,
                 model_id=report.model_summaries[0].model_id,
                 model_version=report.model_summaries[0].model_version,
-                config=config,
+                config=run_config,
             ),
             dataset_fingerprint=report.dataset_fingerprint,
             model_id=report.model_summaries[0].model_id,
