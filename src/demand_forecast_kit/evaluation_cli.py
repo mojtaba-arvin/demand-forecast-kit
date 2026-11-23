@@ -27,7 +27,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
-        config = BacktestConfig(
+        backtest_config = BacktestConfig(
             initial_train_size=args.initial_train_size,
             horizon=args.horizon,
             step=args.step,
@@ -38,7 +38,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         report = run_backtest(
             history,
             [SeasonalNaiveAdapter(season_length=args.season_length)],
-            config,
+            backtest_config,
         )
     except (OSError, ValueError) as exc:
         parser.error(str(exc))
@@ -46,26 +46,26 @@ def main(argv: Sequence[str] | None = None) -> int:
     service = RunService(args.state_dir)
     report_payload = report.to_dict()
     model = report.model_summaries[0]
-    config = {
-        "initial_train_size": config.initial_train_size,
-        "horizon": config.horizon,
-        "step": config.step,
-        "season_length": config.season_length,
-        "quantile_levels": list(config.quantile_levels),
-        "coverage_levels": list(config.coverage_levels),
-        "seed": config.seed,
+    run_config = {
+        "initial_train_size": backtest_config.initial_train_size,
+        "horizon": backtest_config.horizon,
+        "step": backtest_config.step,
+        "season_length": backtest_config.season_length,
+        "quantile_levels": list(backtest_config.quantile_levels),
+        "coverage_levels": list(backtest_config.coverage_levels),
+        "seed": backtest_config.seed,
     }
     run = service.record_run(
         idempotency_key=service.idempotency_key(
             dataset_fingerprint=report.dataset_fingerprint,
             model_id=model.model_id,
             model_version=model.model_version,
-            config=config,
+            config=run_config,
         ),
         dataset_fingerprint=report.dataset_fingerprint,
         model_id=model.model_id,
         model_version=model.model_version,
-        config=config,
+        config=run_config,
         result=report_payload,
         artifact_payload=report.to_json_bytes(),
     )
