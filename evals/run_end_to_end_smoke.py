@@ -13,7 +13,6 @@ import polars as pl
 
 from demand_forecast_kit.artifacts import FileArtifactStore
 from demand_forecast_kit.backtesting import BacktestConfig, run_backtest
-from demand_forecast_kit.inventory import InventoryScenario
 from demand_forecast_kit.lead_time import calibrate_lead_time_demand, to_inventory_scenario
 from demand_forecast_kit.models.seasonal_naive import SeasonalNaiveAdapter
 from demand_forecast_kit.policy_comparison import InventoryPolicy, compare_inventory_policies
