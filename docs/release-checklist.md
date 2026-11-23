@@ -34,7 +34,8 @@ job alone is not sufficient evidence of production readiness.
 - [ ] Exercise incremental ingestion with duplicate and late-arriving rows; verify missing-period and timezone policy.
 - [ ] Exercise SKU/location hierarchy rollups and confirm aggregate axes are not double-counted.
 - [ ] Simulate supplier lead-time delays, stockouts, backorders, and lost sales on fixed scenarios; compare at least two policies on identical scenarios.
-- [ ] Run a reproducible end-to-end forecast → rolling-origin evaluation → inventory simulation → immutable Run Registry decision flow.
+- [ ] Run the deterministic synthetic end-to-end forecast → evaluation → simulation → immutable registry smoke.
+- [ ] Run the same decision flow on an independently sourced real-demand dataset, recording all assumed (not observed) inventory, supplier, and cost inputs.
 - [ ] Record the exact commit SHA, dataset hashes, commands, test results, and artifact hashes for the end-to-end run.
 
 ## Security, packaging, and provenance
