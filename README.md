@@ -212,6 +212,7 @@ python -m pip install ".[dev]"
 
 - [Quick start](docs/quickstart.md)
 - [Forecast and evaluation CLI](docs/cli.md)
+- [FastAPI and persisted runs](docs/api.md)
 - [Rolling-origin evaluation CLI](docs/evaluation-cli.md)
 - [Run registry and artifact storage](docs/run-registry.md)
 - [Structured logging and process-local metrics](docs/observability.md)
