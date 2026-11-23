@@ -162,9 +162,7 @@ def run_end_to_end(output: Path) -> dict[str, object]:
             },
             "lead_time_calibration": {
                 "path_count": distribution.calibration_path_count,
-                "quantiles": {
-                    str(level): value for level, value in distribution.quantiles.items()
-                },
+                "quantiles": {str(level): value for level, value in distribution.quantiles.items()},
             },
             "policy_comparison": {
                 name: {
