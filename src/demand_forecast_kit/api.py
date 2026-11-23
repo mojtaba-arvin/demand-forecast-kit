@@ -169,7 +169,7 @@ def create_app(run_service: RunService | None = None) -> Any:
             dataset_fingerprint=dataset_fingerprint,
             model_id=adapter.model_id,
             model_version=adapter.model_version,
-            config=run_config,
+            config=config,
             result=payload,
             artifact_payload=json.dumps(
                 payload, sort_keys=True, separators=(",", ":"), allow_nan=False
@@ -228,7 +228,7 @@ def create_app(run_service: RunService | None = None) -> Any:
             dataset_fingerprint=report.dataset_fingerprint,
             model_id=report.model_summaries[0].model_id,
             model_version=report.model_summaries[0].model_version,
-            config=config,
+            config=run_config,
             result=payload,
             artifact_payload=report.to_json_bytes(),
         )
