@@ -26,7 +26,7 @@ Demand Forecast Kit is an open-source library and API for turning sales and inve
 - Convert a supplied lead-time demand quantile curve and inventory position into a pack-size-aware newsvendor order quantity.
 - Generate deterministic synthetic daily demand for tests and examples.
 - Run chronological rolling-origin backtests across multiple adapters and demand series.
-- Report MASE, normalized WQL, per-quantile pinball loss, and central interval coverage.
+- Report MASE, normalized WQL, per-quantile pinball loss, central interval coverage, paired per-series bootstrap confidence intervals, sign-flip tests, and separate macro/volume-weighted aggregates.
 - Write deterministic JSON evaluation artifacts with a SHA-256 dataset fingerprint and artifact digest.
 - Select a model independently for each SKU from historical rolling-origin evidence, with a strict forecast-origin cutoff, model-version checks, minimum evidence folds, and an explicit Seasonal Naive fallback.
 - Write auditable, deterministic routing decision artifacts.
@@ -217,6 +217,7 @@ python -m pip install ".[dev]"
 - [Structured logging and process-local metrics](docs/observability.md)
 - [Incremental and hierarchical data](docs/hierarchical-data.md)
 - [Inventory simulation](docs/inventory-simulation.md)
+- [End-to-end forecast-to-decision smoke](docs/end-to-end-smoke.md)
 - [Benchmarking protocol](docs/benchmarking-protocol.md)
 - [Statistical and operational limitations](docs/limitations.md)
 - [Independent UCI Electricity benchmark](docs/benchmarks/uci-electricity-load.md)
