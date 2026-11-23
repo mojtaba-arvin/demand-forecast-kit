@@ -23,14 +23,8 @@ from demand_forecast_kit.simulation import InventorySimulationConfig, simulate_i
 def run_end_to_end(output: Path) -> dict[str, object]:
     """Run a deterministic, leakage-aware synthetic decision pipeline."""
     start = date(2024, 1, 1)
-    history_values = [
-        float(12 + day % 7 + (day % 11 == 0) * 3)
-        for day in range(120)
-    ]
-    future_values = [
-        float(12 + day % 7 + (day % 11 == 0) * 3)
-        for day in range(120, 127)
-    ]
+    history_values = [float(12 + day % 7 + (day % 11 == 0) * 3) for day in range(120)]
+    future_values = [float(12 + day % 7 + (day % 11 == 0) * 3) for day in range(120, 127)]
     history = pl.DataFrame(
         {
             "series_id": ["synthetic-sku"] * len(history_values),
@@ -79,10 +73,18 @@ def run_end_to_end(output: Path) -> dict[str, object]:
     policy_reports = compare_inventory_policies(
         [scenario],
         {
-            "baseline": InventoryPolicy(underage_cost=3.0, overage_cost=1.0,
-                                        holding_cost_per_unit=0.5, shortage_cost_per_unit=4.0),
-            "high-service": InventoryPolicy(underage_cost=9.0, overage_cost=1.0,
-                                            holding_cost_per_unit=0.5, shortage_cost_per_unit=4.0),
+            "baseline": InventoryPolicy(
+                underage_cost=3.0,
+                overage_cost=1.0,
+                holding_cost_per_unit=0.5,
+                shortage_cost_per_unit=4.0,
+            ),
+            "high-service": InventoryPolicy(
+                underage_cost=9.0,
+                overage_cost=1.0,
+                holding_cost_per_unit=0.5,
+                shortage_cost_per_unit=4.0,
+            ),
         },
     )
     selected = policy_reports["high-service"].scenarios[0].recommendation
