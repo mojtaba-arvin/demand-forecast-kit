@@ -177,7 +177,6 @@ def test_inventory_decision_requires_existing_run(tmp_path: Path) -> None:
         registry.list_inventory_decisions(404)
 
 
-
 def test_inventory_decisions_cannot_be_mutated_or_deleted_via_sql(tmp_path: Path) -> None:
     database = tmp_path / "immutable-decisions.sqlite"
     registry = SQLiteRunRegistry(database)
