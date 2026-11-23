@@ -10,9 +10,7 @@ on:
       - "evals/run_statistical_smoke.py"
       - "evals/run_uci_online_retail_benchmark.py"
       - "evals/run_uci_online_retail_ii_benchmark.py"
-      - "src/demand_forecast_kit/retail_benchmark.py"
-      - "evals/run_uci_online_retail_benchmark.py"
-      - "evals/run_uci_online_retail_ii_benchmark.py"
+      - "evals/run_uci_electricity_benchmark.py"
       - "src/demand_forecast_kit/retail_benchmark.py"
   pull_request:
     branches: ["main", "work/**", "integration/**"]
@@ -21,6 +19,11 @@ on:
       - "src/demand_forecast_kit/models/statistical.py"
       - "tests/test_statistical_*.py"
       - "evals/run_statistical_smoke.py"
+      - "evals/run_uci_online_retail_benchmark.py"
+      - "evals/run_uci_online_retail_ii_benchmark.py"
+      - "evals/run_uci_electricity_benchmark.py"
+      - "src/demand_forecast_kit/retail_benchmark.py"
+      - "tests/test_uci_benchmark.py"
   workflow_dispatch:
 
 permissions:
