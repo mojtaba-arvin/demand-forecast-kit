@@ -17,7 +17,11 @@ from demand_forecast_kit.lead_time import calibrate_lead_time_demand, to_invento
 from demand_forecast_kit.models.seasonal_naive import SeasonalNaiveAdapter
 from demand_forecast_kit.policy_comparison import InventoryPolicy, compare_inventory_policies
 from demand_forecast_kit.registry import SQLiteRunRegistry
-from demand_forecast_kit.retail_benchmark import build_cohort_panel, prepare_daily_demand, sha256_file
+from demand_forecast_kit.retail_benchmark import (
+    build_cohort_panel,
+    prepare_daily_demand,
+    sha256_file,
+)
 from demand_forecast_kit.simulation import InventorySimulationConfig, simulate_inventory_policy
 
 DATASET_DOI = "https://doi.org/10.24432/C5BW33"
