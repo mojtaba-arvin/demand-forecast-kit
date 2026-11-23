@@ -194,8 +194,8 @@ def run_end_to_end(output: Path) -> dict[str, object]:
             },
         }
         output.write_text(
-            json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
-                       allow_nan=False) + "\n",
+            json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False)
+            + "\\n",
             encoding="utf-8",
         )
     return payload
