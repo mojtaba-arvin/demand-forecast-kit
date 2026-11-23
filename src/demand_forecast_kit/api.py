@@ -1,7 +1,7 @@
 """Optional FastAPI surface for forecast, backtest, and replenishment contracts."""
 
-from datetime import date
 import json
+from datetime import date
 from math import isfinite
 from typing import Any
 
