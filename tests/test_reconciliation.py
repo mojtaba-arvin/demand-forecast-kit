@@ -47,10 +47,8 @@ def test_quantiles_are_derived_after_path_reconciliation() -> None:
     )
     forecasts = reconciler.reconcile_quantile_paths(samples, quantile_levels=(0.1, 0.5, 0.9))
     assert set(forecasts) == {"total", "a", "b"}
-    for step in range(2):
-        assert forecasts["total"].quantiles[0.5][step] == pytest.approx(
-            forecasts["a"].quantiles[0.5][step] + forecasts["b"].quantiles[0.5][step]
-        )
+    # Marginal quantiles are not additive in general. Coherence is guaranteed
+    # for each reconciled sample path, while each node's marginal quantiles stay ordered.
     for forecast in forecasts.values():
         for step in range(forecast.horizon):
             values = [forecast.quantiles[level][step] for level in (0.1, 0.5, 0.9)]
