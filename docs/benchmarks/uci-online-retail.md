@@ -4,7 +4,9 @@
 
 This is an opt-in empirical benchmark for the Phase 6 lead-time residual-path
 calibrator. It evaluates dense, intermittent, and very-intermittent SKU cohorts
-on a real transaction dataset and compares Seasonal Naive, Croston SBA, and TSB.
+on a real transaction dataset. Seasonal Naive, Croston SBA, and TSB are evaluated
+on every cohort; LightGBM quantile regression is additionally evaluated on the
+dense cohort only.
 
 ## Dataset and attribution
 
@@ -58,7 +60,8 @@ For a smaller development run, use `--max-skus-per-cohort 3`. The default is
 - 14-day forecast horizon, 7-day origin step.
 - Lead times: 7 and 14 days.
 - Quantiles: P10, P50, P90.
-- Models: Seasonal Naive, Croston SBA, and TSB.
+- Models: Seasonal Naive, Croston SBA, and TSB on all cohorts; LightGBM quantile
+  regression on the dense cohort only.
 - Residual-path calibration: 250 bootstrap draws, at least five strictly earlier
   non-overlapping calibration paths, with Phase 6's model-version and leakage guards.
 - Prequential evaluation reports per-SKU cumulative quantile coverage, P80
