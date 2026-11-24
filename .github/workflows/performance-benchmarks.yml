@@ -3,6 +3,13 @@ name: Reproducible performance benchmarks
 on:
   schedule:
     - cron: "17 3 * * 1"
+  pull_request:
+    branches: ["integration/**"]
+    paths:
+      - "bench/**"
+      - "tests/test_benchmark_comparison.py"
+      - "pyproject.toml"
+      - ".github/workflows/performance-benchmarks.yml"
   workflow_dispatch:
     inputs:
       profile:
@@ -39,13 +46,13 @@ jobs:
       - run: python -m pip install --upgrade pip && python -m pip install -e ".[dev,benchmarks]"
       - name: Run reproducible offline workloads
         env:
-          PROFILE: ${{ inputs.profile || 'smoke' }}
-          REPEATS: ${{ inputs.repeats || 5 }}
+          PROFILE: ${{ github.event_name == 'workflow_dispatch' && inputs.profile || 'smoke' }}
+          REPEATS: ${{ github.event_name == 'workflow_dispatch' && inputs.repeats || 5 }}
         run: python bench/run_benchmarks.py --profile "$PROFILE" --repeats "$REPEATS" --output artifacts/performance-baseline.json
       - name: Upload benchmark evidence
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: performance-${{ inputs.profile || 'smoke' }}-${{ github.sha }}
+          name: performance-${{ github.event_name == 'workflow_dispatch' && inputs.profile || 'smoke' }}-${{ github.sha }}
           path: artifacts/performance-baseline.json
           if-no-files-found: error
           retention-days: 30
