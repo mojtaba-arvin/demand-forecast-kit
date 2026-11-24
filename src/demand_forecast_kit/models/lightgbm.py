@@ -39,6 +39,7 @@ class LightGBMAdapter:
         num_boost_round: int = 100,
         num_leaves: int = 15,
         min_data_in_leaf: int = 5,
+        intermittent_zero_fraction: float = 0.8,
     ) -> None:
         raw_lags = tuple(lags)
         raw_windows = tuple(rolling_windows)
@@ -57,9 +58,15 @@ class LightGBMAdapter:
         ):
             if type(value) is not int or value < 1:
                 raise ValueError(f"{name} must be a positive integer")
+        if (
+            not isfinite(intermittent_zero_fraction)
+            or not 0.0 < intermittent_zero_fraction < 1.0
+        ):
+            raise ValueError("intermittent_zero_fraction must be finite and in (0, 1)")
         self.num_boost_round = num_boost_round
         self.num_leaves = num_leaves
         self.min_data_in_leaf = min_data_in_leaf
+        self.intermittent_zero_fraction = float(intermittent_zero_fraction)
 
     @property
     def model_id(self) -> str:
@@ -118,6 +125,12 @@ class LightGBMAdapter:
         values = tuple(float(value) for value in history)
         if any(not isfinite(value) or value < 0.0 for value in values):
             raise ValueError("history must contain finite non-negative demand")
+        zero_fraction = sum(value == 0.0 for value in values) / len(values)
+        if zero_fraction >= self.intermittent_zero_fraction:
+            raise ValueError(
+                f"intermittent history has {zero_fraction:.1%} zero demand; "
+                "route this series to an intermittent-demand adapter such as Croston or TSB"
+            )
         minimum_history = max(self.lags) + max(20, self.min_data_in_leaf * 2)
         if len(values) < minimum_history:
             raise ValueError(
