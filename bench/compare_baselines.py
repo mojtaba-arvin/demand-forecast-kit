@@ -7,7 +7,6 @@ import json
 from pathlib import Path
 from typing import Any
 
-
 _WORKLOAD_IDENTITY_FIELDS = {
     "cli_cold_start": ("command",),
     "parquet_scan_validation": ("rows", "series_count_in_file", "file_sha256"),
