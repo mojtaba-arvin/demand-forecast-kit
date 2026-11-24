@@ -29,6 +29,7 @@ class MinTReconciler:
     passed to fit must contain aligned, genuinely out-of-sample errors for
     every node in the same order.
     """
+
     node_ids: tuple[str, ...]
     bottom_ids: tuple[str, ...]
     summing_matrix: tuple[tuple[float, ...], ...]
