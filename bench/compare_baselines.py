@@ -25,6 +25,12 @@ def compare(
         raise ValueError("benchmark environments differ; comparison is not valid")
     if current.get("profile") != baseline.get("profile"):
         raise ValueError("benchmark profiles differ; comparison is not valid")
+    if baseline.get("baseline_type") == "calibrated-performance-baseline":
+        if baseline.get("sample_count", 0) < 10:
+            raise ValueError("calibrated baseline must contain at least 10 independent runs")
+        for field in ("source_revision", "workload_sha256", "seed"):
+            if current.get(field) != baseline.get(field):
+                raise ValueError(f"benchmark {field} differs; comparison is not valid")
     current_workloads = current.get("workloads", {})
     baseline_workloads = baseline.get("workloads", {})
     if set(current_workloads) != set(baseline_workloads):
@@ -47,13 +53,17 @@ def compare(
         baseline_value = float(baseline_workload[metric])
         if baseline_value <= 0.0 or current_value < 0.0:
             raise ValueError(f"invalid benchmark measurement for {name}")
+        workload_tolerance = float(baseline_workload.get("calibrated_tolerance", tolerance))
+        if not 0.0 <= workload_tolerance < 1.0:
+            raise ValueError(f"invalid calibrated tolerance for {name}")
         change = current_value / baseline_value - 1.0
-        regressed = change > tolerance
+        regressed = change > workload_tolerance
         results[name] = {
             "metric": metric,
             "current_value": current_value,
             "baseline_value": baseline_value,
             "relative_change": change,
+            "tolerance": workload_tolerance,
             "regressed": regressed,
         }
         if regressed:
