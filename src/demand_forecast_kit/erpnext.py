@@ -2,9 +2,9 @@
 from __future__ import annotations
 
 import json
-from collections import defaultdict
+from collections.abc import Callable
 from datetime import UTC, date, datetime, timedelta
-from typing import Any, Callable
+from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urljoin
 from urllib.request import Request, urlopen
@@ -128,7 +128,7 @@ class ERPNextClient:
         if not dates:
             return []
         names = sorted(dates)
-        totals: dict[tuple[str, str], float] = defaultdict(float)
+        totals: dict[tuple[str, str], float] = collections.defaultdict(float)
         for start in range(0, len(names), 100):
             batch = names[start : start + 100]
             offset = 0
@@ -190,7 +190,7 @@ class ERPNextClient:
         }
         if not headers:
             return []
-        grouped: dict[str, dict[str, dict[str, Any]]] = collections.defaultdict(dict)
+        grouped: dict[str, dict[str, dict[str, Any]]] = {}
         names = sorted(headers)
         for start in range(0, len(names), 100):
             batch = names[start : start + 100]
@@ -212,9 +212,10 @@ class ERPNextClient:
                     if quantity <= 0:
                         continue
                     unit_cost = None if item.get("rate") is None else float(item["rate"])
-                    aggregate = grouped[order_name].get(sku)
+                    order_group = grouped.setdefault(order_name, {})
+                    aggregate = order_group.get(sku)
                     if aggregate is None:
-                        grouped[order_name][sku] = {
+                        order_group[sku] = {
                             "sku_id": sku, "quantity": quantity,
                             "received_quantity": received,
                             "unit_cost": unit_cost,
