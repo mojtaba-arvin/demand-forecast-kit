@@ -1,8 +1,8 @@
 """ERPNext/Frappe REST integration for warehouse, stock, and sales history ingestion."""
 from __future__ import annotations
 
-import collections
 import json
+from collections import defaultdict
 from datetime import UTC, date, datetime, timedelta
 from typing import Any, Callable
 from urllib.error import HTTPError, URLError
@@ -128,7 +128,7 @@ class ERPNextClient:
         if not dates:
             return []
         names = sorted(dates)
-        totals: dict[tuple[str, str], float] = collections.defaultdict(float)
+        totals: dict[tuple[str, str], float] = defaultdict(float)
         for start in range(0, len(names), 100):
             batch = names[start : start + 100]
             offset = 0
