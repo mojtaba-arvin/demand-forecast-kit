@@ -191,9 +191,7 @@ def _temporal_scale_experiment(
         bias_width_scale = _fit_interval_scale(calibration, median_shift=median_shift)
         per_series_holdout: list[dict[str, object]] = []
         for series_id in sorted(by_series):
-            series_holdout = [
-                item for item in holdout if str(item["series_id"]) == series_id
-            ]
+            series_holdout = [item for item in holdout if str(item["series_id"]) == series_id]
             per_series_holdout.append(
                 {
                     "series_id": series_id,
