@@ -199,7 +199,7 @@ def test_run_and_artifact_retrieval_return_not_found_without_leaking_paths(
     assert missing_run.status_code == 404
     assert missing_run.json() == {"detail": "run not found"}
 
-    missing_artifact = client.get(f"/v1/artifacts/{"0" * 64}")
+    missing_artifact = client.get("/v1/artifacts/" + "0" * 64)
     assert missing_artifact.status_code == 404
     assert missing_artifact.json() == {"detail": "artifact not found"}
 
