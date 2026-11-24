@@ -55,8 +55,6 @@ class MinTReconciler:
             raise ValueError("summing_matrix dimensions must match node_ids and bottom_ids")
         if any(not isfinite(value) or value not in (0.0, 1.0) for row in matrix for value in row):
             raise ValueError("summing_matrix must contain only finite 0/1 membership values")
-        if any(not any(row) for row in matrix):
-            raise ValueError("every hierarchy node must include at least one bottom series")
         if not isfinite(self.shrinkage) or not 0.0 < self.shrinkage <= 1.0:
             raise ValueError("shrinkage must be finite and in (0, 1]")
         if not isfinite(self.ridge) or self.ridge <= 0.0:
@@ -66,6 +64,8 @@ class MinTReconciler:
             expected = tuple(1.0 if index == bottom_index else 0.0 for index in range(len(bottoms)))
             if row != expected:
                 raise ValueError("bottom-level rows must form the identity matrix")
+        if any(not any(row) for row in matrix):
+            raise ValueError("every hierarchy node must include at least one bottom series")
         object.__setattr__(self, "node_ids", nodes)
         object.__setattr__(self, "bottom_ids", bottoms)
         object.__setattr__(self, "summing_matrix", matrix)
