@@ -100,7 +100,6 @@ def test_calibration_rejects_invalid_measurements() -> None:
         calibrate(reports)
 
 
-
 def test_comparator_rejects_calibrated_baseline_provenance_mismatch() -> None:
     current = make_artifact(101)
     baseline = make_artifact(100)
