@@ -112,6 +112,8 @@ class FakeLightGBM:
 
 
 class FakeNumpy:
+    float64 = float
+
     @staticmethod
     def asarray(values: object, *, dtype: object) -> object:
         return values
