@@ -139,7 +139,6 @@ def _api_forecast(requests: int, state_dir: Path) -> dict[str, Any]:
     }
 
 
-
 def _package_version(name: str) -> str | None:
     try:
         return version(name)
