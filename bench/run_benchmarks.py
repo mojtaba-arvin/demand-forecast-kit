@@ -49,14 +49,17 @@ def _sha256(path: Path) -> str:
 
 def _write_parquet(path: Path, rows: int, series_count: int, seed: int) -> str:
     row = pl.int_range(0, rows, eager=True)
-    frame = pl.DataFrame({"row": row}).with_columns(
-        ("sku-" + (pl.col("row") % series_count).cast(pl.String)).alias("series_id"),
-        (
-            pl.lit(datetime(2020, 1, 1))
-            + pl.duration(days=pl.col("row") // series_count)
-        ).alias("timestamp"),
-        (((pl.col("row") * (17 + seed)) % 23).cast(pl.Float64)).alias("demand"),
-    ).select("series_id", "timestamp", "demand")
+    frame = (
+        pl.DataFrame({"row": row})
+        .with_columns(
+            ("sku-" + (pl.col("row") % series_count).cast(pl.String)).alias("series_id"),
+            (pl.lit(datetime(2020, 1, 1)) + pl.duration(days=pl.col("row") // series_count)).alias(
+                "timestamp"
+            ),
+            (((pl.col("row") * (17 + seed)) % 23).cast(pl.Float64)).alias("demand"),
+        )
+        .select("series_id", "timestamp", "demand")
+    )
     frame.write_parquet(path, compression="zstd")
     return _sha256(path)
 
@@ -154,11 +157,7 @@ def run(profile: str, output: Path, repeats: int) -> dict[str, Any]:
         )
         memory_result = _streaming_memory(parquet_path)
         quality = validate_history(scan_history(parquet_path))
-        if (
-            not quality.is_valid
-            or quality.row_count != rows
-            or memory_result["row_count"] != rows
-        ):
+        if not quality.is_valid or quality.row_count != rows or memory_result["row_count"] != rows:
             raise RuntimeError("generated Parquet benchmark workload failed validation")
 
         series_result = _measure(
@@ -226,8 +225,7 @@ def run(profile: str, output: Path, repeats: int) -> dict[str, Any]:
             "interpretation": {
                 "performance_targets_enforced": False,
                 "reason": (
-                    "Reference-runner variance and baseline stability must be "
-                    "characterized first."
+                    "Reference-runner variance and baseline stability must be characterized first."
                 ),
                 "comparison_requires_matching_environment": True,
             },
