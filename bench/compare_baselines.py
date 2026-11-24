@@ -47,13 +47,17 @@ def compare(
         baseline_value = float(baseline_workload[metric])
         if baseline_value <= 0.0 or current_value < 0.0:
             raise ValueError(f"invalid benchmark measurement for {name}")
+        workload_tolerance = float(baseline_workload.get("calibrated_tolerance", tolerance))
+        if not 0.0 <= workload_tolerance < 1.0:
+            raise ValueError(f"invalid calibrated tolerance for {name}")
         change = current_value / baseline_value - 1.0
-        regressed = change > tolerance
+        regressed = change > workload_tolerance
         results[name] = {
             "metric": metric,
             "current_value": current_value,
             "baseline_value": baseline_value,
             "relative_change": change,
+            "tolerance": workload_tolerance,
             "regressed": regressed,
         }
         if regressed:
