@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from collections.abc import Generator
+from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 from math import isfinite
@@ -161,7 +161,7 @@ class OperationalStore:
                 )
 
     @contextmanager
-    def _connect(self) -> Generator[sqlite3.Connection]:
+    def _connect(self) -> Iterator[sqlite3.Connection]:
         db = sqlite3.connect(self.database, timeout=15.0)
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA foreign_keys = ON")
