@@ -1,7 +1,8 @@
 # Logging and process-local metrics
 
-The optional `demand_forecast_kit.observability` module provides standard-library
-building blocks for applications embedding the library:
+The `RunService` used by the FastAPI surface and both CLIs composes the standard-library
+observability primitives with registry and artifact persistence. The
+`demand_forecast_kit.observability` module provides:
 
 - `JsonLogFormatter` emits structured one-line JSON and includes only extra
   fields that are JSON serializable.

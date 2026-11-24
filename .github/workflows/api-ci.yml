@@ -5,14 +5,18 @@ on:
     branches: ["work/**"]
     paths:
       - "src/demand_forecast_kit/api.py"
+      - "src/demand_forecast_kit/run_service.py"
       - "tests/test_api.py"
+      - "tests/test_run_service.py"
       - "pyproject.toml"
       - ".github/workflows/api-ci.yml"
   pull_request:
     branches: ["main", "work/**", "integration/**"]
     paths:
       - "src/demand_forecast_kit/api.py"
+      - "src/demand_forecast_kit/run_service.py"
       - "tests/test_api.py"
+      - "tests/test_run_service.py"
       - "pyproject.toml"
       - ".github/workflows/api-ci.yml"
 

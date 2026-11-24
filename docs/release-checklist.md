@@ -25,6 +25,21 @@ job alone is not sufficient evidence of production readiness.
 - [ ] Compare inventory cost, fill rate, and cycle service against a declared baseline.
 - [ ] Document unsupported dependence assumptions for marginal daily quantiles.
 
+## End-to-end and operational integration
+
+- [ ] Run a forecast through the public API and Forecast CLI from the same canonical input.
+- [ ] Run rolling-origin evaluation through the independent Evaluation CLI and API.
+- [ ] Verify run idempotency, immutable inventory-decision persistence, and SHA-256 artifact retrieval.
+- [ ] Run Forecast API, Forecast CLI, and Evaluation CLI against one shared state directory; verify SQLite run identity, artifact hashes, and retry idempotency.
+- [ ] Verify RunService structured JSON events and thread-safe metrics snapshots without exposing an unauthenticated metrics endpoint.
+- [ ] Verify structured JSON logs and concurrent in-process metrics snapshots.
+- [ ] Exercise incremental ingestion with duplicate and late-arriving rows; verify missing-period and timezone policy.
+- [ ] Exercise SKU/location hierarchy rollups and confirm aggregate axes are not double-counted.
+- [ ] Simulate supplier lead-time delays, stockouts, backorders, and lost sales on fixed scenarios; compare at least two policies on identical scenarios.
+- [ ] Run the deterministic synthetic end-to-end forecast → evaluation → simulation → immutable registry smoke.
+- [ ] Run the same decision flow on an independently sourced real-demand dataset, recording all assumed (not observed) inventory, supplier, and cost inputs.
+- [ ] Record the exact commit SHA, dataset hashes, commands, test results, and artifact hashes for the end-to-end run.
+
 ## Security, packaging, and provenance
 
 - [ ] Run pip-audit and REUSE lint.

@@ -4,14 +4,14 @@ on:
   push:
     branches: ["main", "work/**", "integration/**"]
   pull_request:
-    branches: ["main", "work/**"]
+    branches: ["main", "work/**", "integration/**"]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.head.ref || github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.head.ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
@@ -64,11 +64,22 @@ jobs:
       - name: Generate synthetic lead-time calibration evaluation
         run: python evals/run_lead_time_calibration_smoke.py
 
+      - name: Generate end-to-end forecast and inventory decision
+        run: python evals/run_end_to_end_smoke.py
+
       - name: Upload lead-time calibration artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: synthetic-lead-time-calibration
           path: artifacts/synthetic-lead-time-calibration.json
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload end-to-end decision artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: synthetic-end-to-end-decision
+          path: artifacts/synthetic-end-to-end-decision.json
           if-no-files-found: error
           retention-days: 14
 

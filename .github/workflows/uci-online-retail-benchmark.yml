@@ -4,11 +4,23 @@ name: UCI Online Retail real-data benchmark
 
 on:
   push:
-    branches: ["work/uci-real-data-benchmark"]
+    branches: ["work/uci-real-data-benchmark", "work/evaluation-infrastructure"]
     paths:
       - ".github/workflows/uci-online-retail-benchmark.yml"
-      - "evals/**"
-      - "src/**"
+      - "evals/run_uci_online_retail_benchmark.py"
+      - "evals/run_uci_online_retail_e2e.py"
+      - "src/demand_forecast_kit/retail_benchmark.py"
+      - "src/demand_forecast_kit/backtesting.py"
+      - "src/demand_forecast_kit/contracts.py"
+      - "src/demand_forecast_kit/lead_time.py"
+      - "src/demand_forecast_kit/inventory.py"
+      - "src/demand_forecast_kit/policy_comparison.py"
+      - "src/demand_forecast_kit/decisions.py"
+      - "src/demand_forecast_kit/simulation.py"
+      - "src/demand_forecast_kit/registry.py"
+      - "src/demand_forecast_kit/artifacts.py"
+      - "src/demand_forecast_kit/models/seasonal_naive.py"
+      - "src/demand_forecast_kit/models/statistical.py"
       - "pyproject.toml"
   workflow_dispatch:
 
@@ -16,7 +28,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: uci-online-retail-benchmark-${{ github.ref }}
+  group: uci-online-retail-benchmark-${{ github.ref_name }}
   cancel-in-progress: true
 
 jobs:
@@ -64,6 +76,24 @@ jobs:
               target.write_bytes(bundle.read(member))
           print(f"Extracted {target} ({target.stat().st_size:,} bytes)")
           PY
+
+      - name: Run real-data forecast-to-inventory decision pipeline
+        run: |
+          python evals/run_uci_online_retail_e2e.py \
+            "data/raw/Online Retail.xlsx" \
+            --origin-offset-days 300 \
+            --output artifacts/uci-online-retail-end-to-end.json
+
+      - name: Upload real-data end-to-end decision
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: uci-online-retail-end-to-end-decision
+          path: |
+            artifacts/uci-online-retail-end-to-end.json
+            artifacts/uci-online-retail-runs.sqlite
+            artifacts/uci-online-retail-artifacts/
+          if-no-files-found: error
+          retention-days: 30
 
       - name: Run real-data calibration benchmark
         run: |

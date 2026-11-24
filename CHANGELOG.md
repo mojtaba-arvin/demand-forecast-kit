@@ -13,6 +13,7 @@ This project follows Semantic Versioning and Keep a Changelog.
 - Cumulative lead-time reorder-point interpolation and non-negative safety-stock calculation.
 - Missing-period, timezone-ambiguity, and non-destructive robust outlier diagnostics for demand histories.
 - Independent UCI Electricity Load Diagrams dataset adapter and opt-in 370-client benchmark workflow.
+- Expanded UCI Online Retail II benchmark with frozen SKU cohorts, source provenance, and documented same-retailer generalization limits.
 - Optional FastAPI forecast, backtest, and replenishment endpoints with bounded request sizes and concurrent-request tests.
 - SQLite run-registry idempotency identity checks, immutable failure outcomes, and concurrent-create coverage.
 - Quick-start, benchmarking protocol, limitations, versioning, and release-candidate documentation.

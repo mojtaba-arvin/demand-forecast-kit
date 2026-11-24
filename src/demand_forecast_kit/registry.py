@@ -75,6 +75,24 @@ class SQLiteRunRegistry:
                 )
                 """
             )
+            connection.execute(
+                """
+                CREATE TRIGGER IF NOT EXISTS inventory_decisions_immutable_update
+                BEFORE UPDATE ON inventory_decisions
+                BEGIN
+                    SELECT RAISE(ABORT, 'inventory decisions are immutable');
+                END
+                """
+            )
+            connection.execute(
+                """
+                CREATE TRIGGER IF NOT EXISTS inventory_decisions_immutable_delete
+                BEFORE DELETE ON inventory_decisions
+                BEGIN
+                    SELECT RAISE(ABORT, 'inventory decisions are immutable');
+                END
+                """
+            )
 
     @contextmanager
     def _connect(self) -> Generator[sqlite3.Connection]:

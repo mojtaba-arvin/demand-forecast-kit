@@ -4,13 +4,13 @@
 
 Demand Forecast Kit is an open-source library and API for turning sales and inventory history into demand distributions and replenishment recommendations. It is designed for small and medium-sized businesses, product developers, and researchers who need a reproducible forecasting workflow without operating a distributed data platform.
 
-> **Project status: early development.** The package includes canonical input validation, a model-adapter contract, a deterministic seasonal-naive reference adapter, optional statistical forecasting adapters, a newsvendor decision primitive, and a rolling-origin evaluation engine. It is not yet an end-to-end production forecasting service. Performance and accuracy targets in the engineering brief have not been measured.
+> **Project status: early development.** The package now includes forecasting, rolling-origin evaluation, adaptive interval calibration, inventory simulation, API/CLI entry points, a local run registry, content-addressed artifacts, and process-local observability. These are composable single-machine primitives, not a managed production service. Production-scale reliability and forecast-quality targets have not been established.
 
 ## Design principles
 
 - **Probabilistic by default:** forecasts expose ordered quantiles rather than only a point estimate.
 - **Country agnostic:** calendars and holiday logic belong in optional community extensions.
-- **Reproducible:** seeds, model versions, and dataset fingerprints are explicit orchestration inputs; a persistent run ledger is planned.
+- **Reproducible:** seeds, model versions, dataset fingerprints, a SQLite run registry, and SHA-256 content-addressed artifacts are explicit orchestration primitives.
 - **Model agnostic:** forecasting implementations sit behind a stable adapter protocol.
 - **Single-machine first:** CPU execution is the baseline; native acceleration is added only after profiling demonstrates a bottleneck.
 - **License aware:** optional model weights and evaluation datasets must be reviewed before distribution.
@@ -26,13 +26,20 @@ Demand Forecast Kit is an open-source library and API for turning sales and inve
 - Convert a supplied lead-time demand quantile curve and inventory position into a pack-size-aware newsvendor order quantity.
 - Generate deterministic synthetic daily demand for tests and examples.
 - Run chronological rolling-origin backtests across multiple adapters and demand series.
-- Report MASE, normalized WQL, per-quantile pinball loss, and central interval coverage.
+- Report MASE, normalized WQL, per-quantile pinball loss, central interval coverage, paired per-series bootstrap confidence intervals, sign-flip tests, and separate macro/volume-weighted aggregates.
 - Write deterministic JSON evaluation artifacts with a SHA-256 dataset fingerprint and artifact digest.
 - Select a model independently for each SKU from historical rolling-origin evidence, with a strict forecast-origin cutoff, model-version checks, minimum evidence folds, and an explicit Seasonal Naive fallback.
 - Write auditable, deterministic routing decision artifacts.
 - Calibrate cumulative lead-time demand from same-series, same-model out-of-sample residual paths, with strict forecast-origin filtering and prequential coverage diagnostics.
 - Evaluate replenishment policies against realized cumulative lead-time demand, reporting shortage/holding costs, unit fill rate, and cycle service level.
-- Run an opt-in real-data benchmark on UCI Online Retail across dense, intermittent, and very-intermittent SKU cohorts.
+- Run opt-in real-data benchmarks on UCI Online Retail and Online Retail II across frozen dense/intermittent cohorts, plus an independent UCI Electricity multi-series load benchmark.
+- Fit adaptive conformal-style interval corrections globally and per sufficiently sampled regime, with a global fallback for sparse regimes.
+- Merge incremental history batches with explicit last-write-wins duplicate handling and retention of late-arriving observations.
+- Build SKU/location hierarchy DAG histories with collision-safe identifiers and explicit parent links.
+- Simulate delayed replenishment receipts, stockouts, backorders, and lost sales; compare multiple policies on identical realized scenarios.
+- Expose forecast and rolling-origin evaluation through FastAPI, a Forecast CLI, and an independent Evaluation CLI.
+- Persist idempotent runs and immutable inventory decisions in SQLite; store binary artifacts by SHA-256.
+- Emit structured JSON logs and thread-safe process-local metrics snapshots.
 
 ## Empirical lead-time calibration benchmark
 
@@ -47,7 +54,7 @@ python evals/run_uci_online_retail_benchmark.py "/path/to/Online Retail.xlsx"
 
 The runner constructs complete daily SKU histories, excludes cancellation invoices and non-positive quantities (returns), freezes deterministic dense/intermittent/very-intermittent cohorts using only the initial 180-day training window, and compares Seasonal Naive, Croston SBA, and TSB with prequential lead-time calibration for 7- and 14-day lead times. It writes a provenance-rich JSON report under `artifacts/`. See [the benchmark protocol](docs/benchmarks/uci-online-retail.md) for preprocessing, evaluation settings, and real-data results.
 
-Not implemented yet: online model learning, automatic retraining, foundation-model adapters, conformal calibration outside the intermittent-model interval backend, hierarchical reconciliation, a persistent run registry, FastAPI endpoints, CLI commands, Rust extensions, and benchmark claims.
+Not implemented yet: online model learning, automatic retraining, foundation-model adapters, formal hierarchical forecast reconciliation, distributed registry/telemetry services, native Rust acceleration, production-scale SLO validation, and generalized accuracy or inventory-savings claims.
 
 ## Statistical adapters
 
@@ -204,9 +211,18 @@ python -m pip install ".[dev]"
 ## Further documentation
 
 - [Quick start](docs/quickstart.md)
+- [Forecast and evaluation CLI](docs/cli.md)
+- [FastAPI and persisted runs](docs/api.md)
+- [Rolling-origin evaluation CLI](docs/evaluation-cli.md)
+- [Run registry and artifact storage](docs/run-registry.md)
+- [Structured logging and process-local metrics](docs/observability.md)
+- [Incremental and hierarchical data](docs/hierarchical-data.md)
+- [Inventory simulation](docs/inventory-simulation.md)
+- [End-to-end forecast-to-decision smoke, including UCI real-demand run](docs/end-to-end-smoke.md)
 - [Benchmarking protocol](docs/benchmarking-protocol.md)
 - [Statistical and operational limitations](docs/limitations.md)
 - [Independent UCI Electricity benchmark](docs/benchmarks/uci-electricity-load.md)
+- [Expanded UCI Online Retail II benchmark](docs/benchmarks/uci-online-retail-ii.md)
 
 ## Metric definitions
 

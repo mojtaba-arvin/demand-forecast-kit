@@ -25,3 +25,4 @@ artifacts/
 .idea/
 .vscode/
 .DS_Store
+\n.demand-forecast-kit/\n
