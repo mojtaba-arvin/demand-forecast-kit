@@ -67,6 +67,27 @@ def _write_parquet(path: Path, rows: int, series_count: int, seed: int) -> str:
     return _sha256(path)
 
 
+def _streaming_memory(path: Path) -> dict[str, int]:
+    child = """
+import json
+import platform
+import resource
+import sys
+import polars as pl
+from demand_forecast_kit.data import scan_history
+count = scan_history(sys.argv[1]).select(pl.len()).collect(engine="streaming").item()
+rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+print(json.dumps({"row_count": int(count), "peak_rss_bytes": int(rss if platform.system() == "Darwin" else rss * 1024)}))
+"""
+    completed = subprocess.run(
+        [sys.executable, "-c", child, str(path)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return json.loads(completed.stdout)
+
+
 def _benchmark_series(series_count: int, history_size: int, horizon: int) -> None:
     adapter = SeasonalNaiveAdapter(season_length=7)
     for index in range(series_count):
@@ -121,11 +142,9 @@ def run(profile: str, output: Path, repeats: int) -> dict[str, Any]:
             lambda: validate_history(scan_history(parquet_path)),
             repeats,
         )
-        streaming_before = _rss_bytes()
-        streaming_count = scan_history(parquet_path).select(pl.len()).collect(engine="streaming").item()
-        streaming_peak = _rss_bytes()
+        memory_result = _streaming_memory(parquet_path)
         quality = validate_history(scan_history(parquet_path))
-        if not quality.is_valid or quality.row_count != rows or streaming_count != rows:
+        if not quality.is_valid or quality.row_count != rows or memory_result["row_count"] != rows:
             raise RuntimeError("generated Parquet benchmark workload failed validation")
 
         series_result = _measure(
@@ -185,9 +204,8 @@ def run(profile: str, output: Path, repeats: int) -> dict[str, Any]:
                 },
                 "api_health_latency": api_result,
                 "streaming_scan_memory": {
-                    "rss_before_bytes": streaming_before,
-                    "rss_after_bytes": streaming_peak,
-                    "peak_rss_bytes": streaming_peak,
+                    "peak_rss_bytes": memory_result["peak_rss_bytes"],
+                    "row_count": memory_result["row_count"],
                     "rows": rows,
                 },
             },
