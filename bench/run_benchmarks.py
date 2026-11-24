@@ -19,8 +19,7 @@ from typing import Any
 
 import polars as pl
 
-from demand_forecast_kit.backtesting import validate_history
-from demand_forecast_kit.data import scan_history
+from demand_forecast_kit.data import scan_history, validate_history
 from demand_forecast_kit.models.seasonal_naive import SeasonalNaiveAdapter
 from demand_forecast_kit.run_service import RunService
 from demand_forecast_kit.api import create_app
@@ -97,6 +96,7 @@ def _api_health(requests: int, state_dir: Path) -> dict[str, Any]:
     p95 = ordered[min(len(ordered) - 1, int(0.95 * len(ordered)))]
     return {
         "requests": requests,
+        "median_seconds": statistics.median(latencies),
         "p50_seconds": statistics.median(latencies),
         "p95_seconds": p95,
         "p99_seconds": ordered[min(len(ordered) - 1, int(0.99 * len(ordered)))],
@@ -122,10 +122,10 @@ def run(profile: str, output: Path, repeats: int) -> dict[str, Any]:
             repeats,
         )
         streaming_before = _rss_bytes()
-        scanned = scan_history(parquet_path).collect(engine="streaming")
-        quality = validate_history(scanned)
+        streaming_count = scan_history(parquet_path).select(pl.len()).collect(engine="streaming").item()
         streaming_peak = _rss_bytes()
-        if not quality.is_valid or quality.row_count != rows:
+        quality = validate_history(scan_history(parquet_path))
+        if not quality.is_valid or quality.row_count != rows or streaming_count != rows:
             raise RuntimeError("generated Parquet benchmark workload failed validation")
 
         series_result = _measure(
@@ -135,7 +135,7 @@ def run(profile: str, output: Path, repeats: int) -> dict[str, Any]:
 
         cli_result = _measure(
             lambda: subprocess.run(
-                [sys.executable, "-m", "demand_forecast_kit.cli", "--help"],
+                ["demand-forecast", "--help"],
                 check=True,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
@@ -162,7 +162,7 @@ def run(profile: str, output: Path, repeats: int) -> dict[str, Any]:
                 "cli_cold_start": {
                     **cli_result,
                     "repeats": repeats,
-                    "command": [sys.executable, "-m", "demand_forecast_kit.cli", "--help"],
+                    "command": ["demand-forecast", "--help"],
                 },
                 "parquet_scan_validation": {
                     **parquet_result,
