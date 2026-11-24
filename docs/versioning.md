@@ -12,8 +12,9 @@ pre-1.0 semantic versioning:
 
 A release tag must match the package version in `pyproject.toml`. The release
 candidate workflow builds both wheel and source distribution, runs quality and
-security checks, installs the wheel in a clean virtual environment, and
-publishes checksums as workflow artifacts.
+security checks, installs each distribution in a separate clean virtual
+environment, smoke-tests both CLI entry points, and publishes checksums as
+workflow artifacts.
 
 The workflow does not publish to PyPI or create a GitHub Release. Those actions
 require an explicit publishing credential and a separate supply-chain review.
