@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from importlib import import_module
 from math import isfinite
-from typing import Any
+from typing import Any, cast
 
 from demand_forecast_kit.contracts import QuantileForecast
 from demand_forecast_kit.models.registry import CHRONOS2_LICENSE
@@ -109,14 +109,22 @@ class Chronos2Adapter:
             raw = raw.tolist()
         if not isinstance(raw, (list, tuple)) or len(raw) != 1:
             raise RuntimeError("Chronos-2 returned an invalid batch dimension")
-        rows = raw[0]
+        batch = cast(Sequence[object], raw)
+        rows = batch[0]
         if not isinstance(rows, (list, tuple)) or len(rows) != horizon:
             raise RuntimeError("Chronos-2 returned an invalid forecast horizon")
+        horizon_rows = cast(Sequence[object], rows)
         values_by_level: dict[float, list[float]] = {level: [] for level in levels}
-        for row in rows:
+        for row in horizon_rows:
             if not isinstance(row, (list, tuple)) or len(row) != len(levels):
                 raise RuntimeError("Chronos-2 returned an invalid quantile dimension")
-            converted = tuple(float(value) for value in row)
+            raw_quantiles = cast(Sequence[object], row)
+            converted_values: list[float] = []
+            for value in raw_quantiles:
+                if not isinstance(value, (int, float)):
+                    raise RuntimeError("Chronos-2 returned a non-numeric forecast")
+                converted_values.append(float(value))
+            converted = tuple(converted_values)
             if any(not isfinite(value) for value in converted):
                 raise RuntimeError("Chronos-2 returned non-finite forecasts")
             non_negative = tuple(max(0.0, value) for value in converted)
