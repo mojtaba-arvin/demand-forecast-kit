@@ -107,18 +107,24 @@ class Chronos2Adapter:
             raw = raw.detach().cpu().tolist()
         elif hasattr(raw, "tolist"):
             raw = raw.tolist()
-        if not isinstance(raw, (list, tuple)) or len(raw) != 1:
+        if not isinstance(raw, (list, tuple)):
             raise RuntimeError("Chronos-2 returned an invalid batch dimension")
         batch = cast(Sequence[object], raw)
+        if len(batch) != 1:
+            raise RuntimeError("Chronos-2 returned an invalid batch dimension")
         rows = batch[0]
-        if not isinstance(rows, (list, tuple)) or len(rows) != horizon:
+        if not isinstance(rows, (list, tuple)):
             raise RuntimeError("Chronos-2 returned an invalid forecast horizon")
         horizon_rows = cast(Sequence[object], rows)
+        if len(horizon_rows) != horizon:
+            raise RuntimeError("Chronos-2 returned an invalid forecast horizon")
         values_by_level: dict[float, list[float]] = {level: [] for level in levels}
         for row in horizon_rows:
-            if not isinstance(row, (list, tuple)) or len(row) != len(levels):
+            if not isinstance(row, (list, tuple)):
                 raise RuntimeError("Chronos-2 returned an invalid quantile dimension")
             raw_quantiles = cast(Sequence[object], row)
+            if len(raw_quantiles) != len(levels):
+                raise RuntimeError("Chronos-2 returned an invalid quantile dimension")
             converted_values: list[float] = []
             for value in raw_quantiles:
                 if not isinstance(value, (int, float)):
