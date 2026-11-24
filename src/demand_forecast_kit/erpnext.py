@@ -2,8 +2,8 @@
 from __future__ import annotations
 
 import json
-from collections import defaultdict
 from collections.abc import Callable
+from collections import defaultdict
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from urllib.error import HTTPError, URLError
