@@ -50,7 +50,7 @@ jobs:
         with:
           python-version: "3.13"
           cache: pip
-      - run: python -m pip install --upgrade pip && python -m pip install -e ".[dev,benchmarks]"
+      - run: python -m pip install --upgrade pip && python -m pip install -e ".[dev,api,api-test,benchmark]"
       - name: Run reproducible offline workloads
         env:
           PROFILE: ${{ github.event_name == 'workflow_dispatch' && inputs.profile || 'smoke' }}
