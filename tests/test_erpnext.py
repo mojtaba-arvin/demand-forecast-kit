@@ -19,10 +19,15 @@ def test_erpnext_sync_imports_bin_stock_and_daily_sales(tmp_path) -> None:
         doctype = parsed.path.rsplit("/", 1)[-1]
         calls.append(doctype)
         if doctype == "Bin":
-            data = [{
-                "item_code": "SKU-1", "warehouse": "WH-1",
-                "actual_qty": 20, "reserved_qty": 3, "modified": "2026-11-24 10:00:00",
-            }]
+            data = [
+                {
+                    "item_code": "SKU-1",
+                    "warehouse": "WH-1",
+                    "actual_qty": 20,
+                    "reserved_qty": 3,
+                    "modified": "2026-11-24 10:00:00",
+                }
+            ]
         elif doctype == "Sales Invoice":
             data = [
                 {"name": "SINV-1", "posting_date": "2026-11-23", "docstatus": 1},
@@ -35,15 +40,25 @@ def test_erpnext_sync_imports_bin_stock_and_daily_sales(tmp_path) -> None:
                 {"item_code": "SKU-1", "qty": 4, "parent": "SINV-2", "warehouse": "WH-1"},
             ]
         elif doctype == "Purchase Order":
-            data = [{
-                "name": "PO-1", "supplier": "SUP-1",
-                "schedule_date": "2026-11-30", "docstatus": 1,
-            }]
+            data = [
+                {
+                    "name": "PO-1",
+                    "supplier": "SUP-1",
+                    "schedule_date": "2026-11-30",
+                    "docstatus": 1,
+                }
+            ]
         elif doctype == "Purchase Order Item":
-            data = [{
-                "item_code": "SKU-1", "qty": 12, "received_qty": 2, "rate": 4,
-                "parent": "PO-1", "warehouse": "WH-1",
-            }]
+            data = [
+                {
+                    "item_code": "SKU-1",
+                    "qty": 12,
+                    "received_qty": 2,
+                    "rate": 4,
+                    "parent": "PO-1",
+                    "warehouse": "WH-1",
+                }
+            ]
         else:
             raise AssertionError(f"unexpected ERPNext resource: {doctype}")
         return json.dumps({"data": data}).encode()
@@ -73,7 +88,11 @@ def test_erpnext_sync_imports_bin_stock_and_daily_sales(tmp_path) -> None:
     assert store.inventory_position("tenant-a", "WH-1", "SKU-1")["on_hand"] == 20
     assert len(store.demand_history("tenant-a", "WH-1", "SKU-1")) == 3
     expected_calls = [
-        "Bin", "Sales Invoice", "Sales Invoice Item", "Purchase Order", "Purchase Order Item"
+        "Bin",
+        "Sales Invoice",
+        "Sales Invoice Item",
+        "Purchase Order",
+        "Purchase Order Item",
     ]
     assert calls == expected_calls * 2
 
@@ -85,7 +104,9 @@ def test_erpnext_client_validates_configuration_and_response() -> None:
         ERPNextClient("https://erp.example", "", "secret")
 
     client = ERPNextClient(
-        "https://erp.example", "key", "secret",
+        "https://erp.example",
+        "key",
+        "secret",
         transport=lambda *_args: b"not-json",
     )
     with pytest.raises(RuntimeError, match="invalid JSON"):
@@ -94,7 +115,9 @@ def test_erpnext_client_validates_configuration_and_response() -> None:
 
 def test_erpnext_client_rejects_invalid_data_shape() -> None:
     client = ERPNextClient(
-        "https://erp.example", "key", "secret",
+        "https://erp.example",
+        "key",
+        "secret",
         transport=lambda *_args: json.dumps({"data": {}}).encode(),
     )
     with pytest.raises(RuntimeError, match="data list"):

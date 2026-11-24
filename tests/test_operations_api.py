@@ -35,7 +35,9 @@ def test_warehouse_inventory_and_purchase_order_api(client: TestClient) -> None:
     order = client.post(
         "/v1/ops/purchase-orders",
         json={
-            "order_id": "PO-1", "supplier_id": "SUP-1", "warehouse_id": "WH-1",
+            "order_id": "PO-1",
+            "supplier_id": "SUP-1",
+            "warehouse_id": "WH-1",
             "lines": [{"sku_id": "SKU-1", "quantity": 12, "unit_cost": 2.5}],
         },
     )
@@ -76,7 +78,8 @@ def test_demand_monitoring_and_model_selection_api(client: TestClient) -> None:
         response = client.post(
             "/v1/ops/demand/observations",
             json={
-                "warehouse_id": "WH-1", "sku_id": "SKU-1",
+                "warehouse_id": "WH-1",
+                "sku_id": "SKU-1",
                 "observed_at": (start + timedelta(days=index)).isoformat(),
                 "demand": index + 1,
             },
@@ -86,8 +89,12 @@ def test_demand_monitoring_and_model_selection_api(client: TestClient) -> None:
     baseline = client.post(
         "/v1/ops/monitoring/baselines",
         json={
-            "warehouse_id": "WH-1", "sku_id": "SKU-1", "model_id": "model-a",
-            "model_version": "v1", "baseline_mae": 1, "sample_count": 20,
+            "warehouse_id": "WH-1",
+            "sku_id": "SKU-1",
+            "model_id": "model-a",
+            "model_version": "v1",
+            "baseline_mae": 1,
+            "sample_count": 20,
         },
     )
     assert baseline.status_code == 201
@@ -95,11 +102,14 @@ def test_demand_monitoring_and_model_selection_api(client: TestClient) -> None:
         response = client.post(
             "/v1/ops/monitoring/outcomes",
             json={
-                "warehouse_id": "WH-1", "sku_id": "SKU-1", "model_id": "model-a",
+                "warehouse_id": "WH-1",
+                "sku_id": "SKU-1",
+                "model_id": "model-a",
                 "model_version": "v1",
                 "forecast_origin": (start + timedelta(days=index)).isoformat(),
                 "target_at": (start + timedelta(days=index + 1)).isoformat(),
-                "predicted": 20, "actual": 10,
+                "predicted": 20,
+                "actual": 10,
             },
         )
         assert response.status_code == 201
@@ -107,8 +117,12 @@ def test_demand_monitoring_and_model_selection_api(client: TestClient) -> None:
     health = client.post(
         "/v1/ops/monitoring/health",
         json={
-            "warehouse_id": "WH-1", "sku_id": "SKU-1", "model_id": "model-a",
-            "model_version": "v1", "window": 10, "min_samples": 10,
+            "warehouse_id": "WH-1",
+            "sku_id": "SKU-1",
+            "model_id": "model-a",
+            "model_version": "v1",
+            "window": 10,
+            "min_samples": 10,
         },
     )
     assert health.status_code == 200
@@ -128,7 +142,8 @@ def test_schedule_api_creates_and_claims_jobs(client: TestClient) -> None:
     created = client.post(
         "/v1/ops/schedules",
         json={
-            "job_type": "forecast_refresh", "interval_seconds": 300,
+            "job_type": "forecast_refresh",
+            "interval_seconds": 300,
             "payload": {"warehouse_id": "WH-1", "sku_id": "SKU-1"},
         },
     )
@@ -152,12 +167,24 @@ def test_api_keys_enforce_scopes_and_tenant_isolation(tmp_path, monkeypatch) -> 
         "DEMAND_FORECAST_API_KEYS",
         json.dumps(
             [
-                {"key_id": "a-read", "token_sha256": digest(read_token),
-                 "tenant_id": "tenant-a", "scopes": ["ops:read"]},
-                {"key_id": "a-write", "token_sha256": digest(write_token),
-                 "tenant_id": "tenant-a", "scopes": ["ops:read", "ops:write", "ops:admin"]},
-                {"key_id": "b-read", "token_sha256": digest(tenant_b_token),
-                 "tenant_id": "tenant-b", "scopes": ["ops:read"]},
+                {
+                    "key_id": "a-read",
+                    "token_sha256": digest(read_token),
+                    "tenant_id": "tenant-a",
+                    "scopes": ["ops:read"],
+                },
+                {
+                    "key_id": "a-write",
+                    "token_sha256": digest(write_token),
+                    "tenant_id": "tenant-a",
+                    "scopes": ["ops:read", "ops:write", "ops:admin"],
+                },
+                {
+                    "key_id": "b-read",
+                    "token_sha256": digest(tenant_b_token),
+                    "tenant_id": "tenant-b",
+                    "scopes": ["ops:read"],
+                },
             ]
         ),
     )
@@ -186,9 +213,7 @@ def test_api_keys_enforce_scopes_and_tenant_isolation(tmp_path, monkeypatch) -> 
     assert tenant_b.status_code == 200
     assert tenant_b.json()["warehouses"] == []
 
-    shared_legacy = client.get(
-        "/v1/runs/1", headers={"Authorization": f"Bearer {read_token}"}
-    )
+    shared_legacy = client.get("/v1/runs/1", headers={"Authorization": f"Bearer {read_token}"})
     assert shared_legacy.status_code == 403
 
 
@@ -209,10 +234,14 @@ def test_policy_feedback_api_selects_lowest_observed_cost(client: TestClient) ->
             response = client.post(
                 "/v1/ops/monitoring/policy-outcomes",
                 json={
-                    "warehouse_id": "WH-1", "sku_id": "SKU-1",
-                    "policy_id": policy_id, "decision_key": f"origin-{index}",
-                    "inventory_position": 0, "ordered_quantity": ordered,
-                    "realized_demand": 8, "holding_cost_per_unit": 1,
+                    "warehouse_id": "WH-1",
+                    "sku_id": "SKU-1",
+                    "policy_id": policy_id,
+                    "decision_key": f"origin-{index}",
+                    "inventory_position": 0,
+                    "ordered_quantity": ordered,
+                    "realized_demand": 8,
+                    "holding_cost_per_unit": 1,
                     "shortage_cost_per_unit": 10,
                 },
             )

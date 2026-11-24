@@ -1,4 +1,5 @@
 """Drift response, evidence-based model selection, and pluggable retraining workers."""
+
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
@@ -52,14 +53,22 @@ class ModelLifecycle:
         degradation_ratio: float = 1.5,
     ) -> dict[str, Any]:
         health = self.store.model_health(
-            tenant_id, warehouse_id=warehouse_id, sku_id=sku_id,
-            model_id=model_id, model_version=model_version, window=window,
-            min_samples=min_samples, degradation_ratio=degradation_ratio,
+            tenant_id,
+            warehouse_id=warehouse_id,
+            sku_id=sku_id,
+            model_id=model_id,
+            model_version=model_version,
+            window=window,
+            min_samples=min_samples,
+            degradation_ratio=degradation_ratio,
         )
         if health["alert"]:
             health["retraining_request"] = self.store.queue_retraining(
-                tenant_id, warehouse_id=warehouse_id, sku_id=sku_id,
-                model_id=model_id, model_version=model_version,
+                tenant_id,
+                warehouse_id=warehouse_id,
+                sku_id=sku_id,
+                model_id=model_id,
+                model_version=model_version,
                 reason="rolling_mae_degradation",
             )
         return health
@@ -75,15 +84,23 @@ class ModelLifecycle:
         fallback_model_id: str = "seasonal-naive",
     ) -> dict[str, Any]:
         candidates = self.store.rank_models(
-            tenant_id, warehouse_id=warehouse_id, sku_id=sku_id,
-            min_samples=min_samples, window=window,
+            tenant_id,
+            warehouse_id=warehouse_id,
+            sku_id=sku_id,
+            min_samples=min_samples,
+            window=window,
         )
         if candidates:
             return {"selected": candidates[0], "candidates": candidates, "used_fallback": False}
         return {
-            "selected": {"model_id": fallback_model_id, "model_version": None,
-                         "mae": None, "sample_count": 0},
-            "candidates": [], "used_fallback": True,
+            "selected": {
+                "model_id": fallback_model_id,
+                "model_version": None,
+                "mae": None,
+                "sample_count": 0,
+            },
+            "candidates": [],
+            "used_fallback": True,
             "reason": "insufficient_out_of_sample_evidence",
         }
 

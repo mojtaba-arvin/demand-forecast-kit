@@ -1,4 +1,5 @@
 """ERPNext/Frappe REST integration for warehouse, stock, and sales history ingestion."""
+
 from __future__ import annotations
 
 import json
@@ -159,11 +160,13 @@ class ERPNextClient:
             current = first_day
             while current <= last_day:
                 day = current.isoformat()
-                dense_rows.append({
-                    "sku_id": sku,
-                    "observed_at": day,
-                    "demand": totals.get((sku, day), 0.0),
-                })
+                dense_rows.append(
+                    {
+                        "sku_id": sku,
+                        "observed_at": day,
+                        "demand": totals.get((sku, day), 0.0),
+                    }
+                )
                 current += timedelta(days=1)
         return dense_rows
 
@@ -185,8 +188,7 @@ class ERPNextClient:
                 break
             offset += len(page)
         headers = {
-            str(item["name"]): item for item in orders
-            if item.get("name") and item.get("supplier")
+            str(item["name"]): item for item in orders if item.get("name") and item.get("supplier")
         }
         if not headers:
             return []
@@ -216,7 +218,8 @@ class ERPNextClient:
                     aggregate = order_group.get(sku)
                     if aggregate is None:
                         order_group[sku] = {
-                            "sku_id": sku, "quantity": quantity,
+                            "sku_id": sku,
+                            "quantity": quantity,
                             "received_quantity": received,
                             "unit_cost": unit_cost,
                         }
@@ -229,8 +232,11 @@ class ERPNextClient:
                         )
                         if unit_cost is not None:
                             aggregate["unit_cost"] = (
-                                unit_cost if previous_cost is None else
-                                (float(previous_cost) * previous_quantity + unit_cost * quantity)
+                                unit_cost
+                                if previous_cost is None
+                                else (
+                                    float(previous_cost) * previous_quantity + unit_cost * quantity
+                                )
                                 / (previous_quantity + quantity)
                             )
                 if len(items) < self.page_size:
@@ -244,20 +250,24 @@ class ERPNextClient:
             expected_at = None
             if schedule_date:
                 date_text = str(schedule_date)
-                expected_at = (
-                    f"{date_text}T00:00:00+00:00" if len(date_text) == 10 else date_text
-                )
-            result.append({
-                "order_id": order_name,
-                "supplier_id": str(header["supplier"]),
-                "expected_at": expected_at,
-                "lines": lines,
-            })
+                expected_at = f"{date_text}T00:00:00+00:00" if len(date_text) == 10 else date_text
+            result.append(
+                {
+                    "order_id": order_name,
+                    "supplier_id": str(header["supplier"]),
+                    "expected_at": expected_at,
+                    "lines": lines,
+                }
+            )
         return result
 
     def sync_warehouse(
-        self, store: OperationalStore, tenant_id: str, warehouse_id: str,
-        *, warehouse_name: str | None = None
+        self,
+        store: OperationalStore,
+        tenant_id: str,
+        warehouse_id: str,
+        *,
+        warehouse_name: str | None = None,
     ) -> dict[str, int]:
         """Import current stock and daily invoiced demand into a local tenant."""
         balances = self.fetch_bin_balances(warehouse_id)
@@ -273,27 +283,35 @@ class ERPNextClient:
                 continue
             modified = item.get("modified") or timestamp.isoformat()
             store.record_inventory(
-                tenant_id, warehouse_id, sku,
+                tenant_id,
+                warehouse_id,
+                sku,
                 float(item.get("actual_qty", 0)),
                 reserved=float(item.get("reserved_qty", 0)),
-                as_of=str(modified).replace(" ", "T") + (
-                    "+00:00" if "Z" not in str(modified) and "+" not in str(modified) else ""
-                ),
+                as_of=str(modified).replace(" ", "T")
+                + ("+00:00" if "Z" not in str(modified) and "+" not in str(modified) else ""),
                 source="erpnext:Bin",
             )
             imported_stock += 1
         for item in sales:
             day = date.fromisoformat(str(item["observed_at"])).isoformat()
             store.record_demand(
-                tenant_id, warehouse_id, str(item["sku_id"]), float(item["demand"]),
-                observed_at=f"{day}T00:00:00+00:00", source="erpnext:Sales Invoice Item",
+                tenant_id,
+                warehouse_id,
+                str(item["sku_id"]),
+                float(item["demand"]),
+                observed_at=f"{day}T00:00:00+00:00",
+                source="erpnext:Sales Invoice Item",
             )
             imported_demand += 1
         for order in purchase_orders:
             store.sync_purchase_order(
-                tenant_id, order_id=f"erpnext:{order['order_id']}",
-                supplier_id=order["supplier_id"], warehouse_id=warehouse_id,
-                expected_at=order["expected_at"], lines=order["lines"],
+                tenant_id,
+                order_id=f"erpnext:{order['order_id']}",
+                supplier_id=order["supplier_id"],
+                warehouse_id=warehouse_id,
+                expected_at=order["expected_at"],
+                lines=order["lines"],
             )
             imported_orders += 1
         return {

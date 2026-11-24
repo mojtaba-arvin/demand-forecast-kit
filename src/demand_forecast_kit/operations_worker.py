@@ -1,4 +1,5 @@
 """Single-machine worker for durable forecast, replenishment, and monitoring schedules."""
+
 from __future__ import annotations
 
 import argparse
@@ -20,7 +21,9 @@ class OperationalWorker:
     """Claim and execute due tenant jobs with retryable leases and idempotent runs."""
 
     def __init__(
-        self, service: RunService, store: OperationalStore,
+        self,
+        service: RunService,
+        store: OperationalStore,
         lifecycle: ModelLifecycle | None = None,
     ) -> None:
         self.service = service
@@ -47,14 +50,17 @@ class OperationalWorker:
             try:
                 result = self._execute(tenant_id, job)
                 self.store.complete_schedule(tenant_id, str(job["job_id"]))
-                completed.append({"job_id": job["job_id"], "job_type": job["job_type"],
-                                  "result": result})
+                completed.append(
+                    {"job_id": job["job_id"], "job_type": job["job_type"], "result": result}
+                )
             except Exception as exc:
                 self.store.release_schedule(tenant_id, str(job["job_id"]))
-                failed.append({
-                    "job_id": str(job["job_id"]),
-                    "error": f"{type(exc).__name__}: {exc}",
-                })
+                failed.append(
+                    {
+                        "job_id": str(job["job_id"]),
+                        "error": f"{type(exc).__name__}: {exc}",
+                    }
+                )
         for request in self.store.list_retraining_requests(tenant_id, limit=1000):
             if request["status"] != "queued" or request["model_id"] not in self.lifecycle.trainers:
                 continue
@@ -63,12 +69,16 @@ class OperationalWorker:
                     self.lifecycle.process_retraining_request(tenant_id, str(request["request_id"]))
                 )
             except Exception as exc:
-                failed.append({
-                    "job_id": str(request["request_id"]),
-                    "error": f"{type(exc).__name__}: {exc}",
-                })
+                failed.append(
+                    {
+                        "job_id": str(request["request_id"]),
+                        "error": f"{type(exc).__name__}: {exc}",
+                    }
+                )
         return {
-            "claimed": len(jobs), "completed": completed, "failed": failed,
+            "claimed": len(jobs),
+            "completed": completed,
+            "failed": failed,
             "retraining": retrained,
         }
 
@@ -97,7 +107,9 @@ class OperationalWorker:
             raise ValueError("forecast refresh requires demand history")
         fallback = SeasonalNaiveAdapter(season_length=season_length)
         selection = self.lifecycle.select(
-            tenant_id, warehouse_id=warehouse_id, sku_id=sku_id,
+            tenant_id,
+            warehouse_id=warehouse_id,
+            sku_id=sku_id,
             min_samples=int(payload.get("model_min_samples", 5)),
             window=int(payload.get("model_window", 100)),
             fallback_model_id=fallback.model_id,
@@ -118,32 +130,51 @@ class OperationalWorker:
                     "selected_adapter_not_registered_or_version_mismatch"
                 )
         forecast = adapter.predict(
-            f"{warehouse_id}:{sku_id}", history, horizon=horizon,
-            quantile_levels=quantiles, seed=0,
+            f"{warehouse_id}:{sku_id}",
+            history,
+            horizon=horizon,
+            quantile_levels=quantiles,
+            seed=0,
         )
         result = {
-            "tenant_id": tenant_id, "warehouse_id": warehouse_id, "sku_id": sku_id,
+            "tenant_id": tenant_id,
+            "warehouse_id": warehouse_id,
+            "sku_id": sku_id,
             "forecast_origin": rows[-1]["observed_at"],
-            "model_id": adapter.model_id, "model_version": adapter.model_version,
+            "model_id": adapter.model_id,
+            "model_version": adapter.model_version,
             "model_selection": selection,
             "horizon": forecast.horizon,
             "quantiles": {str(level): list(values) for level, values in forecast.quantiles.items()},
         }
-        config = {"warehouse_id": warehouse_id, "sku_id": sku_id, "horizon": horizon,
-                  "season_length": season_length, "quantiles": list(quantiles),
-                  "tenant_id": tenant_id, "model_id": adapter.model_id,
-                  "model_version": adapter.model_version, "model_selection": selection}
+        config = {
+            "warehouse_id": warehouse_id,
+            "sku_id": sku_id,
+            "horizon": horizon,
+            "season_length": season_length,
+            "quantiles": list(quantiles),
+            "tenant_id": tenant_id,
+            "model_id": adapter.model_id,
+            "model_version": adapter.model_version,
+            "model_selection": selection,
+        }
         dataset = json.dumps(rows, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
         fingerprint = hashlib.sha256(dataset).hexdigest()
-        payload_bytes = json.dumps(result, sort_keys=True, separators=(",", ":"),
-                                   allow_nan=False).encode()
+        payload_bytes = json.dumps(
+            result, sort_keys=True, separators=(",", ":"), allow_nan=False
+        ).encode()
         run = self.service.record_run(
             idempotency_key=self.service.idempotency_key(
-                dataset_fingerprint=fingerprint, model_id=adapter.model_id,
-                model_version=adapter.model_version, config=config,
+                dataset_fingerprint=fingerprint,
+                model_id=adapter.model_id,
+                model_version=adapter.model_version,
+                config=config,
             ),
-            dataset_fingerprint=fingerprint, model_id=adapter.model_id,
-            model_version=adapter.model_version, config=config, result=result,
+            dataset_fingerprint=fingerprint,
+            model_id=adapter.model_id,
+            model_version=adapter.model_version,
+            config=config,
+            result=result,
             artifact_payload=payload_bytes,
         )
         return {"run": run.to_dict(), "forecast": result}
@@ -155,72 +186,102 @@ class OperationalWorker:
         sku_id = str(payload["sku_id"])
         position = self.store.inventory_position(tenant_id, warehouse_id, sku_id)
         recommendation = newsvendor_order(
-            {float(level): float(value)
-             for level, value in payload["lead_time_demand_quantiles"].items()},
+            {
+                float(level): float(value)
+                for level, value in payload["lead_time_demand_quantiles"].items()
+            },
             underage_cost=float(payload["underage_cost"]),
             overage_cost=float(payload["overage_cost"]),
             inventory_position=float(position["inventory_position"]),
             pack_size=int(payload.get("pack_size", 1)),
         )
         decision = {
-            "tenant_id": tenant_id, "warehouse_id": warehouse_id, "sku_id": sku_id,
+            "tenant_id": tenant_id,
+            "warehouse_id": warehouse_id,
+            "sku_id": sku_id,
             "inventory_position": position["inventory_position"],
             "quantity": recommendation.quantity,
             "target_stock_level": recommendation.target_stock_level,
             "target_service_level": recommendation.target_service_level,
             "policy": "newsvendor",
         }
-        config = {"tenant_id": tenant_id, "warehouse_id": warehouse_id, "sku_id": sku_id,
-                  "lead_time_demand_quantiles": payload["lead_time_demand_quantiles"],
-                  "underage_cost": payload["underage_cost"],
-                  "overage_cost": payload["overage_cost"], "pack_size": payload.get("pack_size", 1),
-                  "inventory_position": position["inventory_position"]}
+        config = {
+            "tenant_id": tenant_id,
+            "warehouse_id": warehouse_id,
+            "sku_id": sku_id,
+            "lead_time_demand_quantiles": payload["lead_time_demand_quantiles"],
+            "underage_cost": payload["underage_cost"],
+            "overage_cost": payload["overage_cost"],
+            "pack_size": payload.get("pack_size", 1),
+            "inventory_position": position["inventory_position"],
+        }
         encoded = json.dumps(
             config, sort_keys=True, separators=(",", ":"), allow_nan=False
         ).encode()
         fingerprint = hashlib.sha256(encoded).hexdigest()
-        result_bytes = json.dumps(decision, sort_keys=True, separators=(",", ":"),
-                                  allow_nan=False).encode()
+        result_bytes = json.dumps(
+            decision, sort_keys=True, separators=(",", ":"), allow_nan=False
+        ).encode()
         run = self.service.record_run(
             idempotency_key=self.service.idempotency_key(
-                dataset_fingerprint=fingerprint, model_id="newsvendor-policy",
-                model_version="1", config=config,
+                dataset_fingerprint=fingerprint,
+                model_id="newsvendor-policy",
+                model_version="1",
+                config=config,
             ),
-            dataset_fingerprint=fingerprint, model_id="newsvendor-policy",
-            model_version="1", config=config, result=decision, artifact_payload=result_bytes,
+            dataset_fingerprint=fingerprint,
+            model_id="newsvendor-policy",
+            model_version="1",
+            config=config,
+            result=decision,
+            artifact_payload=result_bytes,
         )
         stored = self.service.record_inventory_decision(
-            run.run_id, decision_key=str(job["job_id"]),
+            run.run_id,
+            decision_key=str(job["job_id"]),
             decision=decision,
         )
         return {"run": run.to_dict(), "decision": stored}
 
     def _policy_review(self, tenant_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         candidates = self.store.rank_policies(
-            tenant_id, warehouse_id=str(payload["warehouse_id"]),
-            sku_id=str(payload["sku_id"]), min_samples=int(payload.get("min_samples", 5)),
+            tenant_id,
+            warehouse_id=str(payload["warehouse_id"]),
+            sku_id=str(payload["sku_id"]),
+            min_samples=int(payload.get("min_samples", 5)),
             window=int(payload.get("window", 100)),
         )
         if candidates:
             return {"selected": candidates[0], "candidates": candidates, "used_fallback": False}
         return {
-            "selected": {"policy_id": str(payload.get("fallback_policy_id", "newsvendor-default")),
-                         "mean_cost": None, "sample_count": 0},
-            "candidates": [], "used_fallback": True,
+            "selected": {
+                "policy_id": str(payload.get("fallback_policy_id", "newsvendor-default")),
+                "mean_cost": None,
+                "sample_count": 0,
+            },
+            "candidates": [],
+            "used_fallback": True,
             "reason": "insufficient_realized_outcome_evidence",
         }
 
     def _model_health(self, tenant_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         health = self.store.model_health(
-            tenant_id, warehouse_id=str(payload["warehouse_id"]), sku_id=str(payload["sku_id"]),
-            model_id=str(payload["model_id"]), model_version=str(payload["model_version"]),
-            window=int(payload.get("window", 30)), min_samples=int(payload.get("min_samples", 10)),
+            tenant_id,
+            warehouse_id=str(payload["warehouse_id"]),
+            sku_id=str(payload["sku_id"]),
+            model_id=str(payload["model_id"]),
+            model_version=str(payload["model_version"]),
+            window=int(payload.get("window", 30)),
+            min_samples=int(payload.get("min_samples", 10)),
             degradation_ratio=float(payload.get("degradation_ratio", 1.5)),
         )
         if health["alert"]:
             health["retraining_request"] = self.store.queue_retraining(
-                tenant_id, warehouse_id=str(payload["warehouse_id"]), sku_id=str(payload["sku_id"]),
-                model_id=str(payload["model_id"]), model_version=str(payload["model_version"]),
+                tenant_id,
+                warehouse_id=str(payload["warehouse_id"]),
+                sku_id=str(payload["sku_id"]),
+                model_id=str(payload["model_id"]),
+                model_version=str(payload["model_version"]),
                 reason="rolling_mae_degradation",
             )
         return health

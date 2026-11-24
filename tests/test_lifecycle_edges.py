@@ -18,18 +18,33 @@ def test_lifecycle_validation_and_healthy_assessment(tmp_path) -> None:
     with pytest.raises(ValueError, match="model_id"):
         lifecycle.register_trainer(" ", lambda _request, _history: TrainingResult("v2", 1, 1))
     store.set_model_baseline(
-        "tenant-a", warehouse_id="WH-1", sku_id="SKU-1",
-        model_id="model-a", model_version="v1", baseline_mae=1, sample_count=20,
+        "tenant-a",
+        warehouse_id="WH-1",
+        sku_id="SKU-1",
+        model_id="model-a",
+        model_version="v1",
+        baseline_mae=1,
+        sample_count=20,
     )
     origin = datetime(2026, 1, 1, tzinfo=UTC)
     store.record_outcome(
-        "tenant-a", warehouse_id="WH-1", sku_id="SKU-1",
-        model_id="model-a", model_version="v1", forecast_origin=origin,
-        target_at=origin + timedelta(days=1), predicted=10.5, actual=10,
+        "tenant-a",
+        warehouse_id="WH-1",
+        sku_id="SKU-1",
+        model_id="model-a",
+        model_version="v1",
+        forecast_origin=origin,
+        target_at=origin + timedelta(days=1),
+        predicted=10.5,
+        actual=10,
     )
     health = lifecycle.assess(
-        "tenant-a", warehouse_id="WH-1", sku_id="SKU-1",
-        model_id="model-a", model_version="v1", min_samples=1,
+        "tenant-a",
+        warehouse_id="WH-1",
+        sku_id="SKU-1",
+        model_id="model-a",
+        model_version="v1",
+        min_samples=1,
     )
     assert health["status"] == "healthy"
     assert "retraining_request" not in health
@@ -41,8 +56,12 @@ def test_lifecycle_retraining_missing_request_and_empty_history(tmp_path) -> Non
     with pytest.raises(KeyError, match="not found"):
         lifecycle.process_retraining_request("tenant-a", "missing")
     request = store.queue_retraining(
-        "tenant-a", warehouse_id="WH-1", sku_id="SKU-1",
-        model_id="model-a", model_version="v1", reason="drift",
+        "tenant-a",
+        warehouse_id="WH-1",
+        sku_id="SKU-1",
+        model_id="model-a",
+        model_version="v1",
+        reason="drift",
     )
     lifecycle.register_trainer(
         "model-a", lambda _request, history: TrainingResult("v2", 1, len(history))
@@ -68,12 +87,19 @@ def test_lifecycle_retraining_rejects_invalid_trainer_results(
     start = datetime(2026, 2, 1, tzinfo=UTC)
     for index in range(5):
         store.record_demand(
-            "tenant-a", "WH-1", "SKU-1", float(index),
+            "tenant-a",
+            "WH-1",
+            "SKU-1",
+            float(index),
             observed_at=start + timedelta(days=index),
         )
     request = store.queue_retraining(
-        "tenant-a", warehouse_id="WH-1", sku_id="SKU-1",
-        model_id="model-a", model_version="v1", reason="drift",
+        "tenant-a",
+        warehouse_id="WH-1",
+        sku_id="SKU-1",
+        model_id="model-a",
+        model_version="v1",
+        reason="drift",
     )
     lifecycle = ModelLifecycle(store)
     lifecycle.register_trainer("model-a", lambda _request, _history: training_result)
@@ -85,12 +111,14 @@ def test_lifecycle_retraining_rejects_invalid_trainer_results(
 def test_lifecycle_marks_trainer_exceptions_as_failed(tmp_path) -> None:
     store = _store_with_warehouse(tmp_path)
     start = datetime(2026, 3, 1, tzinfo=UTC)
-    store.record_demand(
-        "tenant-a", "WH-1", "SKU-1", 3, observed_at=start
-    )
+    store.record_demand("tenant-a", "WH-1", "SKU-1", 3, observed_at=start)
     request = store.queue_retraining(
-        "tenant-a", warehouse_id="WH-1", sku_id="SKU-1",
-        model_id="model-a", model_version="v1", reason="drift",
+        "tenant-a",
+        warehouse_id="WH-1",
+        sku_id="SKU-1",
+        model_id="model-a",
+        model_version="v1",
+        reason="drift",
     )
 
     def fail(_request, _history):

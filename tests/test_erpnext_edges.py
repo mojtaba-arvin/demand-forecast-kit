@@ -36,9 +36,7 @@ def test_erpnext_configuration_and_empty_resource_paths() -> None:
     def empty_transport(url, method, headers, body, timeout):
         return json.dumps({"data": []}).encode()
 
-    client = ERPNextClient(
-        "https://erp.example", "key", "secret", transport=empty_transport
-    )
+    client = ERPNextClient("https://erp.example", "key", "secret", transport=empty_transport)
     assert client.list_warehouses() == []
     assert client.fetch_sales_demand("WH-1") == []
     assert client.fetch_purchase_orders("WH-1") == []
@@ -52,11 +50,15 @@ def test_erpnext_empty_sync_is_safe_and_does_not_create_fake_rows(tmp_path) -> N
     store = OperationalStore(tmp_path / "empty.sqlite")
     store.create_warehouse("tenant-a", "WH-1", "Main", "main")
     client = ERPNextClient(
-        "https://erp.example", "key", "secret",
+        "https://erp.example",
+        "key",
+        "secret",
         transport=lambda *_args: json.dumps({"data": []}).encode(),
     )
     assert client.sync_warehouse(store, "tenant-a", "WH-1") == {
-        "inventory_items": 0, "daily_demand_rows": 0, "purchase_orders": 0,
+        "inventory_items": 0,
+        "daily_demand_rows": 0,
+        "purchase_orders": 0,
     }
     assert store.list_warehouses("tenant-a")[0]["warehouse_id"] == "WH-1"
 
@@ -68,12 +70,30 @@ def test_erpnext_purchase_order_duplicate_lines_are_aggregated() -> None:
             data = [{"name": "PO-1", "supplier": "SUP-1", "schedule_date": None}]
         elif doctype == "Purchase Order Item":
             data = [
-                {"item_code": "SKU-1", "qty": 2, "received_qty": 1, "rate": 4,
-                 "parent": "PO-1", "warehouse": "WH-1"},
-                {"item_code": "SKU-1", "qty": 3, "received_qty": 2, "rate": 6,
-                 "parent": "PO-1", "warehouse": "WH-1"},
-                {"item_code": " ", "qty": 5, "received_qty": 0, "rate": 2,
-                 "parent": "PO-1", "warehouse": "WH-1"},
+                {
+                    "item_code": "SKU-1",
+                    "qty": 2,
+                    "received_qty": 1,
+                    "rate": 4,
+                    "parent": "PO-1",
+                    "warehouse": "WH-1",
+                },
+                {
+                    "item_code": "SKU-1",
+                    "qty": 3,
+                    "received_qty": 2,
+                    "rate": 6,
+                    "parent": "PO-1",
+                    "warehouse": "WH-1",
+                },
+                {
+                    "item_code": " ",
+                    "qty": 5,
+                    "received_qty": 0,
+                    "rate": 2,
+                    "parent": "PO-1",
+                    "warehouse": "WH-1",
+                },
             ]
         else:
             raise AssertionError(doctype)
@@ -83,10 +103,14 @@ def test_erpnext_purchase_order_duplicate_lines_are_aggregated() -> None:
         "https://erp.example", "key", "secret", transport=transport
     ).fetch_purchase_orders("WH-1")
     assert len(orders) == 1
-    assert orders[0]["lines"] == [{
-        "sku_id": "SKU-1", "quantity": 5.0,
-        "received_quantity": 3.0, "unit_cost": 5.2,
-    }]
+    assert orders[0]["lines"] == [
+        {
+            "sku_id": "SKU-1",
+            "quantity": 5.0,
+            "received_quantity": 3.0,
+            "unit_cost": 5.2,
+        }
+    ]
 
 
 def test_erpnext_paginates_invoice_and_purchase_order_headers() -> None:
@@ -113,17 +137,27 @@ def test_erpnext_paginates_invoice_and_purchase_order_headers() -> None:
             ][offset : offset + 1]
         elif doctype == "Purchase Order Item":
             data = [
-                {"item_code": "SKU-1", "qty": 1, "received_qty": 0, "rate": 1,
-                 "parent": "PO-1", "warehouse": "WH-1"},
-                {"item_code": "SKU-2", "qty": 2, "received_qty": 0, "rate": 2,
-                 "parent": "PO-2", "warehouse": "WH-1"},
+                {
+                    "item_code": "SKU-1",
+                    "qty": 1,
+                    "received_qty": 0,
+                    "rate": 1,
+                    "parent": "PO-1",
+                    "warehouse": "WH-1",
+                },
+                {
+                    "item_code": "SKU-2",
+                    "qty": 2,
+                    "received_qty": 0,
+                    "rate": 2,
+                    "parent": "PO-2",
+                    "warehouse": "WH-1",
+                },
             ][offset : offset + 1]
         else:
             raise AssertionError(doctype)
         return json.dumps({"data": data}).encode()
 
-    client = ERPNextClient(
-        "https://erp.example", "key", "secret", transport=transport, page_size=1
-    )
+    client = ERPNextClient("https://erp.example", "key", "secret", transport=transport, page_size=1)
     assert len(client.fetch_sales_demand("WH-1")) == 2
     assert len(client.fetch_purchase_orders("WH-1")) == 2

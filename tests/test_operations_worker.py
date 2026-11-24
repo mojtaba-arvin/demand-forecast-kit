@@ -12,13 +12,18 @@ def test_worker_executes_scheduled_forecast_and_persists_run(tmp_path) -> None:
     start = datetime(2026, 1, 1, tzinfo=UTC)
     for index in range(21):
         store.record_demand(
-            "tenant-a", "WH-1", "SKU-1", float(index % 7),
+            "tenant-a",
+            "WH-1",
+            "SKU-1",
+            float(index % 7),
             observed_at=start + timedelta(days=index),
         )
     store.create_schedule(
-        "tenant-a", job_type="forecast_refresh",
+        "tenant-a",
+        job_type="forecast_refresh",
         payload={"warehouse_id": "WH-1", "sku_id": "SKU-1", "horizon": 3},
-        interval_seconds=300, first_run_at=datetime.now(UTC) - timedelta(seconds=1),
+        interval_seconds=300,
+        first_run_at=datetime.now(UTC) - timedelta(seconds=1),
     )
 
     report = OperationalWorker(service, store).run_once("tenant-a")
@@ -36,13 +41,18 @@ def test_worker_executes_replenishment_and_records_immutable_decision(tmp_path) 
     store.create_warehouse("tenant-a", "WH-1", "Main", "main")
     store.record_inventory("tenant-a", "WH-1", "SKU-1", 10, reserved=2)
     store.create_schedule(
-        "tenant-a", job_type="replenishment_review",
+        "tenant-a",
+        job_type="replenishment_review",
         payload={
-            "warehouse_id": "WH-1", "sku_id": "SKU-1",
+            "warehouse_id": "WH-1",
+            "sku_id": "SKU-1",
             "lead_time_demand_quantiles": {"0.1": 10, "0.5": 20, "0.9": 40},
-            "underage_cost": 9, "overage_cost": 1, "pack_size": 6,
+            "underage_cost": 9,
+            "overage_cost": 1,
+            "pack_size": 6,
         },
-        interval_seconds=300, first_run_at=datetime.now(UTC) - timedelta(seconds=1),
+        interval_seconds=300,
+        first_run_at=datetime.now(UTC) - timedelta(seconds=1),
     )
 
     report = OperationalWorker(service, store).run_once("tenant-a")
@@ -61,9 +71,11 @@ def test_worker_releases_failed_job_for_retry(tmp_path) -> None:
     store = OperationalStore(service.state_dir / "operations.sqlite")
     store.create_warehouse("tenant-a", "WH-1", "Main", "main")
     job = store.create_schedule(
-        "tenant-a", job_type="forecast_refresh",
+        "tenant-a",
+        job_type="forecast_refresh",
         payload={"warehouse_id": "WH-1", "sku_id": "missing"},
-        interval_seconds=300, first_run_at=datetime.now(UTC) - timedelta(seconds=1),
+        interval_seconds=300,
+        first_run_at=datetime.now(UTC) - timedelta(seconds=1),
     )
 
     report = OperationalWorker(service, store).run_once("tenant-a")
@@ -81,15 +93,23 @@ def test_worker_runs_policy_review_from_realized_outcomes(tmp_path) -> None:
     store.create_warehouse("tenant-a", "WH-1", "Main", "main")
     for index in range(5):
         store.record_policy_outcome(
-            "tenant-a", warehouse_id="WH-1", sku_id="SKU-1",
-            policy_id="validated-policy", decision_key=f"decision-{index}",
-            inventory_position=0, ordered_quantity=10, realized_demand=8,
-            holding_cost_per_unit=1, shortage_cost_per_unit=10,
+            "tenant-a",
+            warehouse_id="WH-1",
+            sku_id="SKU-1",
+            policy_id="validated-policy",
+            decision_key=f"decision-{index}",
+            inventory_position=0,
+            ordered_quantity=10,
+            realized_demand=8,
+            holding_cost_per_unit=1,
+            shortage_cost_per_unit=10,
         )
     store.create_schedule(
-        "tenant-a", job_type="policy_review",
+        "tenant-a",
+        job_type="policy_review",
         payload={"warehouse_id": "WH-1", "sku_id": "SKU-1", "min_samples": 5},
-        interval_seconds=300, first_run_at=datetime.now(UTC) - timedelta(seconds=1),
+        interval_seconds=300,
+        first_run_at=datetime.now(UTC) - timedelta(seconds=1),
     )
     report = OperationalWorker(service, store).run_once("tenant-a")
     assert report["failed"] == []
@@ -105,12 +125,19 @@ def test_worker_runs_registered_model_retraining_plugin(tmp_path) -> None:
     start = datetime(2026, 2, 1, tzinfo=UTC)
     for index in range(20):
         store.record_demand(
-            "tenant-a", "WH-1", "SKU-1", float(index % 4),
+            "tenant-a",
+            "WH-1",
+            "SKU-1",
+            float(index % 4),
             observed_at=start + timedelta(days=index),
         )
     store.queue_retraining(
-        "tenant-a", warehouse_id="WH-1", sku_id="SKU-1",
-        model_id="model-a", model_version="v1", reason="drift",
+        "tenant-a",
+        warehouse_id="WH-1",
+        sku_id="SKU-1",
+        model_id="model-a",
+        model_version="v1",
+        reason="drift",
     )
     worker = OperationalWorker(service, store)
     worker.register_trainer(
@@ -145,21 +172,30 @@ def test_worker_automatically_routes_to_best_registered_model(tmp_path) -> None:
     start = datetime(2026, 3, 1, tzinfo=UTC)
     for index in range(21):
         store.record_demand(
-            "tenant-a", "WH-1", "SKU-1", float(index % 7),
+            "tenant-a",
+            "WH-1",
+            "SKU-1",
+            float(index % 7),
             observed_at=start + timedelta(days=index),
         )
     for index in range(5):
         store.record_outcome(
-            "tenant-a", warehouse_id="WH-1", sku_id="SKU-1",
-            model_id="candidate-model", model_version="v1",
+            "tenant-a",
+            warehouse_id="WH-1",
+            sku_id="SKU-1",
+            model_id="candidate-model",
+            model_version="v1",
             forecast_origin=start + timedelta(days=index),
             target_at=start + timedelta(days=index + 1),
-            predicted=10.5, actual=10,
+            predicted=10.5,
+            actual=10,
         )
     store.create_schedule(
-        "tenant-a", job_type="forecast_refresh",
+        "tenant-a",
+        job_type="forecast_refresh",
         payload={"warehouse_id": "WH-1", "sku_id": "SKU-1", "horizon": 2},
-        interval_seconds=300, first_run_at=datetime.now(UTC) - timedelta(seconds=1),
+        interval_seconds=300,
+        first_run_at=datetime.now(UTC) - timedelta(seconds=1),
     )
     worker = OperationalWorker(service, store)
     worker.register_adapter(CandidateAdapter())

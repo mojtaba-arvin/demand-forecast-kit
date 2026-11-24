@@ -3,6 +3,7 @@
 The SQLite backend is intentionally single-machine. It provides transactional
 consistency for a local deployment; it is not a distributed database.
 """
+
 from __future__ import annotations
 
 import json
@@ -191,7 +192,10 @@ class OperationalStore:
                    (tenant_id, warehouse_id, name, location_code, created_at)
                    VALUES (?, ?, ?, ?, ?)""",
                 (
-                    tenant, warehouse_id.strip(), name.strip(), location_code.strip(),
+                    tenant,
+                    warehouse_id.strip(),
+                    name.strip(),
+                    location_code.strip(),
                     _now().isoformat(),
                 ),
             )
@@ -216,9 +220,16 @@ class OperationalStore:
         return [dict(row) for row in rows]
 
     def record_inventory(
-        self, tenant_id: str, warehouse_id: str, sku_id: str, quantity: float,
-        *, reserved: float = 0, backorders: float = 0,
-        as_of: datetime | str | None = None, source: str = "manual"
+        self,
+        tenant_id: str,
+        warehouse_id: str,
+        sku_id: str,
+        quantity: float,
+        *,
+        reserved: float = 0,
+        backorders: float = 0,
+        as_of: datetime | str | None = None,
+        source: str = "manual",
     ) -> dict[str, Any]:
         tenant = self._tenant(tenant_id)
         if not sku_id.strip() or not source.strip():
@@ -275,8 +286,12 @@ class OperationalStore:
         backorders = 0.0 if stock is None else float(stock["backorders"])
         confirmed_inbound = float(inbound["inbound"])
         return {
-            "tenant_id": tenant, "warehouse_id": warehouse_id, "sku_id": sku_id,
-            "on_hand": on_hand, "reserved": reserved, "backorders": backorders,
+            "tenant_id": tenant,
+            "warehouse_id": warehouse_id,
+            "sku_id": sku_id,
+            "on_hand": on_hand,
+            "reserved": reserved,
+            "backorders": backorders,
             "confirmed_inbound": confirmed_inbound,
             "inventory_position": on_hand - reserved + confirmed_inbound - backorders,
             "as_of": None if stock is None else str(stock["as_of"]),
@@ -284,8 +299,14 @@ class OperationalStore:
         }
 
     def create_purchase_order(
-        self, tenant_id: str, *, order_id: str, supplier_id: str, warehouse_id: str,
-        lines: list[dict[str, Any]], expected_at: datetime | str | None = None
+        self,
+        tenant_id: str,
+        *,
+        order_id: str,
+        supplier_id: str,
+        warehouse_id: str,
+        lines: list[dict[str, Any]],
+        expected_at: datetime | str | None = None,
     ) -> dict[str, Any]:
         tenant = self._tenant(tenant_id)
         if not order_id.strip() or not supplier_id.strip() or not lines:
@@ -341,8 +362,14 @@ class OperationalStore:
         return {**dict(order), "lines": [dict(line) for line in lines]}
 
     def sync_purchase_order(
-        self, tenant_id: str, *, order_id: str, supplier_id: str, warehouse_id: str,
-        lines: list[dict[str, Any]], expected_at: datetime | str | None = None
+        self,
+        tenant_id: str,
+        *,
+        order_id: str,
+        supplier_id: str,
+        warehouse_id: str,
+        lines: list[dict[str, Any]],
+        expected_at: datetime | str | None = None,
     ) -> dict[str, Any]:
         """Idempotently import an ERP purchase order without double-counting received stock."""
         tenant = self._tenant(tenant_id)
@@ -472,8 +499,16 @@ class OperationalStore:
                     """INSERT INTO inventory_snapshots
                        (tenant_id, warehouse_id, sku_id, quantity, reserved, backorders,
                         as_of, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-                    (tenant, warehouse_id, sku, on_hand, reserved, backorders, now,
-                     f"purchase-order:{order_id}"),
+                    (
+                        tenant,
+                        warehouse_id,
+                        sku,
+                        on_hand,
+                        reserved,
+                        backorders,
+                        now,
+                        f"purchase-order:{order_id}",
+                    ),
                 )
             remaining = db.execute(
                 """SELECT COUNT(*) FROM purchase_order_lines
@@ -489,8 +524,14 @@ class OperationalStore:
         return self.get_purchase_order(tenant, order_id)
 
     def record_demand(
-        self, tenant_id: str, warehouse_id: str, sku_id: str, demand: float,
-        *, observed_at: datetime | str, source: str = "manual"
+        self,
+        tenant_id: str,
+        warehouse_id: str,
+        sku_id: str,
+        demand: float,
+        *,
+        observed_at: datetime | str,
+        source: str = "manual",
     ) -> dict[str, Any]:
         tenant = self._tenant(tenant_id)
         value = _positive(demand, "demand")
@@ -512,8 +553,13 @@ class OperationalStore:
                    DO UPDATE SET demand=excluded.demand, source=excluded.source""",
                 (tenant, warehouse_id, sku_id.strip(), timestamp, value, source.strip()),
             )
-        return {"tenant_id": tenant, "warehouse_id": warehouse_id,
-                "sku_id": sku_id.strip(), "observed_at": timestamp, "demand": value}
+        return {
+            "tenant_id": tenant,
+            "warehouse_id": warehouse_id,
+            "sku_id": sku_id.strip(),
+            "observed_at": timestamp,
+            "demand": value,
+        }
 
     def demand_history(
         self, tenant_id: str, warehouse_id: str, sku_id: str, *, limit: int = 365
@@ -530,9 +576,17 @@ class OperationalStore:
         return [dict(row) for row in reversed(rows)]
 
     def record_outcome(
-        self, tenant_id: str, *, warehouse_id: str, sku_id: str, model_id: str,
-        model_version: str, forecast_origin: datetime | str, target_at: datetime | str,
-        predicted: float, actual: float
+        self,
+        tenant_id: str,
+        *,
+        warehouse_id: str,
+        sku_id: str,
+        model_id: str,
+        model_version: str,
+        forecast_origin: datetime | str,
+        target_at: datetime | str,
+        predicted: float,
+        actual: float,
     ) -> dict[str, Any]:
         tenant = self._tenant(tenant_id)
         for name, value in (("predicted", predicted), ("actual", actual)):
@@ -556,8 +610,18 @@ class OperationalStore:
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                    ON CONFLICT(tenant_id, warehouse_id, sku_id, model_id, model_version,
                                forecast_origin, target_at) DO NOTHING""",
-                (tenant, warehouse_id, sku_id, model_id, model_version, origin,
-                 target, float(predicted), float(actual), _now().isoformat()),
+                (
+                    tenant,
+                    warehouse_id,
+                    sku_id,
+                    model_id,
+                    model_version,
+                    origin,
+                    target,
+                    float(predicted),
+                    float(actual),
+                    _now().isoformat(),
+                ),
             )
             row = db.execute(
                 """SELECT * FROM forecast_outcomes
@@ -568,14 +632,29 @@ class OperationalStore:
         assert row is not None
         if float(row["predicted"]) != float(predicted) or float(row["actual"]) != float(actual):
             raise ValueError("forecast outcome identity is already bound to different values")
-        return {"outcome_id": int(row["outcome_id"]), "tenant_id": tenant,
-                "warehouse_id": warehouse_id, "sku_id": sku_id, "model_id": model_id,
-                "model_version": model_version, "forecast_origin": origin, "target_at": target,
-                "predicted": float(predicted), "actual": float(actual)}
+        return {
+            "outcome_id": int(row["outcome_id"]),
+            "tenant_id": tenant,
+            "warehouse_id": warehouse_id,
+            "sku_id": sku_id,
+            "model_id": model_id,
+            "model_version": model_version,
+            "forecast_origin": origin,
+            "target_at": target,
+            "predicted": float(predicted),
+            "actual": float(actual),
+        }
 
     def set_model_baseline(
-        self, tenant_id: str, *, warehouse_id: str, sku_id: str, model_id: str,
-        model_version: str, baseline_mae: float, sample_count: int
+        self,
+        tenant_id: str,
+        *,
+        warehouse_id: str,
+        sku_id: str,
+        model_id: str,
+        model_version: str,
+        baseline_mae: float,
+        sample_count: int,
     ) -> None:
         value = _positive(baseline_mae, "baseline_mae")
         if type(sample_count) is not int or sample_count < 1:
@@ -592,14 +671,29 @@ class OperationalStore:
                    ON CONFLICT(tenant_id, warehouse_id, sku_id, model_id, model_version)
                    DO UPDATE SET baseline_mae=excluded.baseline_mae,
                      sample_count=excluded.sample_count, created_at=excluded.created_at""",
-                (self._tenant(tenant_id), warehouse_id, sku_id, model_id, model_version,
-                 value, sample_count, _now().isoformat()),
+                (
+                    self._tenant(tenant_id),
+                    warehouse_id,
+                    sku_id,
+                    model_id,
+                    model_version,
+                    value,
+                    sample_count,
+                    _now().isoformat(),
+                ),
             )
 
     def model_health(
-        self, tenant_id: str, *, warehouse_id: str, sku_id: str, model_id: str,
-        model_version: str, window: int = 30, min_samples: int = 10,
-        degradation_ratio: float = 1.5
+        self,
+        tenant_id: str,
+        *,
+        warehouse_id: str,
+        sku_id: str,
+        model_id: str,
+        model_version: str,
+        window: int = 30,
+        min_samples: int = 10,
+        degradation_ratio: float = 1.5,
     ) -> dict[str, Any]:
         if type(window) is not int or window < 1 or type(min_samples) is not int or min_samples < 1:
             raise ValueError("window and min_samples must be positive integers")
@@ -623,29 +717,42 @@ class OperationalStore:
             return {"status": "baseline_missing", "sample_count": len(rows), "alert": False}
         if int(baseline["sample_count"]) < min_samples:
             return {
-                "status": "baseline_insufficient", "sample_count": len(rows),
+                "status": "baseline_insufficient",
+                "sample_count": len(rows),
                 "baseline_sample_count": int(baseline["sample_count"]),
-                "required_baseline_samples": min_samples, "alert": False,
+                "required_baseline_samples": min_samples,
+                "alert": False,
             }
         errors = [abs(float(row["predicted"]) - float(row["actual"])) for row in rows]
         mae = sum(errors) / len(errors) if errors else None
         enough = len(errors) >= min_samples
         baseline_mae = float(baseline["baseline_mae"])
-        degraded = bool(enough and mae is not None and (
-            (baseline_mae == 0 and mae > 0) or
-            (baseline_mae > 0 and mae > baseline_mae * ratio)
-        ))
+        degraded = bool(
+            enough
+            and mae is not None
+            and (
+                (baseline_mae == 0 and mae > 0) or (baseline_mae > 0 and mae > baseline_mae * ratio)
+            )
+        )
         return {
             "status": "degraded" if degraded else ("healthy" if enough else "insufficient_samples"),
-            "sample_count": len(errors), "required_samples": min_samples,
-            "baseline_mae": baseline_mae, "rolling_mae": mae,
+            "sample_count": len(errors),
+            "required_samples": min_samples,
+            "baseline_mae": baseline_mae,
+            "rolling_mae": mae,
             "degradation_ratio": None if mae is None or baseline_mae == 0 else mae / baseline_mae,
             "alert": degraded,
         }
 
     def queue_retraining(
-        self, tenant_id: str, *, warehouse_id: str, sku_id: str, model_id: str,
-        model_version: str, reason: str
+        self,
+        tenant_id: str,
+        *,
+        warehouse_id: str,
+        sku_id: str,
+        model_id: str,
+        model_version: str,
+        reason: str,
     ) -> dict[str, Any]:
         tenant = self._tenant(tenant_id)
         if not reason.strip():
@@ -670,8 +777,17 @@ class OperationalStore:
             db.execute(
                 """INSERT INTO retraining_requests
                    VALUES (?, ?, ?, ?, ?, ?, ?, 'queued', ?, ?)""",
-                (request_id, tenant, warehouse_id, sku_id, model_id, model_version,
-                 reason, now, now),
+                (
+                    request_id,
+                    tenant,
+                    warehouse_id,
+                    sku_id,
+                    model_id,
+                    model_version,
+                    reason,
+                    now,
+                    now,
+                ),
             )
             row = db.execute(
                 "SELECT * FROM retraining_requests WHERE request_id=?", (request_id,)
@@ -680,9 +796,18 @@ class OperationalStore:
         return dict(row)
 
     def record_policy_outcome(
-        self, tenant_id: str, *, warehouse_id: str, sku_id: str, policy_id: str,
-        decision_key: str, inventory_position: float, ordered_quantity: float,
-        realized_demand: float, holding_cost_per_unit: float, shortage_cost_per_unit: float
+        self,
+        tenant_id: str,
+        *,
+        warehouse_id: str,
+        sku_id: str,
+        policy_id: str,
+        decision_key: str,
+        inventory_position: float,
+        ordered_quantity: float,
+        realized_demand: float,
+        holding_cost_per_unit: float,
+        shortage_cost_per_unit: float,
     ) -> dict[str, Any]:
         tenant = self._tenant(tenant_id)
         if not all(value.strip() for value in (warehouse_id, sku_id, policy_id, decision_key)):
@@ -710,8 +835,19 @@ class OperationalStore:
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                    ON CONFLICT(tenant_id, warehouse_id, sku_id, policy_id, decision_key)
                    DO NOTHING""",
-                (tenant, warehouse_id, sku_id, policy_id, decision_key, position,
-                 ordered, demand, holding, shortage_rate, now),
+                (
+                    tenant,
+                    warehouse_id,
+                    sku_id,
+                    policy_id,
+                    decision_key,
+                    position,
+                    ordered,
+                    demand,
+                    holding,
+                    shortage_rate,
+                    now,
+                ),
             )
             row = db.execute(
                 """SELECT * FROM policy_outcomes WHERE tenant_id=? AND warehouse_id=?
@@ -720,10 +856,16 @@ class OperationalStore:
             ).fetchone()
         assert row is not None
         expected = (position, ordered, demand, holding, shortage_rate)
-        stored = tuple(float(row[name]) for name in (
-            "inventory_position", "ordered_quantity", "realized_demand",
-            "holding_cost_per_unit", "shortage_cost_per_unit",
-        ))
+        stored = tuple(
+            float(row[name])
+            for name in (
+                "inventory_position",
+                "ordered_quantity",
+                "realized_demand",
+                "holding_cost_per_unit",
+                "shortage_cost_per_unit",
+            )
+        )
         if stored != expected:
             raise ValueError("policy outcome identity is already bound to different values")
         available = max(0.0, position + ordered)
@@ -733,18 +875,28 @@ class OperationalStore:
         holding_cost = ending * holding
         shortage_cost = shortage * shortage_rate
         return {
-            "outcome_id": int(row["outcome_id"]), "tenant_id": tenant,
-            "warehouse_id": warehouse_id, "sku_id": sku_id, "policy_id": policy_id,
-            "decision_key": decision_key, "fulfilled_demand": fulfilled,
-            "shortage_units": shortage, "ending_inventory": ending,
+            "outcome_id": int(row["outcome_id"]),
+            "tenant_id": tenant,
+            "warehouse_id": warehouse_id,
+            "sku_id": sku_id,
+            "policy_id": policy_id,
+            "decision_key": decision_key,
+            "fulfilled_demand": fulfilled,
+            "shortage_units": shortage,
+            "ending_inventory": ending,
             "fill_rate": 1.0 if demand == 0 else fulfilled / demand,
             "cycle_service_level": shortage == 0.0,
             "total_cost": holding_cost + shortage_cost,
         }
 
     def rank_policies(
-        self, tenant_id: str, *, warehouse_id: str, sku_id: str,
-        min_samples: int = 5, window: int = 100
+        self,
+        tenant_id: str,
+        *,
+        warehouse_id: str,
+        sku_id: str,
+        min_samples: int = 5,
+        window: int = 100,
     ) -> list[dict[str, Any]]:
         if type(min_samples) is not int or min_samples < 1:
             raise ValueError("min_samples must be a positive integer")
@@ -769,25 +921,31 @@ class OperationalStore:
             fulfilled = min(demand, available)
             shortage = max(0.0, demand - available)
             ending = max(0.0, available - demand)
-            cost = (
-                ending * float(row["holding_cost_per_unit"])
-                + shortage * float(row["shortage_cost_per_unit"])
+            cost = ending * float(row["holding_cost_per_unit"]) + shortage * float(
+                row["shortage_cost_per_unit"]
             )
-            observations.append({
-                "cost": cost, "fill_rate": 1.0 if demand == 0 else fulfilled / demand,
-                "cycle_service": 1.0 if shortage == 0 else 0.0,
-            })
+            observations.append(
+                {
+                    "cost": cost,
+                    "fill_rate": 1.0 if demand == 0 else fulfilled / demand,
+                    "cycle_service": 1.0 if shortage == 0 else 0.0,
+                }
+            )
         ranked = []
         for policy_id, observations in grouped.items():
             if len(observations) < min_samples:
                 continue
             count = len(observations)
-            ranked.append({
-                "policy_id": policy_id, "sample_count": count,
-                "mean_cost": sum(item["cost"] for item in observations) / count,
-                "fill_rate": sum(item["fill_rate"] for item in observations) / count,
-                "cycle_service_level": sum(item["cycle_service"] for item in observations) / count,
-            })
+            ranked.append(
+                {
+                    "policy_id": policy_id,
+                    "sample_count": count,
+                    "mean_cost": sum(item["cost"] for item in observations) / count,
+                    "fill_rate": sum(item["fill_rate"] for item in observations) / count,
+                    "cycle_service_level": sum(item["cycle_service"] for item in observations)
+                    / count,
+                }
+            )
         return sorted(ranked, key=lambda item: (item["mean_cost"], item["policy_id"]))
 
     def list_retraining_requests(self, tenant_id: str, *, limit: int = 100) -> list[dict[str, Any]]:
@@ -802,8 +960,13 @@ class OperationalStore:
         return [dict(row) for row in rows]
 
     def rank_models(
-        self, tenant_id: str, *, warehouse_id: str, sku_id: str,
-        min_samples: int = 5, window: int = 100
+        self,
+        tenant_id: str,
+        *,
+        warehouse_id: str,
+        sku_id: str,
+        min_samples: int = 5,
+        window: int = 100,
     ) -> list[dict[str, Any]]:
         if type(min_samples) is not int or min_samples < 1:
             raise ValueError("min_samples must be a positive integer")
@@ -824,8 +987,12 @@ class OperationalStore:
             if len(errors) < window:
                 errors.append(abs(float(row["predicted"]) - float(row["actual"])))
         ranked = [
-            {"model_id": model_id, "model_version": version,
-             "mae": sum(errors) / len(errors), "sample_count": len(errors)}
+            {
+                "model_id": model_id,
+                "model_version": version,
+                "mae": sum(errors) / len(errors),
+                "sample_count": len(errors),
+            }
             for (model_id, version), errors in grouped.items()
             if len(errors) >= min_samples
         ]
@@ -857,8 +1024,12 @@ class OperationalStore:
             cursor = db.execute(
                 """UPDATE retraining_requests SET status=?, updated_at=?
                    WHERE tenant_id=? AND request_id=? AND status='claimed'""",
-                ("completed" if success else "failed", _now().isoformat(),
-                 self._tenant(tenant_id), request_id),
+                (
+                    "completed" if success else "failed",
+                    _now().isoformat(),
+                    self._tenant(tenant_id),
+                    request_id,
+                ),
             )
             if cursor.rowcount != 1:
                 raise ValueError("only a claimed retraining request can be completed")
@@ -870,12 +1041,20 @@ class OperationalStore:
         return dict(row)
 
     def create_schedule(
-        self, tenant_id: str, *, job_type: str, payload: dict[str, Any],
-        interval_seconds: int, first_run_at: datetime | str | None = None
+        self,
+        tenant_id: str,
+        *,
+        job_type: str,
+        payload: dict[str, Any],
+        interval_seconds: int,
+        first_run_at: datetime | str | None = None,
     ) -> dict[str, Any]:
         tenant = self._tenant(tenant_id)
         supported_types = {
-            "forecast_refresh", "replenishment_review", "model_health", "policy_review"
+            "forecast_refresh",
+            "replenishment_review",
+            "model_health",
+            "policy_review",
         }
         if job_type not in supported_types:
             raise ValueError("unsupported scheduled job type")
@@ -896,8 +1075,13 @@ class OperationalStore:
                    (tenant_id, job_id, job_type, payload_json, interval_seconds,
                     next_run_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)""",
                 (
-                    tenant, job_id, job_type, payload_json, interval_seconds,
-                    next_run, now.isoformat(),
+                    tenant,
+                    job_id,
+                    job_type,
+                    payload_json,
+                    interval_seconds,
+                    next_run,
+                    now.isoformat(),
                 ),
             )
             row = db.execute(
@@ -916,8 +1100,12 @@ class OperationalStore:
         return [self._schedule_record(row) for row in rows]
 
     def claim_due_schedules(
-        self, tenant_id: str, *, now: datetime | None = None, lease_seconds: int = 300,
-        limit: int = 20
+        self,
+        tenant_id: str,
+        *,
+        now: datetime | None = None,
+        lease_seconds: int = 300,
+        limit: int = 20,
     ) -> list[dict[str, Any]]:
         current = now or _now()
         if current.tzinfo is None or lease_seconds < 1 or not 1 <= limit <= 100:
@@ -928,8 +1116,12 @@ class OperationalStore:
                 """SELECT * FROM scheduled_jobs WHERE tenant_id=? AND enabled=1
                    AND next_run_at<=? AND (lease_until IS NULL OR lease_until<=?)
                    ORDER BY next_run_at LIMIT ?""",
-                (self._tenant(tenant_id), current.astimezone(UTC).isoformat(),
-                 current.astimezone(UTC).isoformat(), limit),
+                (
+                    self._tenant(tenant_id),
+                    current.astimezone(UTC).isoformat(),
+                    current.astimezone(UTC).isoformat(),
+                    limit,
+                ),
             ).fetchall()
             lease = (current + timedelta(seconds=lease_seconds)).astimezone(UTC).isoformat()
             for row in rows:
@@ -938,7 +1130,9 @@ class OperationalStore:
                        WHERE tenant_id=? AND job_id=?
                          AND (lease_until IS NULL OR lease_until<=?)""",
                     (
-                        lease, self._tenant(tenant_id), row["job_id"],
+                        lease,
+                        self._tenant(tenant_id),
+                        row["job_id"],
                         current.astimezone(UTC).isoformat(),
                     ),
                 )
@@ -968,8 +1162,12 @@ class OperationalStore:
             cursor = db.execute(
                 """UPDATE scheduled_jobs SET last_run_at=?, next_run_at=?, lease_until=NULL
                    WHERE tenant_id=? AND job_id=? AND lease_until IS NOT NULL""",
-                (current.astimezone(UTC).isoformat(), next_run.isoformat(),
-                 self._tenant(tenant_id), job_id),
+                (
+                    current.astimezone(UTC).isoformat(),
+                    next_run.isoformat(),
+                    self._tenant(tenant_id),
+                    job_id,
+                ),
             )
             if cursor.rowcount != 1:
                 raise ValueError("scheduled job has no active lease")

@@ -41,10 +41,14 @@ def build_operations_router(service: Any) -> Any:
         tenant = record.get("tenant_id")
         scopes = record.get("scopes")
         if (
-            not isinstance(key_id, str) or not key_id.strip()
-            or not isinstance(digest, str) or len(digest) != 64
-            or not isinstance(tenant, str) or not tenant.strip()
-            or not isinstance(scopes, list) or not all(isinstance(item, str) for item in scopes)
+            not isinstance(key_id, str)
+            or not key_id.strip()
+            or not isinstance(digest, str)
+            or len(digest) != 64
+            or not isinstance(tenant, str)
+            or not tenant.strip()
+            or not isinstance(scopes, list)
+            or not all(isinstance(item, str) for item in scopes)
         ):
             raise RuntimeError(
                 "API key records require key_id, SHA-256 token digest, tenant_id, scopes"
@@ -66,14 +70,17 @@ def build_operations_router(service: Any) -> Any:
         )
         if match is None:
             raise HTTPException(status_code=401, detail="invalid API token")
-        return {"key_id": "configured-key", "tenant_id": match["tenant_id"],
-                "scopes": match["scopes"]}
+        return {
+            "key_id": "configured-key",
+            "tenant_id": match["tenant_id"],
+            "scopes": match["scopes"],
+        }
 
     def authorize(user: dict[str, Any], scope: str) -> str:
         scopes = user["scopes"]
-        implied = (
-            scope == "ops:read" and ("ops:write" in scopes or "ops:admin" in scopes)
-        ) or (scope == "ops:write" and "ops:admin" in scopes)
+        implied = (scope == "ops:read" and ("ops:write" in scopes or "ops:admin" in scopes)) or (
+            scope == "ops:write" and "ops:admin" in scopes
+        )
         if "*" not in scopes and scope not in scopes and not implied:
             raise HTTPException(status_code=403, detail="insufficient API key scope")
         return str(user["tenant_id"])
@@ -168,8 +175,13 @@ def build_operations_router(service: Any) -> Any:
         request: WarehouseInput, user: dict[str, Any] = Depends(principal)
     ) -> dict[str, Any]:
         tenant = authorize(user, "ops:write")
-        return call(store.create_warehouse, tenant, request.warehouse_id,
-                    request.name, request.location_code)
+        return call(
+            store.create_warehouse,
+            tenant,
+            request.warehouse_id,
+            request.name,
+            request.location_code,
+        )
 
     @router.post("/inventory/snapshots", status_code=201)
     def record_inventory(
@@ -177,9 +189,15 @@ def build_operations_router(service: Any) -> Any:
     ) -> dict[str, Any]:
         tenant = authorize(user, "ops:write")
         return call(
-            store.record_inventory, tenant, request.warehouse_id, request.sku_id,
-            request.quantity, reserved=request.reserved, backorders=request.backorders,
-            as_of=request.as_of, source=request.source,
+            store.record_inventory,
+            tenant,
+            request.warehouse_id,
+            request.sku_id,
+            request.quantity,
+            reserved=request.reserved,
+            backorders=request.backorders,
+            as_of=request.as_of,
+            source=request.source,
         )
 
     @router.get("/inventory/{warehouse_id}/{sku_id}")
@@ -195,8 +213,11 @@ def build_operations_router(service: Any) -> Any:
     ) -> dict[str, Any]:
         tenant = authorize(user, "ops:write")
         return call(
-            store.create_purchase_order, tenant, order_id=request.order_id,
-            supplier_id=request.supplier_id, warehouse_id=request.warehouse_id,
+            store.create_purchase_order,
+            tenant,
+            order_id=request.order_id,
+            supplier_id=request.supplier_id,
+            warehouse_id=request.warehouse_id,
             expected_at=request.expected_at,
             lines=[line.model_dump() for line in request.lines],
         )
@@ -213,20 +234,33 @@ def build_operations_router(service: Any) -> Any:
         order_id: str, request: ReceiptInput, user: dict[str, Any] = Depends(principal)
     ) -> dict[str, Any]:
         tenant = authorize(user, "ops:write")
-        return call(store.receive_purchase_order, tenant, order_id,
-                    [line.model_dump(exclude={"unit_cost"}) for line in request.lines])
+        return call(
+            store.receive_purchase_order,
+            tenant,
+            order_id,
+            [line.model_dump(exclude={"unit_cost"}) for line in request.lines],
+        )
 
     @router.post("/demand/observations", status_code=201)
     def record_demand(
         request: DemandInput, user: dict[str, Any] = Depends(principal)
     ) -> dict[str, Any]:
         tenant = authorize(user, "ops:write")
-        return call(store.record_demand, tenant, request.warehouse_id, request.sku_id,
-                    request.demand, observed_at=request.observed_at, source=request.source)
+        return call(
+            store.record_demand,
+            tenant,
+            request.warehouse_id,
+            request.sku_id,
+            request.demand,
+            observed_at=request.observed_at,
+            source=request.source,
+        )
 
     @router.get("/demand/history/{warehouse_id}/{sku_id}")
     def demand_history(
-        warehouse_id: str, sku_id: str, limit: int = 365,
+        warehouse_id: str,
+        sku_id: str,
+        limit: int = 365,
         user: dict[str, Any] = Depends(principal),
     ) -> dict[str, Any]:
         tenant = authorize(user, "ops:read")
@@ -255,9 +289,13 @@ def build_operations_router(service: Any) -> Any:
         result = call(store.model_health, tenant, **request.model_dump())
         if result.get("alert"):
             result["retraining_request"] = call(
-                store.queue_retraining, tenant, warehouse_id=request.warehouse_id,
-                sku_id=request.sku_id, model_id=request.model_id,
-                model_version=request.model_version, reason="rolling_mae_degradation",
+                store.queue_retraining,
+                tenant,
+                warehouse_id=request.warehouse_id,
+                sku_id=request.sku_id,
+                model_id=request.model_id,
+                model_version=request.model_version,
+                reason="rolling_mae_degradation",
             )
         return result
 
@@ -281,9 +319,7 @@ def build_operations_router(service: Any) -> Any:
         return {"jobs": call(store.claim_due_schedules, tenant, limit=limit)}
 
     @router.post("/schedules/{job_id}/complete")
-    def complete_schedule(
-        job_id: str, user: dict[str, Any] = Depends(principal)
-    ) -> dict[str, Any]:
+    def complete_schedule(job_id: str, user: dict[str, Any] = Depends(principal)) -> dict[str, Any]:
         tenant = authorize(user, "ops:admin")
         return call(store.complete_schedule, tenant, job_id)
 
@@ -338,16 +374,25 @@ def build_operations_router(service: Any) -> Any:
     ) -> dict[str, Any]:
         tenant = authorize(user, "ops:read")
         candidates = call(
-            store.rank_models, tenant, warehouse_id=request.warehouse_id,
-            sku_id=request.sku_id, min_samples=request.min_samples, window=request.window,
+            store.rank_models,
+            tenant,
+            warehouse_id=request.warehouse_id,
+            sku_id=request.sku_id,
+            min_samples=request.min_samples,
+            window=request.window,
         )
         if candidates:
             selected = candidates[0]
             return {"selected": selected, "used_fallback": False, "candidates": candidates}
         return {
-            "selected": {"model_id": request.fallback_model_id, "model_version": None,
-                         "mae": None, "sample_count": 0},
-            "used_fallback": True, "candidates": [],
+            "selected": {
+                "model_id": request.fallback_model_id,
+                "model_version": None,
+                "mae": None,
+                "sample_count": 0,
+            },
+            "used_fallback": True,
+            "candidates": [],
             "reason": "insufficient_out_of_sample_evidence",
         }
 
@@ -364,15 +409,23 @@ def build_operations_router(service: Any) -> Any:
     ) -> dict[str, Any]:
         tenant = authorize(user, "ops:read")
         candidates = call(
-            store.rank_policies, tenant, warehouse_id=request.warehouse_id,
-            sku_id=request.sku_id, min_samples=request.min_samples, window=request.window,
+            store.rank_policies,
+            tenant,
+            warehouse_id=request.warehouse_id,
+            sku_id=request.sku_id,
+            min_samples=request.min_samples,
+            window=request.window,
         )
         if candidates:
             return {"selected": candidates[0], "used_fallback": False, "candidates": candidates}
         return {
-            "selected": {"policy_id": request.fallback_policy_id, "mean_cost": None,
-                         "sample_count": 0},
-            "used_fallback": True, "candidates": [],
+            "selected": {
+                "policy_id": request.fallback_policy_id,
+                "mean_cost": None,
+                "sample_count": 0,
+            },
+            "used_fallback": True,
+            "candidates": [],
             "reason": "insufficient_realized_outcome_evidence",
         }
 
@@ -388,6 +441,7 @@ def build_operations_router(service: Any) -> Any:
             raise HTTPException(status_code=503, detail="ERPNext connector is not configured")
         try:
             from demand_forecast_kit.erpnext import ERPNextClient
+
             store.get_warehouse(tenant, warehouse_id)
             result = ERPNextClient(base_url, api_key, api_secret).sync_warehouse(
                 store, tenant, warehouse_id
@@ -425,8 +479,10 @@ def install_api_auth(app: Any) -> None:
             raise RuntimeError("each API key record must be an object")
         digest, scopes = record.get("token_sha256"), record.get("scopes")
         if (
-            not isinstance(digest, str) or len(digest) != 64
-            or not isinstance(scopes, list) or not all(isinstance(scope, str) for scope in scopes)
+            not isinstance(digest, str)
+            or len(digest) != 64
+            or not isinstance(scopes, list)
+            or not all(isinstance(scope, str) for scope in scopes)
         ):
             raise RuntimeError("API key records require token_sha256 and scopes")
         tokens.append((digest.lower(), set(scopes)))
@@ -447,6 +503,8 @@ def install_api_auth(app: Any) -> None:
         )
         if scopes is None:
             from fastapi.responses import JSONResponse
+
+
             return JSONResponse(status_code=401, content={"detail": "invalid or missing API token"})
         if not path.startswith("/v1/ops/") and "*" not in scopes and "runs:shared" not in scopes:
             from fastapi.responses import JSONResponse
