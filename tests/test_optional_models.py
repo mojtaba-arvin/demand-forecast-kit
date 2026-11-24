@@ -10,6 +10,7 @@ from demand_forecast_kit.models import chronos as chronos_module
 from demand_forecast_kit.models import lightgbm as lightgbm_module
 from demand_forecast_kit.models.registry import CHRONOS2_LICENSE
 
+
 class FakeChronosPipeline:
     def __init__(self, output: list[list[list[float]]]) -> None:
         self.output = output
