@@ -11,7 +11,6 @@ from urllib.request import Request, urlopen
 
 from demand_forecast_kit.operations import OperationalStore
 
-
 Transport = Callable[[str, str, dict[str, str], bytes | None, float], bytes]
 
 
@@ -128,7 +127,7 @@ class ERPNextClient:
         if not dates:
             return []
         names = sorted(dates)
-        totals: dict[tuple[str, str], float] = collections.defaultdict(float)
+        totals: dict[tuple[str, str], float] = {}
         for start in range(0, len(names), 100):
             batch = names[start : start + 100]
             offset = 0
@@ -145,7 +144,8 @@ class ERPNextClient:
                     if item_code and invoice in dates:
                         quantity = float(item.get("qty", 0))
                         if quantity > 0:
-                            totals[(item_code, dates[invoice])] += quantity
+                            key = (item_code, dates[invoice])
+                            totals[key] = totals.get(key, 0.0) + quantity
                 if len(items) < self.page_size:
                     break
                 offset += len(items)
