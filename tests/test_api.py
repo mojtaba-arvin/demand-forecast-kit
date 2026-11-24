@@ -160,3 +160,49 @@ def test_forecast_endpoint_handles_independent_concurrent_requests(tmp_path) -> 
         responses = list(executor.map(send_request, range(8)))
 
     assert all(response == responses[0] for response in responses)
+
+
+def test_persisted_run_and_artifact_can_be_retrieved(client: TestClient) -> None:
+    forecast = client.post(
+        "/v1/forecasts",
+        json={
+            "series_id": "sku-retrieval",
+            "history": [1, 2, 3, 4, 5, 6, 7],
+            "horizon": 2,
+        },
+    )
+    assert forecast.status_code == 200
+    run_ref = forecast.json()["run"]
+
+    run_response = client.get(f"/v1/runs/{run_ref['run_id']}")
+    assert run_response.status_code == 200
+    run = run_response.json()
+    assert run["run_id"] == run_ref["run_id"]
+    assert run["status"] == "completed"
+    assert run["model_id"] == "seasonal-naive"
+    assert run["result"]["artifact_sha256"] == run_ref["artifact_sha256"]
+
+    artifact_response = client.get(f"/v1/artifacts/{run_ref['artifact_sha256']}")
+    assert artifact_response.status_code == 200
+    assert artifact_response.headers["content-type"].startswith("application/json")
+    assert artifact_response.headers["etag"] == f'"{run_ref["artifact_sha256"]}"'
+    assert artifact_response.headers["cache-control"] == "private, immutable"
+    assert artifact_response.content == (
+        client.app.state.run_service.artifacts.get(run_ref["artifact_sha256"])
+    )
+
+
+def test_run_and_artifact_retrieval_return_not_found_without_leaking_paths(
+    client: TestClient,
+) -> None:
+    missing_run = client.get("/v1/runs/999999")
+    assert missing_run.status_code == 404
+    assert missing_run.json() == {"detail": "run not found"}
+
+    missing_artifact = client.get("/v1/artifacts/" + "0" * 64)
+    assert missing_artifact.status_code == 404
+    assert missing_artifact.json() == {"detail": "artifact not found"}
+
+    malformed_artifact = client.get("/v1/artifacts/not-a-digest")
+    assert malformed_artifact.status_code == 404
+    assert malformed_artifact.json() == {"detail": "artifact not found"}
