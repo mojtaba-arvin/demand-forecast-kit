@@ -67,14 +67,20 @@ def run(output: Path) -> dict[str, object]:
             quantile_levels=(0.1, 0.5, 0.9),
             seed=2026,
         )
-        lightgbm_mae = sum(
-            abs(actual - predicted)
-            for actual, predicted in zip(actuals, forecast.quantiles[0.5], strict=True)
-        ) / horizon
-        naive_mae = sum(
-            abs(actual - predicted)
-            for actual, predicted in zip(actuals, naive.quantiles[0.5], strict=True)
-        ) / horizon
+        lightgbm_mae = (
+            sum(
+                abs(actual - predicted)
+                for actual, predicted in zip(actuals, forecast.quantiles[0.5], strict=True)
+            )
+            / horizon
+        )
+        naive_mae = (
+            sum(
+                abs(actual - predicted)
+                for actual, predicted in zip(actuals, naive.quantiles[0.5], strict=True)
+            )
+            / horizon
+        )
         model_errors[adapter.model_id].append(lightgbm_mae)
         model_errors[baseline.model_id].append(naive_mae)
         folds.append(
