@@ -18,10 +18,10 @@ from typing import Any
 
 import polars as pl
 
+from demand_forecast_kit.api import create_app
 from demand_forecast_kit.data import scan_history, validate_history
 from demand_forecast_kit.models.seasonal_naive import SeasonalNaiveAdapter
 from demand_forecast_kit.run_service import RunService
-from demand_forecast_kit.api import create_app
 
 
 def _measure(operation: Any, repeats: int) -> dict[str, Any]:
@@ -95,7 +95,7 @@ def _benchmark_series(series_count: int, history_size: int, horizon: int) -> Non
         )
 
 
-def _api_health(requests: int, state_dir: Path) -> dict[str, Any]:
+def _api_forecast(requests: int, state_dir: Path) -> dict[str, Any]:
     from fastapi.testclient import TestClient
 
     app = create_app(RunService(state_dir))
@@ -147,7 +147,11 @@ def run(profile: str, output: Path, repeats: int) -> dict[str, Any]:
         )
         memory_result = _streaming_memory(parquet_path)
         quality = validate_history(scan_history(parquet_path))
-        if not quality.is_valid or quality.row_count != rows or memory_result["row_count"] != rows:
+        if (
+            not quality.is_valid
+            or quality.row_count != rows
+            or memory_result["row_count"] != rows
+        ):
             raise RuntimeError("generated Parquet benchmark workload failed validation")
 
         series_result = _measure(
@@ -164,7 +168,7 @@ def run(profile: str, output: Path, repeats: int) -> dict[str, Any]:
             ),
             repeats,
         )
-        api_result = _api_health(api_requests, root / "api-state")
+        api_result = _api_forecast(api_requests, root / "api-state")
 
         return {
             "schema_version": 1,
@@ -214,7 +218,10 @@ def run(profile: str, output: Path, repeats: int) -> dict[str, Any]:
             },
             "interpretation": {
                 "performance_targets_enforced": False,
-                "reason": "Reference-runner variance and baseline stability must be characterized first.",
+                "reason": (
+                    "Reference-runner variance and baseline stability must be "
+                    "characterized first."
+                ),
                 "comparison_requires_matching_environment": True,
             },
         }
