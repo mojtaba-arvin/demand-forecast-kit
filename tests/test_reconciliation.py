@@ -35,9 +35,7 @@ def test_mint_handles_singular_residual_covariance_with_shrinkage_and_ridge() ->
 
 
 def test_quantiles_are_derived_after_path_reconciliation() -> None:
-    reconciler = make_reconciler().fit(
-        ((1, 0, 0), (-1, 0, 0), (0, 1, -1), (0, -1, 1))
-    )
+    reconciler = make_reconciler().fit(((1, 0, 0), (-1, 0, 0), (0, 1, -1), (0, -1, 1)))
     samples = (
         ((9, 4, 7), (10, 5, 6)),
         ((10, 5, 8), (11, 6, 7)),
