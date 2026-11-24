@@ -11,7 +11,7 @@ job alone is not sufficient evidence of production readiness.
 - [ ] Run strict Pyright checks.
 - [ ] Run core tests with the configured branch coverage threshold.
 - [ ] Run optional StatsForecast and API integration tests when those extras change.
-- [ ] Test installation from the built wheel in a clean Python 3.13 environment.
+- [ ] Test installation from the built wheel and source distribution in separate clean Python 3.13 environments; smoke-test both CLI entry points.
 - [ ] Verify optional extras fail with actionable messages when absent.
 - [ ] Confirm the Git tag matches the package version in pyproject.toml.
 
