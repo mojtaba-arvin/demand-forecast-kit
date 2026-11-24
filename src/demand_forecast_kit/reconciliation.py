@@ -268,3 +268,56 @@ def _solve(matrix: Sequence[Sequence[float]], rhs: Sequence[float]) -> tuple[flo
                     for current, pivot_value in zip(augmented[row], augmented[column], strict=True)
                 ]
     return tuple(augmented[index][-1] for index in range(size))
+
+
+@dataclass(frozen=True, slots=True)
+class PrequentialReconciliation:
+    """Reconciliation output fitted strictly on residual origins before this one."""
+
+    origin_index: int
+    residual_count: int
+    samples: tuple[tuple[float, ...], ...]
+
+
+def prequential_reconcile(
+    *,
+    node_ids: tuple[str, ...],
+    bottom_ids: tuple[str, ...],
+    summing_matrix: tuple[tuple[float, ...], ...],
+    residuals_by_origin: Sequence[Sequence[float]],
+    base_samples_by_origin: Sequence[Sequence[Sequence[float]]],
+    shrinkage: float = 0.2,
+    ridge: float = 1e-8,
+) -> tuple[PrequentialReconciliation, ...]:
+    """Evaluate each origin using only strictly earlier completed residuals.
+
+    The first two origins are warm-up only. At origin i, covariance is fitted
+    from residuals_by_origin[:i]; the residual observed at i is never admitted.
+    Callers must supply both sequences in chronological forecast-origin order.
+    """
+    residuals = tuple(tuple(float(value) for value in row) for row in residuals_by_origin)
+    samples = tuple(
+        tuple(tuple(float(value) for value in sample) for sample in origin)
+        for origin in base_samples_by_origin
+    )
+    if len(residuals) != len(samples):
+        raise ValueError("residual and base-sample origins must have equal lengths")
+    if len(residuals) < 3:
+        raise ValueError("at least three origins are required for two warm-up residuals")
+    results: list[PrequentialReconciliation] = []
+    for origin_index in range(2, len(residuals)):
+        reconciler = MinTReconciler(
+            node_ids=node_ids,
+            bottom_ids=bottom_ids,
+            summing_matrix=summing_matrix,
+            shrinkage=shrinkage,
+            ridge=ridge,
+        ).fit(residuals[:origin_index])
+        results.append(
+            PrequentialReconciliation(
+                origin_index=origin_index,
+                residual_count=origin_index,
+                samples=reconciler.reconcile_samples(samples[origin_index]),
+            )
+        )
+    return tuple(results)
