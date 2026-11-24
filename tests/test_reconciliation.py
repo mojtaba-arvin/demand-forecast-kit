@@ -132,6 +132,7 @@ def test_prequential_reconciliation_never_uses_current_origin_residual() -> None
     assert first[1].residual_count == 3
     assert first[1].samples != second[1].samples
 
+
 def test_mint_rejects_invalid_identifiers_covariance_and_empty_nodes() -> None:
     with pytest.raises(ValueError, match="must not be blank"):
         MinTReconciler(("", "a"), ("a",), ((1,), (1,)))
