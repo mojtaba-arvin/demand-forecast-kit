@@ -123,6 +123,8 @@ def test_comparator_allows_new_source_revision_against_calibrated_baseline() -> 
     baseline = make_artifact(100)
     baseline["baseline_type"] = "calibrated-performance-baseline"
     baseline["sample_count"] = 10
+    for workload in baseline["workloads"].values():
+        workload["calibrated_tolerance"] = 0.05
     result = compare(current, baseline)
     assert result["current_source_revision"] == "b" * 40
     assert result["baseline_source_revision"] == "a" * 40
@@ -154,3 +156,29 @@ def test_calibration_requires_manual_workflow_dispatch() -> None:
     reports[0]["execution"]["event"] = "pull_request"  # type: ignore[index]
     with pytest.raises(ValueError, match="manual workflow_dispatch"):
         calibrate(reports)
+
+
+@pytest.mark.parametrize("invalid", [float("nan"), float("inf"), float("-inf"), True])
+def test_comparator_rejects_non_finite_or_boolean_measurements(invalid: object) -> None:
+    current = make_artifact(101)
+    baseline = make_artifact(100)
+    current["workloads"]["cli_cold_start"]["median_seconds"] = invalid  # type: ignore[index]
+    with pytest.raises(ValueError, match="invalid median_seconds"):
+        compare(current, baseline)
+
+
+@pytest.mark.parametrize("invalid", [float("nan"), float("inf"), True])
+def test_comparator_rejects_invalid_tolerances(invalid: object) -> None:
+    with pytest.raises(ValueError, match="finite"):
+        compare(make_artifact(101), make_artifact(100), tolerance=invalid)  # type: ignore[arg-type]
+
+
+def test_comparator_requires_calibrated_tolerance_for_every_workload() -> None:
+    current = make_artifact(101)
+    baseline = make_artifact(100)
+    baseline["baseline_type"] = "calibrated-performance-baseline"
+    baseline["sample_count"] = 10
+    baseline["workload_sha256"] = current["workload_sha256"]
+    baseline["seed"] = current["seed"]
+    with pytest.raises(ValueError, match="invalid calibrated tolerance"):
+        compare(current, baseline)
