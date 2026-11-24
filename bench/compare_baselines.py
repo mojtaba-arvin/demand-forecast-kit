@@ -22,15 +22,17 @@ def compare(current: dict[str, Any], baseline: dict[str, Any], tolerance: float 
     results: dict[str, dict[str, float | bool]] = {}
     regressions: list[str] = []
     for name in sorted(current_workloads):
-        current_value = float(current_workloads[name]["median_seconds"])
-        baseline_value = float(baseline_workloads[name]["median_seconds"])
+        metric = "peak_rss_bytes" if name == "streaming_scan_memory" else "median_seconds"
+        current_value = float(current_workloads[name][metric])
+        baseline_value = float(baseline_workloads[name][metric])
         if baseline_value <= 0.0 or current_value < 0.0:
             raise ValueError(f"invalid benchmark duration for {name}")
         change = current_value / baseline_value - 1.0
         regressed = change > tolerance
         results[name] = {
-            "current_median_seconds": current_value,
-            "baseline_median_seconds": baseline_value,
+            "metric": metric,
+            "current_value": current_value,
+            "baseline_value": baseline_value,
             "relative_change": change,
             "regressed": regressed,
         }
