@@ -108,3 +108,15 @@ def test_comparator_rejects_calibrated_baseline_provenance_mismatch() -> None:
     baseline["workload_sha256"] = "expected-workload"
     with pytest.raises(ValueError, match="workload_sha256 differs"):
         compare(current, baseline)
+
+
+
+def test_comparator_allows_new_source_revision_against_calibrated_baseline() -> None:
+    current = make_artifact(101)
+    current["source_revision"] = "b" * 40
+    baseline = make_artifact(100)
+    baseline["baseline_type"] = "calibrated-performance-baseline"
+    baseline["sample_count"] = 10
+    result = compare(current, baseline)
+    assert result["current_source_revision"] == "b" * 40
+    assert result["baseline_source_revision"] == "a" * 40
