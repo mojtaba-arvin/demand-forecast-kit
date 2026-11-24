@@ -110,7 +110,6 @@ def test_comparator_rejects_calibrated_baseline_provenance_mismatch() -> None:
         compare(current, baseline)
 
 
-
 def test_comparator_allows_new_source_revision_against_calibrated_baseline() -> None:
     current = make_artifact(101)
     current["source_revision"] = "b" * 40
