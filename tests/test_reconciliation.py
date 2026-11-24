@@ -14,6 +14,7 @@ def make_reconciler() -> MinTReconciler:
         node_ids=("total", "a", "b"),
         bottom_ids=("a", "b"),
         summing_matrix=((1, 1), (1, 0), (0, 1)),
+        shrinkage=1.0,
     )
 
 
