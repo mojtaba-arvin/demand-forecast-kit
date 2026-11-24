@@ -75,7 +75,7 @@ class LightGBMAdapter:
             return f"lightgbm-{version('lightgbm')}"
         except PackageNotFoundError as exc:
             raise ImportError(
-                'LightGBMAdapter requires the optional dependency. Install it with: '
+                "LightGBMAdapter requires the optional dependency. Install it with: "
                 'pip install "demand-forecast-kit[lightgbm]"'
             ) from exc
 
