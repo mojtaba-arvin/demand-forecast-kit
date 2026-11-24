@@ -51,6 +51,8 @@ def test_chronos_requires_immutable_revision_and_offline_loading_by_default(
 ) -> None:
     with pytest.raises(ValueError, match="40-character"):
         Chronos2Adapter(revision="main")
+    with pytest.raises(ValueError, match="pinned to"):
+        Chronos2Adapter(model_id="another/model")
     calls: list[dict[str, object]] = []
 
     class PipelineFactory:
@@ -146,7 +148,7 @@ def test_lightgbm_uses_only_aligned_future_known_covariates(
 
 
 def test_lightgbm_validates_feature_history_before_loading_optional_dependency() -> None:
-    with pytest.raises(ValueError, match="more than"):
+    with pytest.raises(ValueError, match="at least"):
         LightGBMAdapter().predict(
             "sku", [1, 2, 3], horizon=1, quantile_levels=(0.5,), seed=1,
         )
