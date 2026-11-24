@@ -60,4 +60,4 @@ python -m bench.compare_baselines artifacts/current.json \
   artifacts/calibrated-baseline.json
 ```
 
-The comparator continues to reject environment, profile, and workload identity mismatches. This workflow does not automatically enable a CI failure gate: Issue #31 remains open until 10 valid artifacts are reviewed and the resulting baseline is committed and verified on the reference runner.
+The comparator continues to reject environment, profile, seed, and workload identity mismatches. A comparison may use a newer source revision than the calibrated baseline; both revisions are retained in the comparison report. This workflow does not automatically enable a CI failure gate: Issue #31 remains open until 10 valid artifacts are reviewed and the resulting baseline is committed and verified on the reference runner.
