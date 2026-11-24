@@ -28,7 +28,7 @@ def compare(
     if baseline.get("baseline_type") == "calibrated-performance-baseline":
         if baseline.get("sample_count", 0) < 10:
             raise ValueError("calibrated baseline must contain at least 10 independent runs")
-        for field in ("source_revision", "workload_sha256", "seed"):
+        for field in ("workload_sha256", "seed"):
             if current.get(field) != baseline.get(field):
                 raise ValueError(f"benchmark {field} differs; comparison is not valid")
     current_workloads = current.get("workloads", {})
@@ -68,7 +68,13 @@ def compare(
         }
         if regressed:
             regressions.append(name)
-    return {"tolerance": tolerance, "regressions": regressions, "workloads": results}
+    return {
+        "tolerance": tolerance,
+        "current_source_revision": current.get("source_revision"),
+        "baseline_source_revision": baseline.get("source_revision"),
+        "regressions": regressions,
+        "workloads": results,
+    }
 
 
 def main() -> None:
