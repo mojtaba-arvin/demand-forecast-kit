@@ -9,7 +9,7 @@ after reconciliation, preserving coherence and quantile monotonicity.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from math import isfinite
 from typing import TYPE_CHECKING
 
@@ -33,7 +33,7 @@ class MinTReconciler:
     summing_matrix: tuple[tuple[float, ...], ...]
     shrinkage: float = 0.2
     ridge: float = 1e-8
-    _weight_covariance: tuple[tuple[float, ...], ...] | None = None
+    _weight_covariance: tuple[tuple[float, ...], ...] | None = field(default=None, init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         nodes = tuple(self.node_ids)
