@@ -3,8 +3,9 @@ from __future__ import annotations
 
 import json
 from collections import defaultdict
+from collections.abc import Callable
 from datetime import UTC, date, datetime, timedelta
-from typing import Any, Callable
+from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urljoin
 from urllib.request import Request, urlopen
