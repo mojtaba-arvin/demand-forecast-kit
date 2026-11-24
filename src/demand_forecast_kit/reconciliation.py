@@ -6,6 +6,7 @@ the coherent hierarchy subspace, clips bottom-level demand at zero, and rebuilds
 all aggregates from those bottom-level values. Quantiles are calculated only
 after reconciliation, preserving coherence and quantile monotonicity.
 """
+
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -207,8 +208,7 @@ class MinTReconciler:
         if any(not isfinite(level) or not 0.0 < level < 1.0 for level in levels):
             raise ValueError("quantile levels must be finite and strictly between 0 and 1")
         paths = tuple(
-            tuple(tuple(float(value) for value in step) for step in path)
-            for path in base_samples
+            tuple(tuple(float(value) for value in step) for step in path) for path in base_samples
         )
         if not paths or not paths[0]:
             raise ValueError("base_samples must contain at least one non-empty path")
@@ -246,8 +246,7 @@ def _solve(matrix: Sequence[Sequence[float]], rhs: Sequence[float]) -> tuple[flo
     if size == 0 or len(matrix) != size or any(len(row) != size for row in matrix):
         raise ValueError("linear system must be non-empty and square")
     augmented = [
-        [float(value) for value in row] + [float(rhs[index])]
-        for index, row in enumerate(matrix)
+        [float(value) for value in row] + [float(rhs[index])] for index, row in enumerate(matrix)
     ]
     scale = max((abs(value) for row in matrix for value in row), default=1.0)
     tolerance = max(scale, 1.0) * 1e-14
