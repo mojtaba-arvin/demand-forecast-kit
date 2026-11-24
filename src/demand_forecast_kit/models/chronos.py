@@ -28,8 +28,10 @@ class Chronos2Adapter:
         allow_download: bool = False,
         pipeline: Any | None = None,
     ) -> None:
-        if not revision or len(revision) != 40 or any(
-            character not in "0123456789abcdef" for character in revision.lower()
+        if (
+            not revision
+            or len(revision) != 40
+            or any(character not in "0123456789abcdef" for character in revision.lower())
         ):
             raise ValueError("revision must be an immutable 40-character model commit SHA")
         if model_id != CHRONOS2_LICENSE.model_id:
@@ -52,7 +54,7 @@ class Chronos2Adapter:
                 chronos = import_module("chronos")
             except ImportError as exc:
                 raise ImportError(
-                    'Chronos2Adapter requires the optional dependency. Install it with: '
+                    "Chronos2Adapter requires the optional dependency. Install it with: "
                     'pip install "demand-forecast-kit[chronos]"'
                 ) from exc
             try:
@@ -119,8 +121,7 @@ class Chronos2Adapter:
                 raise RuntimeError("Chronos-2 returned non-finite forecasts")
             non_negative = tuple(max(0.0, value) for value in converted)
             if any(
-                left > right
-                for left, right in zip(non_negative, non_negative[1:], strict=False)
+                left > right for left, right in zip(non_negative, non_negative[1:], strict=False)
             ):
                 raise RuntimeError("Chronos-2 returned crossing quantiles")
             for level, value in zip(levels, non_negative, strict=True):
