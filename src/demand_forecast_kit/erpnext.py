@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import collections
 import json
-from collections.abc import Callable
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -13,7 +12,7 @@ from urllib.request import Request, urlopen
 from demand_forecast_kit.operations import OperationalStore
 
 
-Transport = Callable[[str, str, dict[str, str], bytes | None, float], bytes]
+Transport = collections.abc.Callable[[str, str, dict[str, str], bytes | None, float], bytes]
 
 
 def _http_transport(
@@ -191,7 +190,7 @@ class ERPNextClient:
         }
         if not headers:
             return []
-        grouped: dict[str, dict[str, dict[str, Any]]] = defaultdict(dict)
+        grouped: dict[str, dict[str, dict[str, Any]]] = collections.defaultdict(dict)
         names = sorted(headers)
         for start in range(0, len(names), 100):
             batch = names[start : start + 100]
