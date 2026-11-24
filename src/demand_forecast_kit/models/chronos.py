@@ -32,8 +32,8 @@ class Chronos2Adapter:
             character not in "0123456789abcdef" for character in revision.lower()
         ):
             raise ValueError("revision must be an immutable 40-character model commit SHA")
-        if not model_id.strip():
-            raise ValueError("model_id must not be blank")
+        if model_id != CHRONOS2_LICENSE.model_id:
+            raise ValueError("this adapter is pinned to the licensed amazon/chronos-2 model")
         if not device_map.strip():
             raise ValueError("device_map must not be blank")
         self.revision = revision.lower()
@@ -110,7 +110,6 @@ class Chronos2Adapter:
         rows = raw[0]
         if not isinstance(rows, (list, tuple)) or len(rows) != horizon:
             raise RuntimeError("Chronos-2 returned an invalid forecast horizon")
-        forecasts: dict[float, tuple[float, ...]] = {level: () for level in levels}
         values_by_level: dict[float, list[float]] = {level: [] for level in levels}
         for row in rows:
             if not isinstance(row, (list, tuple)) or len(row) != len(levels):
