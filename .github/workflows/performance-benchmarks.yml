@@ -28,10 +28,18 @@ on:
           - full
         default: smoke
       repeats:
-        description: "Repeated measurements (minimum 3)"
+        description: "Repeated measurements per workload (minimum 3)"
         required: true
         type: number
         default: 5
+      runner_class:
+        description: "Use the dedicated reference runner for baseline calibration"
+        required: true
+        type: choice
+        options:
+          - github-hosted
+          - reference-self-hosted
+        default: github-hosted
 
 permissions:
   contents: read
@@ -42,7 +50,7 @@ concurrency:
 
 jobs:
   benchmark:
-    runs-on: ubuntu-24.04
+    runs-on: \${{ github.event_name == 'workflow_dispatch' && inputs.runner_class == 'reference-self-hosted' && fromJSON('["self-hosted","linux","x64","demand-forecast-reference"]') || 'ubuntu-24.04' }}
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -62,4 +70,4 @@ jobs:
           name: performance-${{ github.event_name == 'workflow_dispatch' && inputs.profile || 'smoke' }}-${{ github.sha }}
           path: artifacts/performance-baseline.json
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 90
