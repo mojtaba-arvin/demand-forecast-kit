@@ -40,8 +40,12 @@ class LightGBMAdapter:
         num_leaves: int = 15,
         min_data_in_leaf: int = 5,
     ) -> None:
-        self.lags = tuple(sorted(set(int(value) for value in lags)))
-        self.rolling_windows = tuple(sorted(set(int(value) for value in rolling_windows)))
+        raw_lags = tuple(lags)
+        raw_windows = tuple(rolling_windows)
+        if any(type(value) is not int for value in (*raw_lags, *raw_windows)):
+            raise ValueError("lags and rolling_windows must contain integers")
+        self.lags = tuple(sorted(set(raw_lags)))
+        self.rolling_windows = tuple(sorted(set(raw_windows)))
         if not self.lags or any(value < 1 for value in self.lags):
             raise ValueError("lags must contain positive integers")
         if any(value < 2 for value in self.rolling_windows):
@@ -114,9 +118,11 @@ class LightGBMAdapter:
         values = tuple(float(value) for value in history)
         if any(not isfinite(value) or value < 0.0 for value in values):
             raise ValueError("history must contain finite non-negative demand")
-        if len(values) <= max(self.lags) + 1:
+        minimum_history = max(self.lags) + max(20, self.min_data_in_leaf * 2)
+        if len(values) < minimum_history:
             raise ValueError(
-                f"history must contain more than {max(self.lags) + 1} observations"
+                f"history must contain at least {minimum_history} observations "
+                "to form a useful training matrix"
             )
         levels = tuple(sorted(float(value) for value in quantile_levels))
         if not levels or len(set(levels)) != len(levels):
@@ -196,9 +202,12 @@ class LightGBMAdapter:
             forecasts[level] = tuple(prediction)
 
         # Quantile regression models can cross; rearrangement restores the public contract.
+        ordered_by_step = [
+            tuple(sorted(forecasts[level][step] for level in levels))
+            for step in range(horizon)
+        ]
         ordered_forecasts = {
-            level: tuple(sorted(forecasts[level][step] for level in levels)[index]
-                         for step in range(horizon))
+            level: tuple(ordered_by_step[step][index] for step in range(horizon))
             for index, level in enumerate(levels)
         }
         return QuantileForecast(series_id=series_id, quantiles=ordered_forecasts)
