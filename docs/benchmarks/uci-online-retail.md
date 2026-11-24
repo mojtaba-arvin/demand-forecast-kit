@@ -289,3 +289,30 @@ training window, 14-day horizon, 7-day origin step, quantile levels, and rolling
 split generator. Compare pinball loss and quantile coverage within the same cohort and
 lead time; do not compare LightGBM's dense-only results with macro-averages spanning
 all three cohorts.
+
+
+## Initial dense-cohort model comparison (2026-11-24)
+
+The first CI run with LightGBM enabled evaluated 10 deterministically selected dense SKUs,
+with 16 eligible rolling-origin observations per SKU at each lead time. The same 180-day
+initial window, 14-day horizon, 7-day origin step, and quantile levels were used for all
+four models. Values below are equal-SKU macro summaries from that run.
+
+| Lead time | Model | Median pinball loss | P80 interval coverage |
+|---:|---|---:|---:|
+| 7 days | LightGBM quantile | 30.33 | 64.38% |
+| 7 days | Croston SBA | 33.61 | 65.63% |
+| 7 days | TSB | 35.77 | 68.75% |
+| 7 days | Seasonal Naive | 43.62 | 50.00% |
+| 14 days | LightGBM quantile | 51.45 | 63.75% |
+| 14 days | Croston SBA | 57.06 | 62.50% |
+| 14 days | TSB | 58.91 | 60.00% |
+| 14 days | Seasonal Naive | 77.67 | 46.88% |
+
+LightGBM had the lowest median pinball loss in this dense-cohort sample at both lead
+times. This is a preliminary, domain-specific comparison, not evidence of universal
+model superiority. In particular, its nominal 80% interval coverage was only 64.38%
+and 63.75%; the quantile intervals are under-covering and must not be treated as
+calibrated inventory-risk bounds. The calibration/holdout experiment remains necessary
+before using these forecasts for service-level decisions. The run is recorded at
+[GitHub Actions run 45374212843](https://github.com/mojtaba-arvin/demand-forecast-kit/actions/runs/45374212843).
