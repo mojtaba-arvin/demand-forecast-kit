@@ -8,7 +8,9 @@ from pathlib import Path
 from typing import Any
 
 
-def compare(current: dict[str, Any], baseline: dict[str, Any], tolerance: float = 0.05) -> dict[str, Any]:
+def compare(
+    current: dict[str, Any], baseline: dict[str, Any], tolerance: float = 0.05
+) -> dict[str, Any]:
     if not 0.0 <= tolerance < 1.0:
         raise ValueError("tolerance must be in [0, 1)")
     if current.get("environment") != baseline.get("environment"):
