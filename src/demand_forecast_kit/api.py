@@ -14,7 +14,7 @@ def create_app(run_service: RunService | None = None) -> Any:
     """Create the API application; FastAPI remains an optional dependency."""
     service = run_service or RunService.from_environment()
     try:
-        from fastapi import FastAPI, HTTPException
+        from fastapi import FastAPI, HTTPException, Response
         from pydantic import BaseModel, ConfigDict, Field, field_validator
     except ImportError as exc:
         raise RuntimeError("install demand-forecast-kit[api] to use the HTTP API") from exc
@@ -128,6 +128,45 @@ def create_app(run_service: RunService | None = None) -> Any:
     @app.get("/health")
     def health() -> dict[str, str]:
         return {"status": "ok", "version": "0.1.0"}
+
+    @app.get("/v1/runs/{run_id}")
+    def get_run(run_id: int) -> dict[str, object]:
+        """Retrieve persisted execution metadata and its JSON result."""
+        try:
+            run = service.registry.get_run(run_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="run not found") from exc
+        return {
+            "run_id": run.run_id,
+            "status": run.status,
+            "dataset_fingerprint": run.dataset_fingerprint,
+            "model_id": run.model_id,
+            "model_version": run.model_version,
+            "created_at": run.created_at,
+            "config": run.config,
+            "result": run.result,
+        }
+
+    @app.get("/v1/artifacts/{sha256}")
+    def get_artifact(sha256: str) -> Response:
+        """Retrieve a content-addressed artifact after verifying its SHA-256 digest."""
+        try:
+            payload = service.artifacts.get(sha256)
+        except (FileNotFoundError, ValueError) as exc:
+            raise HTTPException(status_code=404, detail="artifact not found") from exc
+        except OSError as exc:
+            raise HTTPException(
+                status_code=500,
+                detail="artifact integrity verification failed",
+            ) from exc
+        return Response(
+            content=payload,
+            media_type="application/json",
+            headers={
+                "ETag": f'"{sha256}"',
+                "Cache-Control": "private, immutable",
+            },
+        )
 
     @app.post("/v1/forecasts")
     def forecast(request: ForecastRequest) -> dict[str, object]:
