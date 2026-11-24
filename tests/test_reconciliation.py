@@ -19,9 +19,7 @@ def make_reconciler() -> MinTReconciler:
 
 
 def test_mint_reconciles_known_identity_weight_case() -> None:
-    reconciler = make_reconciler().fit(
-        ((1, 0, 0), (-1, 0, 0), (0, 1, -1), (0, -1, 1))
-    )
+    reconciler = make_reconciler().fit(((1, 0, 0), (-1, 0, 0), (0, 1, -1), (0, -1, 1)))
     actual = reconciler.reconcile_samples(((10, 4, 8),))[0]
     assert actual[0] == pytest.approx(actual[1] + actual[2])
     assert actual[0] == pytest.approx(10.6666666, rel=1e-6)
