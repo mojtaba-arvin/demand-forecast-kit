@@ -41,6 +41,12 @@ Demand Forecast Kit is an open-source library and API for turning sales and inve
 - Expose forecast and rolling-origin evaluation through FastAPI, a Forecast CLI, and an independent Evaluation CLI.
 - Persist idempotent runs and immutable inventory decisions in SQLite; store binary artifacts by SHA-256.
 - Emit structured JSON logs and thread-safe process-local metrics snapshots.
+- Maintain tenant-scoped warehouse, stock, purchase-order, receipt, and demand-observation records in a local operational store.
+- Import warehouse stock and submitted sales history from ERPNext through a read-only Frappe REST connector.
+- Run durable scheduled forecast refreshes, replenishment reviews, and model-health checks with a separate worker process.
+- Track out-of-sample forecast outcomes, detect rolling-MAE degradation, queue retraining requests, and rank candidate models from recent SKU-level evidence.
+- Evaluate realized replenishment outcomes and rank policy versions by observed holding/shortage cost, fill rate, and cycle service level.
+- Protect operational endpoints with tenant-scoped bearer API keys and read/write/admin scopes.
 
 ## Empirical lead-time calibration benchmark
 
@@ -55,7 +61,7 @@ python evals/run_uci_online_retail_benchmark.py "/path/to/Online Retail.xlsx"
 
 The runner constructs complete daily SKU histories, excludes cancellation invoices and non-positive quantities (returns), freezes deterministic dense/intermittent/very-intermittent cohorts using only the initial 180-day training window, and compares Seasonal Naive, Croston SBA, and TSB with prequential lead-time calibration for 7- and 14-day lead times. It writes a provenance-rich JSON report under `artifacts/`. See [the benchmark protocol](docs/benchmarks/uci-online-retail.md) for preprocessing, evaluation settings, and real-data results.
 
-Not implemented yet: online model learning, automatic retraining, formal hierarchical forecast reconciliation, distributed registry/telemetry services, native Rust acceleration, production-scale SLO validation, and generalized accuracy or inventory-savings claims.
+The operational planning layer is still alpha. It provides tenant-scoped single-host persistence, a read-only ERPNext connector, a durable scheduler/worker, rolling-MAE alerts, evidence-based model ranking, and a retraining request contract. Built-in model-specific retraining trainers, automatic policy-parameter tuning and activation, formal hierarchical forecast reconciliation, distributed registry/telemetry services, native Rust acceleration, production-scale SLO validation, and generalized accuracy or inventory-savings claims are not implemented.
 
 ## Optional machine-learning adapters
 
@@ -231,6 +237,7 @@ python -m pip install ".[dev]"
 - [Benchmarking protocol](docs/benchmarking-protocol.md)
 - [Statistical and operational limitations](docs/limitations.md)
 - [Independent UCI Electricity benchmark](docs/benchmarks/uci-electricity-load.md)
+- [Operational planning API, ERPNext connector, scheduler, and model lifecycle](docs/operations.md)
 - [Expanded UCI Online Retail II benchmark](docs/benchmarks/uci-online-retail-ii.md)
 
 ## Metric definitions

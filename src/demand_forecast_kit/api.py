@@ -329,5 +329,10 @@ def create_app(run_service: RunService | None = None) -> Any:
                 raise HTTPException(status_code=422, detail=str(exc)) from exc
         return payload
 
+    from demand_forecast_kit.operations_api import build_operations_router, install_api_auth
+
+    install_api_auth(app)
+    app.include_router(build_operations_router(service))
+
     app.state.run_service = service
     return app
