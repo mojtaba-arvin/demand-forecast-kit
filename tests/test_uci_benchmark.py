@@ -232,6 +232,49 @@ def test_temporal_scale_experiment_keeps_holdout_out_of_scale_fitting() -> None:
     assert first["fitted_width_scale"] == changed_holdout["fitted_width_scale"]
     assert first["fitted_median_shift"] == changed_holdout["fitted_median_shift"]
     assert first["holdout_baseline"] != changed_holdout["holdout_baseline"]
+    assert first["per_series_holdout"] == [
+        {
+            "series_id": "SKU-1",
+            "observation_count": 3,
+            "baseline": first["holdout_baseline"],
+            "width_scaled": first["holdout_width_scaled"],
+            "bias_and_width_scaled": first["holdout_bias_and_width_scaled"],
+        }
+    ]
+
+
+def test_temporal_scale_experiment_reports_holdout_metrics_per_series() -> None:
+    start = date(2020, 1, 1)
+    rows = []
+    for series_id, holdout_actual in (("SKU-A", 20.0), ("SKU-B", 40.0)):
+        for offset in range(16):
+            rows.append(
+                {
+                    "cohort": "dense",
+                    "series_id": series_id,
+                    "model_id": "lightgbm-quantile",
+                    "lead_time": 14,
+                    "fold": offset + 1,
+                    "forecast_origin": (
+                        start.fromordinal(start.toordinal() + offset * 7).isoformat()
+                    ),
+                    "actual": holdout_actual if offset in (10, 12, 14) else 10.0,
+                    "q10": 8.0,
+                    "q50": 10.0,
+                    "q90": 12.0,
+                    "calibration_path_count": 5 + offset,
+                }
+            )
+
+    summary = _temporal_scale_experiment(rows)[0]
+    per_series = summary["per_series_holdout"]
+
+    assert summary["status"] == "evaluated"
+    assert summary["calibration_observation_count"] == 8
+    assert summary["holdout_observation_count"] == 6
+    assert [item["series_id"] for item in per_series] == ["SKU-A", "SKU-B"]
+    assert [item["observation_count"] for item in per_series] == [3, 3]
+    assert per_series[0]["baseline"] != per_series[1]["baseline"]
 
 
 def test_prepare_daily_demand_accepts_online_retail_ii_invoice_column() -> None:

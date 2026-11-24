@@ -189,6 +189,30 @@ def _temporal_scale_experiment(
         median_shift = _median([float(item["actual"]) - float(item["q50"]) for item in calibration])
         width_scale = _fit_interval_scale(calibration, median_shift=0.0)
         bias_width_scale = _fit_interval_scale(calibration, median_shift=median_shift)
+        per_series_holdout: list[dict[str, object]] = []
+        for series_id in sorted(by_series):
+            series_holdout = [item for item in holdout if str(item["series_id"]) == series_id]
+            per_series_holdout.append(
+                {
+                    "series_id": series_id,
+                    "observation_count": len(series_holdout),
+                    "baseline": _evaluate_scaled_intervals(
+                        series_holdout,
+                        scale=1.0,
+                        median_shift=0.0,
+                    ),
+                    "width_scaled": _evaluate_scaled_intervals(
+                        series_holdout,
+                        scale=width_scale,
+                        median_shift=0.0,
+                    ),
+                    "bias_and_width_scaled": _evaluate_scaled_intervals(
+                        series_holdout,
+                        scale=bias_width_scale,
+                        median_shift=median_shift,
+                    ),
+                }
+            )
         summaries.append(
             {
                 "cohort": cohort,
@@ -204,6 +228,7 @@ def _temporal_scale_experiment(
                 "fitted_width_scale": width_scale,
                 "fitted_bias_and_width_scale": bias_width_scale,
                 "fitted_median_shift": median_shift,
+                "per_series_holdout": per_series_holdout,
                 "holdout_baseline": _evaluate_scaled_intervals(
                     holdout,
                     scale=1.0,

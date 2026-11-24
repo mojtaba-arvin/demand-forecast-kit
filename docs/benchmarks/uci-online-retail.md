@@ -4,7 +4,9 @@
 
 This is an opt-in empirical benchmark for the Phase 6 lead-time residual-path
 calibrator. It evaluates dense, intermittent, and very-intermittent SKU cohorts
-on a real transaction dataset and compares Seasonal Naive, Croston SBA, and TSB.
+on a real transaction dataset. Seasonal Naive, Croston SBA, and TSB are evaluated
+on every cohort; LightGBM quantile regression is additionally evaluated on the
+dense cohort only.
 
 ## Dataset and attribution
 
@@ -58,7 +60,8 @@ For a smaller development run, use `--max-skus-per-cohort 3`. The default is
 - 14-day forecast horizon, 7-day origin step.
 - Lead times: 7 and 14 days.
 - Quantiles: P10, P50, P90.
-- Models: Seasonal Naive, Croston SBA, and TSB.
+- Models: Seasonal Naive, Croston SBA, and TSB on all cohorts; LightGBM quantile
+  regression on the dense cohort only.
 - Residual-path calibration: 250 bootstrap draws, at least five strictly earlier
   non-overlapping calibration paths, with Phase 6's model-version and leakage guards.
 - Prequential evaluation reports per-SKU cumulative quantile coverage, P80
@@ -316,3 +319,20 @@ and 63.75%; the quantile intervals are under-covering and must not be treated as
 calibrated inventory-risk bounds. The calibration/holdout experiment remains necessary
 before using these forecasts for service-level decisions. The run is recorded at
 [GitHub Actions run 45374212843](https://github.com/mojtaba-arvin/demand-forecast-kit/actions/runs/45374212843).
+
+
+## Per-SKU temporal holdout diagnostics
+
+The temporal-scale experiment now includes a `per_series_holdout` entry for
+each SKU in every evaluated cohort/model/lead-time slice. Each entry reports
+the three untouched holdout observations separately for the unadjusted
+baseline, calibration-fitted width scaling, and calibration-fitted
+median-bias-plus-width adjustment. The slice-level metrics remain available
+and are computed over the pooled holdout observations.
+
+This additional breakdown is diagnostic, not another tuning stage: fitted
+parameters are still selected only from the earlier calibration block and
+remain identical across SKUs in the same cohort/model/lead-time slice. The
+per-SKU sample is only three holdout origins, so these metrics expose
+heterogeneity but are not reliable standalone estimates of SKU-level service
+levels or statistical significance. No adjustment is enabled by default.
