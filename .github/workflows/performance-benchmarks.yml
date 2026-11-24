@@ -23,7 +23,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: performance-benchmarks-\${{ github.ref }}
+  group: performance-benchmarks-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -39,13 +39,13 @@ jobs:
       - run: python -m pip install --upgrade pip && python -m pip install -e ".[dev,benchmarks]"
       - name: Run reproducible offline workloads
         env:
-          PROFILE: \${{ inputs.profile || 'smoke' }}
-          REPEATS: \${{ inputs.repeats || 5 }}
+          PROFILE: ${{ inputs.profile || 'smoke' }}
+          REPEATS: ${{ inputs.repeats || 5 }}
         run: python bench/run_benchmarks.py --profile "$PROFILE" --repeats "$REPEATS" --output artifacts/performance-baseline.json
       - name: Upload benchmark evidence
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: performance-\${{ inputs.profile || 'smoke' }}-\${{ github.sha }}
+          name: performance-${{ inputs.profile || 'smoke' }}-${{ github.sha }}
           path: artifacts/performance-baseline.json
           if-no-files-found: error
           retention-days: 30
