@@ -39,7 +39,7 @@ jobs:
       - name: Install benchmark dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e ".[benchmark]"
+          python -m pip install -e ".[benchmark,lightgbm]"
 
       - name: Download the official UCI dataset archive
         run: |
