@@ -13,7 +13,7 @@ import sys
 import tempfile
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import Any
@@ -233,7 +233,7 @@ def run(profile: str, output: Path, repeats: int) -> dict[str, Any]:
         return {
             "schema_version": 2,
             "execution_id": execution_id,
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
             "profile": profile,
             "seed": seed,
             "workload_sha256": workload_sha256,
