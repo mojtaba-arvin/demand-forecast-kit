@@ -6,7 +6,7 @@ import argparse
 import json
 import math
 import statistics
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -113,7 +113,7 @@ def calibrate(
     return {
         "schema_version": 1,
         "baseline_type": "calibrated-performance-baseline",
-        "calibrated_at": datetime.now(timezone.utc).isoformat(),
+        "calibrated_at": datetime.now(UTC).isoformat(),
         "sample_count": len(artifacts),
         "execution_ids": execution_ids,
         "source_revision": source_revision,
