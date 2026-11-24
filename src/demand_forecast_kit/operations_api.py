@@ -507,5 +507,6 @@ def install_api_auth(app: Any) -> None:
             return JSONResponse(status_code=401, content={"detail": "invalid or missing API token"})
         if not path.startswith("/v1/ops/") and "*" not in scopes and "runs:shared" not in scopes:
             from fastapi.responses import JSONResponse
+
             return JSONResponse(status_code=403, content={"detail": "runs:shared scope required"})
         return await call_next(request)
