@@ -126,6 +126,25 @@ def test_replenishment_endpoint_records_immutable_decision(client: TestClient) -
     assert response.json()["decision"]["run_id"] == run_id
     assert response.json()["decision"]["decision_id"] > 0
 
+    retrieved = client.get(f"/v1/runs/{run_id}/decisions")
+    assert retrieved.status_code == 200
+    assert retrieved.json()["run_id"] == run_id
+    assert retrieved.json()["decisions"] == [
+        {
+            "decision_id": response.json()["decision"]["decision_id"],
+            "run_id": run_id,
+            "decision_key": "sku-decision:2026-01-01",
+            "created_at": retrieved.json()["decisions"][0]["created_at"],
+            "decision": {
+                "quantity": 30.0,
+                "target_stock_level": 42.0,
+                "inventory_position": 12.0,
+                "target_service_level": 0.9,
+                "unrounded_quantity": 30.0,
+            },
+        }
+    ]
+
 
 def test_replenishment_endpoint_rejects_unbracketed_service_level(client: TestClient) -> None:
     response = client.post(
@@ -206,3 +225,21 @@ def test_run_and_artifact_retrieval_return_not_found_without_leaking_paths(
     malformed_artifact = client.get("/v1/artifacts/not-a-digest")
     assert malformed_artifact.status_code == 404
     assert malformed_artifact.json() == {"detail": "artifact not found"}
+
+
+def test_run_decision_retrieval_returns_empty_list_and_unknown_run_404(
+    client: TestClient,
+) -> None:
+    forecast = client.post(
+        "/v1/forecasts",
+        json={"series_id": "sku-no-decisions", "history": [1, 2, 3, 4, 5, 6, 7]},
+    )
+    run_id = forecast.json()["run"]["run_id"]
+
+    empty = client.get(f"/v1/runs/{run_id}/decisions")
+    assert empty.status_code == 200
+    assert empty.json() == {"run_id": run_id, "decisions": []}
+
+    missing = client.get("/v1/runs/999999/decisions")
+    assert missing.status_code == 404
+    assert missing.json() == {"detail": "run not found"}
