@@ -234,7 +234,9 @@ def test_chronos_validates_request_arguments_before_inference() -> None:
     with pytest.raises(ValueError, match="history"):
         adapter.predict("sku", [], horizon=1, quantile_levels=(0.1, 0.5, 0.9), seed=0)
     with pytest.raises(ValueError, match="history"):
-        adapter.predict("sku", [1, float("nan")], horizon=1, quantile_levels=(0.1, 0.5, 0.9), seed=0)
+        adapter.predict(
+            "sku", [1, float("nan")], horizon=1, quantile_levels=(0.1, 0.5, 0.9), seed=0
+        )
     with pytest.raises(ValueError, match="non-empty and unique"):
         adapter.predict("sku", [1, 2], horizon=1, quantile_levels=(), seed=0)
     with pytest.raises(ValueError, match="non-empty and unique"):
