@@ -25,6 +25,12 @@ def compare(
         raise ValueError("benchmark environments differ; comparison is not valid")
     if current.get("profile") != baseline.get("profile"):
         raise ValueError("benchmark profiles differ; comparison is not valid")
+    if baseline.get("baseline_type") == "calibrated-performance-baseline":
+        if baseline.get("sample_count", 0) < 10:
+            raise ValueError("calibrated baseline must contain at least 10 independent runs")
+        for field in ("source_revision", "workload_sha256", "seed"):
+            if current.get(field) != baseline.get(field):
+                raise ValueError(f"benchmark {field} differs; comparison is not valid")
     current_workloads = current.get("workloads", {})
     baseline_workloads = baseline.get("workloads", {})
     if set(current_workloads) != set(baseline_workloads):
