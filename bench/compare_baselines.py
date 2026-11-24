@@ -8,6 +8,15 @@ from pathlib import Path
 from typing import Any
 
 
+_WORKLOAD_IDENTITY_FIELDS = {
+    "cli_cold_start": ("command",),
+    "parquet_scan_validation": ("rows", "series_count_in_file", "file_sha256"),
+    "statistical_series_throughput": ("series_count", "history_size", "horizon", "adapter"),
+    "api_forecast_latency": ("requests",),
+    "streaming_scan_memory": ("rows",),
+}
+
+
 def compare(
     current: dict[str, Any], baseline: dict[str, Any], tolerance: float = 0.05
 ) -> dict[str, Any]:
@@ -24,11 +33,21 @@ def compare(
     results: dict[str, dict[str, float | bool]] = {}
     regressions: list[str] = []
     for name in sorted(current_workloads):
+        current_workload = current_workloads[name]
+        baseline_workload = baseline_workloads[name]
+        identity_fields = _WORKLOAD_IDENTITY_FIELDS.get(name)
+        if identity_fields is None:
+            raise ValueError(f"unknown benchmark workload identity: {name}")
+        for field in identity_fields:
+            if field not in current_workload or field not in baseline_workload:
+                raise ValueError(f"workload {name} is missing identity field {field}")
+            if current_workload[field] != baseline_workload[field]:
+                raise ValueError(f"benchmark workload {name} differs at {field}")
         metric = "peak_rss_bytes" if name == "streaming_scan_memory" else "median_seconds"
-        current_value = float(current_workloads[name][metric])
-        baseline_value = float(baseline_workloads[name][metric])
+        current_value = float(current_workload[metric])
+        baseline_value = float(baseline_workload[metric])
         if baseline_value <= 0.0 or current_value < 0.0:
-            raise ValueError(f"invalid benchmark duration for {name}")
+            raise ValueError(f"invalid benchmark measurement for {name}")
         change = current_value / baseline_value - 1.0
         regressed = change > tolerance
         results[name] = {
