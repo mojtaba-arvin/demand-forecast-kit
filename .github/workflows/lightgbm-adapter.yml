@@ -39,5 +39,12 @@ jobs:
       - run: ruff format --check src/demand_forecast_kit/models tests/test_optional_models.py
       - run: pyright
       - run: pytest tests/test_optional_models.py
+      - run: python evals/run_lightgbm_smoke.py --output artifacts/lightgbm-rolling-origin.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: lightgbm-rolling-origin-evaluation
+          path: artifacts/lightgbm-rolling-origin.json
+          if-no-files-found: error
+          retention-days: 14
       - run: pip-audit --skip-editable
       - run: reuse lint
