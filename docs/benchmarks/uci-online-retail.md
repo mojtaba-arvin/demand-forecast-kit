@@ -276,3 +276,16 @@ small by design. Results must not be presented as universal forecast accuracy,
 inventory savings, or causal business impact. Compare models only on identical
 SKUs, origins, lead times, and preprocessing. The reported metrics are empirical
 results from the exact source workbook identified by its SHA-256 above.
+
+
+## Model comparison scope
+
+The Online Retail lead-time benchmark evaluates Seasonal Naive, Croston SBA, and TSB on
+all frozen activity cohorts. LightGBM quantile regression is additionally evaluated on
+the dense cohort only: the adapter explicitly rejects histories above its configured
+intermittent-zero threshold, while Croston and TSB remain the appropriate statistical
+comparators for sparse demand. All included adapters use the same daily panel, initial
+training window, 14-day horizon, 7-day origin step, quantile levels, and rolling-origin
+split generator. Compare pinball loss and quantile coverage within the same cohort and
+lead time; do not compare LightGBM's dense-only results with macro-averages spanning
+all three cohorts.
