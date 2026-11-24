@@ -3,7 +3,6 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from demand_forecast_kit.lifecycle import TrainingResult
 from demand_forecast_kit.operations import OperationalStore
 from demand_forecast_kit.operations_worker import OperationalWorker
 from demand_forecast_kit.run_service import RunService
