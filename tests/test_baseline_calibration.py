@@ -156,7 +156,6 @@ def test_calibration_requires_manual_workflow_dispatch() -> None:
         calibrate(reports)
 
 
-
 @pytest.mark.parametrize("invalid", [float("nan"), float("inf"), float("-inf"), True])
 def test_comparator_rejects_non_finite_or_boolean_measurements(invalid: object) -> None:
     current = make_artifact(101)
