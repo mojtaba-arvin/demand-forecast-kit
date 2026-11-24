@@ -4,7 +4,7 @@ from __future__ import annotations
 import collections
 import json
 from datetime import UTC, date, datetime, timedelta
-from typing import Any
+from typing import Any, Callable
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urljoin
 from urllib.request import Request, urlopen
@@ -12,7 +12,7 @@ from urllib.request import Request, urlopen
 from demand_forecast_kit.operations import OperationalStore
 
 
-Transport = collections.abc.Callable[[str, str, dict[str, str], bytes | None, float], bytes]
+Transport = Callable[[str, str, dict[str, str], bytes | None, float], bytes]
 
 
 def _http_transport(
