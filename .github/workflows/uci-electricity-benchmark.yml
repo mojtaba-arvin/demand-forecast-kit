@@ -2,7 +2,7 @@ name: UCI Electricity independent benchmark
 
 on:
   push:
-    branches: ["work/evaluation-infrastructure"]
+    branches: ["main", "work/**", "integration/**"]
     paths:
       - "evals/run_uci_electricity_benchmark.py"
       - "src/demand_forecast_kit/datasets.py"
