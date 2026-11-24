@@ -676,6 +676,7 @@ class OperationalStore:
             row = db.execute(
                 "SELECT * FROM retraining_requests WHERE request_id=?", (request_id,)
             ).fetchone()
+        assert row is not None
         return dict(row)
 
     def record_policy_outcome(
@@ -846,6 +847,7 @@ class OperationalStore:
                 "SELECT * FROM retraining_requests WHERE tenant_id=? AND request_id=?",
                 (self._tenant(tenant_id), request_id),
             ).fetchone()
+        assert row is not None
         return dict(row)
 
     def finish_retraining(
@@ -864,6 +866,7 @@ class OperationalStore:
                 "SELECT * FROM retraining_requests WHERE tenant_id=? AND request_id=?",
                 (self._tenant(tenant_id), request_id),
             ).fetchone()
+        assert row is not None
         return dict(row)
 
     def create_schedule(
@@ -940,10 +943,12 @@ class OperationalStore:
                     ),
                 )
                 if cursor.rowcount:
-                    claimed.append(self._schedule_record(db.execute(
+                    claimed_row = db.execute(
                         "SELECT * FROM scheduled_jobs WHERE tenant_id=? AND job_id=?",
                         (self._tenant(tenant_id), row["job_id"]),
-                    ).fetchone()))
+                    ).fetchone()
+                    assert claimed_row is not None
+                    claimed.append(self._schedule_record(claimed_row))
         return claimed
 
     def complete_schedule(
