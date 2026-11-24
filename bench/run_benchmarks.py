@@ -12,7 +12,9 @@ import subprocess
 import sys
 import tempfile
 import time
-from datetime import datetime
+import uuid
+from datetime import datetime, timezone
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import Any
 
@@ -137,6 +139,44 @@ def _api_forecast(requests: int, state_dir: Path) -> dict[str, Any]:
     }
 
 
+
+def _package_version(name: str) -> str | None:
+    try:
+        return version(name)
+    except PackageNotFoundError:
+        return None
+
+
+def _cpu_model() -> str | None:
+    cpuinfo = Path("/proc/cpuinfo")
+    if cpuinfo.exists():
+        for line in cpuinfo.read_text(encoding="utf-8", errors="replace").splitlines():
+            if line.lower().startswith(("model name", "hardware")) and ":" in line:
+                return line.split(":", 1)[1].strip()
+    return platform.processor() or None
+
+
+def _environment_metadata() -> dict[str, Any]:
+    return {
+        "python": platform.python_version(),
+        "implementation": platform.python_implementation(),
+        "platform": platform.platform(),
+        "machine": platform.machine(),
+        "processor": platform.processor(),
+        "cpu_model": _cpu_model(),
+        "cpu_count": os.cpu_count(),
+        "polars": pl.__version__,
+        "packages": {
+            name: _package_version(name)
+            for name in ("demand-forecast-kit", "fastapi", "httpx", "uvicorn", "pyarrow")
+        },
+        "runner": {
+            name: os.environ.get(name)
+            for name in ("RUNNER_OS", "RUNNER_ARCH", "RUNNER_NAME", "ImageOS", "ImageVersion")
+        },
+    }
+
+
 def run(profile: str, output: Path, repeats: int) -> dict[str, Any]:
     full = profile == "full"
     rows = 10_000_000 if full else 10_000
@@ -145,6 +185,20 @@ def run(profile: str, output: Path, repeats: int) -> dict[str, Any]:
     horizon = 14
     api_requests = 1_000 if full else 100
     seed = 20261124
+    workload_definition = {
+        "profile": profile,
+        "rows": rows,
+        "series_count": series_count,
+        "history_size": history_size,
+        "horizon": horizon,
+        "api_requests": api_requests,
+        "seed": seed,
+        "repeats": repeats,
+    }
+    workload_sha256 = hashlib.sha256(
+        json.dumps(workload_definition, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+    execution_id = uuid.uuid4().hex
 
     with tempfile.TemporaryDirectory(prefix="demand-forecast-bench-") as directory:
         root = Path(directory)
@@ -177,19 +231,14 @@ def run(profile: str, output: Path, repeats: int) -> dict[str, Any]:
         api_result = _api_forecast(api_requests, root / "api-state")
 
         return {
-            "schema_version": 1,
+            "schema_version": 2,
+            "execution_id": execution_id,
+            "created_at": datetime.now(timezone.utc).isoformat(),
             "profile": profile,
             "seed": seed,
+            "workload_sha256": workload_sha256,
             "source_revision": os.environ.get("GITHUB_SHA"),
-            "environment": {
-                "python": platform.python_version(),
-                "implementation": platform.python_implementation(),
-                "platform": platform.platform(),
-                "machine": platform.machine(),
-                "processor": platform.processor(),
-                "cpu_count": os.cpu_count(),
-                "polars": pl.__version__,
-            },
+            "environment": _environment_metadata(),
             "workloads": {
                 "cli_cold_start": {
                     **cli_result,
