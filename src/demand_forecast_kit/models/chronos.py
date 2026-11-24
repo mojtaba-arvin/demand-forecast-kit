@@ -118,7 +118,10 @@ class Chronos2Adapter:
             if any(not isfinite(value) for value in converted):
                 raise RuntimeError("Chronos-2 returned non-finite forecasts")
             non_negative = tuple(max(0.0, value) for value in converted)
-            if any(left > right for left, right in zip(non_negative, non_negative[1:], strict=False)):
+            if any(
+                left > right
+                for left, right in zip(non_negative, non_negative[1:], strict=False)
+            ):
                 raise RuntimeError("Chronos-2 returned crossing quantiles")
             for level, value in zip(levels, non_negative, strict=True):
                 values_by_level[level].append(value)
