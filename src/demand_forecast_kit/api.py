@@ -147,6 +147,27 @@ def create_app(run_service: RunService | None = None) -> Any:
             "result": run.result,
         }
 
+    @app.get("/v1/runs/{run_id}/decisions")
+    def get_run_decisions(run_id: int) -> dict[str, object]:
+        """List immutable inventory decisions linked to a persisted run."""
+        try:
+            decisions = service.registry.list_inventory_decisions(run_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="run not found") from exc
+        return {
+            "run_id": run_id,
+            "decisions": [
+                {
+                    "decision_id": item.decision_id,
+                    "run_id": item.run_id,
+                    "decision_key": item.decision_key,
+                    "created_at": item.created_at,
+                    "decision": item.decision,
+                }
+                for item in decisions
+            ],
+        }
+
     @app.get("/v1/artifacts/{sha256}")
     def get_artifact(sha256: str) -> Response:
         """Retrieve a content-addressed artifact after verifying its SHA-256 digest."""
