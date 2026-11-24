@@ -67,7 +67,11 @@ def compare(
         baseline_value = _measurement(
             baseline_workload.get(metric), name=name, metric=metric, allow_zero=False
         )
-        raw_tolerance = baseline_workload.get("calibrated_tolerance") if calibrated else tolerance
+        raw_tolerance = (
+            baseline_workload.get("calibrated_tolerance")
+            if calibrated
+            else baseline_workload.get("calibrated_tolerance", tolerance)
+        )
         if isinstance(raw_tolerance, bool) or not isinstance(raw_tolerance, (int, float)):
             raise ValueError(f"invalid calibrated tolerance for {name}")
         workload_tolerance = float(raw_tolerance)
