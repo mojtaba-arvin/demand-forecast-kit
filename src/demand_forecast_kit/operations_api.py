@@ -1,5 +1,6 @@
 """Authenticated HTTP API for tenant-scoped inventory and model operations."""
-from __future__ import annotations
+# FastAPI dependency injection intentionally uses Depends in endpoint defaults.
+# ruff: noqa: B008
 
 import hashlib
 import hmac
