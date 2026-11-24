@@ -123,6 +123,8 @@ def test_comparator_allows_new_source_revision_against_calibrated_baseline() -> 
     baseline = make_artifact(100)
     baseline["baseline_type"] = "calibrated-performance-baseline"
     baseline["sample_count"] = 10
+    for workload in baseline["workloads"].values():
+        workload["calibrated_tolerance"] = 0.05
     result = compare(current, baseline)
     assert result["current_source_revision"] == "b" * 40
     assert result["baseline_source_revision"] == "a" * 40
