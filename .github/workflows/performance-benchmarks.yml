@@ -3,6 +3,13 @@ name: Reproducible performance benchmarks
 on:
   schedule:
     - cron: "17 3 * * 1"
+  push:
+    branches: ["integration/**"]
+    paths:
+      - "bench/**"
+      - "tests/test_benchmark_comparison.py"
+      - "pyproject.toml"
+      - ".github/workflows/performance-benchmarks.yml"
   pull_request:
     branches: ["integration/**"]
     paths:
