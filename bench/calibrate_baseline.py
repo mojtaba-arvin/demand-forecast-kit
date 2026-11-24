@@ -53,6 +53,23 @@ def calibrate(
         raise ValueError("every artifact must identify its GitHub Actions workflow_run_id")
     if len(set(workflow_run_ids)) != len(workflow_run_ids):
         raise ValueError("artifacts must come from distinct GitHub Actions workflow runs")
+    execution_metadata = [item["execution"] for item in artifacts]
+    workflow_names = [item.get("workflow") for item in execution_metadata]
+    workflow_events = [item.get("event") for item in execution_metadata]
+    workflow_refs = [item.get("ref") for item in execution_metadata]
+    workflow_attempts = [item.get("workflow_run_attempt") for item in execution_metadata]
+    if any(not isinstance(value, str) or not value for value in workflow_names):
+        raise ValueError("every artifact must identify its GitHub Actions workflow")
+    if len(set(workflow_names)) != 1:
+        raise ValueError("artifacts must come from the same GitHub Actions workflow")
+    if any(value != "workflow_dispatch" for value in workflow_events):
+        raise ValueError("calibration artifacts must come from manual workflow_dispatch runs")
+    if any(not isinstance(value, str) or not value for value in workflow_refs):
+        raise ValueError("every artifact must identify its GitHub Actions ref")
+    if len(set(workflow_refs)) != 1:
+        raise ValueError("artifacts must use the same GitHub Actions ref")
+    if any(not isinstance(value, str) or not value.isdecimal() for value in workflow_attempts):
+        raise ValueError("every artifact must identify its GitHub Actions workflow_run_attempt")
 
     first = artifacts[0]
     if first.get("schema_version") != 2 or first.get("profile") != "full":
