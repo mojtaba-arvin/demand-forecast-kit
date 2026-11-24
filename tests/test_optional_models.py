@@ -12,7 +12,7 @@ from demand_forecast_kit.models.registry import CHRONOS2_LICENSE
 
 
 class FakeChronosPipeline:
-    def __init__(self, output: list[list[list[float]]]) -> None:
+    def __init__(self, output: Any) -> None:
         self.output = output
         self.calls: list[dict[str, Any]] = []
 
@@ -222,3 +222,81 @@ def test_lightgbm_routes_intermittent_history_to_specialized_adapter() -> None:
             quantile_levels=(0.1, 0.5, 0.9),
             seed=42,
         )
+
+def test_chronos_validates_request_arguments_before_inference() -> None:
+    adapter = Chronos2Adapter(pipeline=FakeChronosPipeline([[[1.0, 2.0, 3.0]]]))
+    with pytest.raises(ValueError, match="series_id"):
+        adapter.predict("", [1, 2], horizon=1, quantile_levels=(0.1, 0.5, 0.9), seed=0)
+    with pytest.raises(ValueError, match="horizon"):
+        adapter.predict("sku", [1, 2], horizon=0, quantile_levels=(0.1, 0.5, 0.9), seed=0)
+    with pytest.raises(ValueError, match="seed"):
+        adapter.predict("sku", [1, 2], horizon=1, quantile_levels=(0.1, 0.5, 0.9), seed=-1)
+    with pytest.raises(ValueError, match="history"):
+        adapter.predict("sku", [], horizon=1, quantile_levels=(0.1, 0.5, 0.9), seed=0)
+    with pytest.raises(ValueError, match="history"):
+        adapter.predict("sku", [1, float("nan")], horizon=1, quantile_levels=(0.1, 0.5, 0.9), seed=0)
+    with pytest.raises(ValueError, match="non-empty and unique"):
+        adapter.predict("sku", [1, 2], horizon=1, quantile_levels=(), seed=0)
+    with pytest.raises(ValueError, match="non-empty and unique"):
+        adapter.predict("sku", [1, 2], horizon=1, quantile_levels=(0.5, 0.5), seed=0)
+    with pytest.raises(ValueError, match="in"):
+        adapter.predict("sku", [1, 2], horizon=1, quantile_levels=(1.0,), seed=0)
+    with pytest.raises(ValueError, match="device_map"):
+        Chronos2Adapter(device_map=" ")
+
+
+@pytest.mark.parametrize(
+    ("output", "message"),
+    [
+        ([], "batch dimension"),
+        ([[]], "forecast horizon"),
+        ([[[1.0, 2.0]]], "quantile dimension"),
+        ([[["not-a-number", 2.0, 3.0]]], "non-numeric"),
+        ([[[float("nan"), 2.0, 3.0]]], "non-finite"),
+    ],
+)
+def test_chronos_rejects_malformed_pipeline_outputs(output: Any, message: str) -> None:
+    adapter = Chronos2Adapter(pipeline=FakeChronosPipeline(output))
+    with pytest.raises(RuntimeError, match=message):
+        adapter.predict("sku", [1, 2], horizon=1, quantile_levels=(0.1, 0.5, 0.9), seed=0)
+
+
+def test_chronos_missing_dependency_and_offline_cache_fail_actionably(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def missing_dependency(name: str) -> Any:
+        raise ImportError(name)
+
+    monkeypatch.setattr(chronos_module, "import_module", missing_dependency)
+    with pytest.raises(ImportError, match="demand-forecast-kit\\[chronos\\]"):
+        Chronos2Adapter()._get_pipeline()
+
+    class MissingCacheFactory:
+        @staticmethod
+        def from_pretrained(model_id: str, **kwargs: object) -> object:
+            raise OSError("model files are not cached")
+
+    monkeypatch.setattr(
+        chronos_module,
+        "import_module",
+        lambda name: SimpleNamespace(Chronos2Pipeline=MissingCacheFactory),
+    )
+    with pytest.raises(RuntimeError, match="not cached"):
+        Chronos2Adapter()._get_pipeline()
+
+
+def test_chronos_explicit_download_preserves_upstream_loading_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class DownloadFactory:
+        @staticmethod
+        def from_pretrained(model_id: str, **kwargs: object) -> object:
+            raise OSError("upstream download failed")
+
+    monkeypatch.setattr(
+        chronos_module,
+        "import_module",
+        lambda name: SimpleNamespace(Chronos2Pipeline=DownloadFactory),
+    )
+    with pytest.raises(OSError, match="upstream download failed"):
+        Chronos2Adapter(allow_download=True)._get_pipeline()
