@@ -20,6 +20,7 @@ class FakeChronosPipeline:
         self.calls.append(kwargs)
         return self.output
 
+
 def test_chronos_adapter_converts_pinned_quantile_output() -> None:
     pipeline = FakeChronosPipeline([[[1.0, 2.0, 3.0], [2.0, 3.0, 4.0]]])
     adapter = Chronos2Adapter(pipeline=pipeline)
@@ -37,6 +38,7 @@ def test_chronos_adapter_converts_pinned_quantile_output() -> None:
     assert pipeline.calls[0]["context"] == [[1.0, 2.0, 3.0, 4.0]]
     assert pipeline.calls[0]["prediction_length"] == 2
 
+
 def test_chronos_clips_negative_demand_and_rejects_crossing_quantiles() -> None:
     clipped = Chronos2Adapter(pipeline=FakeChronosPipeline([[[-2.0, 0.0, 3.0]]])).predict(
         "sku", [1, 2], horizon=1, quantile_levels=(0.1, 0.5, 0.9), seed=0
@@ -45,6 +47,7 @@ def test_chronos_clips_negative_demand_and_rejects_crossing_quantiles() -> None:
     crossing = Chronos2Adapter(pipeline=FakeChronosPipeline([[[3.0, 2.0, 4.0]]]))
     with pytest.raises(RuntimeError, match="crossing"):
         crossing.predict("sku", [1, 2], horizon=1, quantile_levels=(0.1, 0.5, 0.9), seed=0)
+
 
 def test_chronos_requires_immutable_revision_and_offline_loading_by_default(
     monkeypatch: pytest.MonkeyPatch,
@@ -79,11 +82,13 @@ def test_chronos_requires_immutable_revision_and_offline_loading_by_default(
     assert CHRONOS2_LICENSE.enabled_by_default is False
     assert CHRONOS2_LICENSE.downloads_enabled_by_default is False
 
+
 class FakeDataset:
     def __init__(self, matrix: object, *, label: object, free_raw_data: bool) -> None:
         self.matrix = matrix
         self.label = label
         self.free_raw_data = free_raw_data
+
 
 class FakeBooster:
     def __init__(self, alpha: float) -> None:
@@ -91,6 +96,7 @@ class FakeBooster:
 
     def predict(self, matrix: object) -> list[float]:
         return [0.0 if self.alpha == 0.9 else 20.0 if self.alpha == 0.1 else 10.0]
+
 
 class FakeLightGBM:
     Dataset = FakeDataset
@@ -104,10 +110,12 @@ class FakeLightGBM:
         assert num_boost_round > 0
         return FakeBooster(float(params["alpha"]))
 
+
 class FakeNumpy:
     @staticmethod
     def asarray(values: object, *, dtype: object) -> object:
         return values
+
 
 def test_lightgbm_adapter_trains_quantiles_and_rearranges_crossing_models(
     monkeypatch: pytest.MonkeyPatch,
@@ -123,6 +131,7 @@ def test_lightgbm_adapter_trains_quantiles_and_rearranges_crossing_models(
     assert result.quantiles[0.1] == (0.0, 0.0)
     assert result.quantiles[0.5] == (10.0, 10.0)
     assert result.quantiles[0.9] == (20.0, 20.0)
+
 
 def test_lightgbm_uses_only_aligned_future_known_covariates(
     monkeypatch: pytest.MonkeyPatch,
@@ -156,6 +165,7 @@ def test_lightgbm_uses_only_aligned_future_known_covariates(
     )
     assert result.horizon == 2
 
+
 def test_lightgbm_validates_feature_history_before_loading_optional_dependency() -> None:
     with pytest.raises(ValueError, match="at least"):
         LightGBMAdapter().predict(
@@ -165,6 +175,7 @@ def test_lightgbm_validates_feature_history_before_loading_optional_dependency()
             quantile_levels=(0.5,),
             seed=1,
         )
+
 
 def test_lightgbm_adapter_runs_real_optional_backend() -> None:
     pytest.importorskip("lightgbm")
@@ -192,6 +203,7 @@ def test_lightgbm_adapter_runs_real_optional_backend() -> None:
         assert values == sorted(values)
         assert all(value >= 0.0 for value in values)
     assert adapter.model_version.startswith("lightgbm-")
+
 
 def test_lightgbm_routes_intermittent_history_to_specialized_adapter() -> None:
     adapter = LightGBMAdapter(intermittent_zero_fraction=0.8)
