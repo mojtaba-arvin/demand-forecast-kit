@@ -98,7 +98,6 @@ def test_mint_rejects_bad_residuals_and_requires_fit() -> None:
         reconciler.fit(((1, 2), (2, 3)))
 
 
-
 def test_prequential_reconciliation_never_uses_current_origin_residual() -> None:
     from demand_forecast_kit.reconciliation import prequential_reconcile
 
