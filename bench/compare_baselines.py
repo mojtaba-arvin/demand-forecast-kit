@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 from pathlib import Path
 from typing import Any
 
@@ -16,17 +17,28 @@ _WORKLOAD_IDENTITY_FIELDS = {
 }
 
 
+def _measurement(value: Any, *, name: str, metric: str, allow_zero: bool) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"invalid {metric} measurement for {name}")
+    numeric = float(value)
+    if not math.isfinite(numeric) or numeric < 0.0 or (numeric == 0.0 and not allow_zero):
+        raise ValueError(f"invalid {metric} measurement for {name}")
+    return numeric
+
+
 def compare(
     current: dict[str, Any], baseline: dict[str, Any], tolerance: float = 0.05
 ) -> dict[str, Any]:
-    if not 0.0 <= tolerance < 1.0:
-        raise ValueError("tolerance must be in [0, 1)")
+    if not math.isfinite(tolerance) or not 0.0 <= tolerance < 1.0:
+        raise ValueError("tolerance must be finite and in [0, 1)")
     if current.get("environment") != baseline.get("environment"):
         raise ValueError("benchmark environments differ; comparison is not valid")
     if current.get("profile") != baseline.get("profile"):
         raise ValueError("benchmark profiles differ; comparison is not valid")
-    if baseline.get("baseline_type") == "calibrated-performance-baseline":
-        if baseline.get("sample_count", 0) < 10:
+    calibrated = baseline.get("baseline_type") == "calibrated-performance-baseline"
+    if calibrated:
+        sample_count = baseline.get("sample_count")
+        if isinstance(sample_count, bool) or not isinstance(sample_count, int) or sample_count < 10:
             raise ValueError("calibrated baseline must contain at least 10 independent runs")
         for field in ("workload_sha256", "seed"):
             if current.get(field) != baseline.get(field):
@@ -49,12 +61,17 @@ def compare(
             if current_workload[field] != baseline_workload[field]:
                 raise ValueError(f"benchmark workload {name} differs at {field}")
         metric = "peak_rss_bytes" if name == "streaming_scan_memory" else "median_seconds"
-        current_value = float(current_workload[metric])
-        baseline_value = float(baseline_workload[metric])
-        if baseline_value <= 0.0 or current_value < 0.0:
-            raise ValueError(f"invalid benchmark measurement for {name}")
-        workload_tolerance = float(baseline_workload.get("calibrated_tolerance", tolerance))
-        if not 0.0 <= workload_tolerance < 1.0:
+        current_value = _measurement(
+            current_workload.get(metric), name=name, metric=metric, allow_zero=True
+        )
+        baseline_value = _measurement(
+            baseline_workload.get(metric), name=name, metric=metric, allow_zero=False
+        )
+        raw_tolerance = baseline_workload.get("calibrated_tolerance") if calibrated else tolerance
+        if isinstance(raw_tolerance, bool) or not isinstance(raw_tolerance, (int, float)):
+            raise ValueError(f"invalid calibrated tolerance for {name}")
+        workload_tolerance = float(raw_tolerance)
+        if not math.isfinite(workload_tolerance) or not 0.0 <= workload_tolerance < 1.0:
             raise ValueError(f"invalid calibrated tolerance for {name}")
         change = current_value / baseline_value - 1.0
         regressed = change > workload_tolerance
@@ -88,7 +105,7 @@ def main() -> None:
         json.loads(args.baseline.read_text(encoding="utf-8")),
         args.tolerance,
     )
-    print(json.dumps(result, sort_keys=True, indent=2))
+    print(json.dumps(result, sort_keys=True, indent=2, allow_nan=False))
     if result["regressions"]:
         raise SystemExit(1)
 
