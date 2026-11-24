@@ -43,6 +43,17 @@ def calibrate(
     if len(set(execution_ids)) != len(execution_ids):
         raise ValueError("artifacts must have distinct execution_id values")
 
+    workflow_run_ids = [
+        item.get("execution", {}).get("workflow_run_id")
+        if isinstance(item.get("execution"), dict)
+        else None
+        for item in artifacts
+    ]
+    if any(not isinstance(value, str) or not value.isdecimal() for value in workflow_run_ids):
+        raise ValueError("every artifact must identify its GitHub Actions workflow_run_id")
+    if len(set(workflow_run_ids)) != len(workflow_run_ids):
+        raise ValueError("artifacts must come from distinct GitHub Actions workflow runs")
+
     first = artifacts[0]
     if first.get("schema_version") != 2 or first.get("profile") != "full":
         raise ValueError("calibration requires schema version 2 full-profile artifacts")
@@ -116,6 +127,7 @@ def calibrate(
         "calibrated_at": datetime.now(UTC).isoformat(),
         "sample_count": len(artifacts),
         "execution_ids": execution_ids,
+        "workflow_run_ids": workflow_run_ids,
         "source_revision": source_revision,
         "workload_sha256": workload_sha256,
         "profile": "full",
