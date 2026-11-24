@@ -316,3 +316,20 @@ and 63.75%; the quantile intervals are under-covering and must not be treated as
 calibrated inventory-risk bounds. The calibration/holdout experiment remains necessary
 before using these forecasts for service-level decisions. The run is recorded at
 [GitHub Actions run 45374212843](https://github.com/mojtaba-arvin/demand-forecast-kit/actions/runs/45374212843).
+
+
+## Per-SKU temporal holdout diagnostics
+
+The temporal-scale experiment now includes a `per_series_holdout` entry for
+each SKU in every evaluated cohort/model/lead-time slice. Each entry reports
+the three untouched holdout observations separately for the unadjusted
+baseline, calibration-fitted width scaling, and calibration-fitted
+median-bias-plus-width adjustment. The slice-level metrics remain available
+and are computed over the pooled holdout observations.
+
+This additional breakdown is diagnostic, not another tuning stage: fitted
+parameters are still selected only from the earlier calibration block and
+remain identical across SKUs in the same cohort/model/lead-time slice. The
+per-SKU sample is only three holdout origins, so these metrics expose
+heterogeneity but are not reliable standalone estimates of SKU-level service
+levels or statistical significance. No adjustment is enabled by default.
