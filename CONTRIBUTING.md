@@ -4,12 +4,13 @@ Contributions are welcome. The project is early-stage, so architectural consiste
 
 ## Required workflow
 
-1. Open or update a specification in \`docs/specs/\` before implementation. It must state user-visible behavior, non-goals, acceptance tests, and any benchmark requirement.
-2. Implement on a dedicated branch. Keep changes focused and avoid unrelated formatting churn.
-3. Run formatting, lint, strict type checking, tests, and any required local benchmark.
-4. Request an independent review. A PR author must not present their own review as independent approval.
-5. Link CI artifacts for all performance or accuracy claims. Do not copy locally observed numbers into README claims.
-6. Update the changelog when behavior or public interfaces change.
+1. Use a GitHub Issue as the execution specification. Record scope, non-goals, dependencies, executable acceptance criteria, and required evidence there; link an existing spec or ADR only when it directly governs the change.
+2. Do not create new specs, ADRs, status reports, or other documentation files for routine implementation work. Update an existing user-facing document only when a public contract, supported workflow, or operational requirement materially changes and cannot be understood from code, tests, and the Issue/PR.
+3. Implement on a dedicated branch. Split independent work into separate Issues/branches, record dependencies explicitly, and progress on unrelated work while other CI runs are pending.
+4. Run formatting, lint, strict type checking, tests, and any required local benchmark. CI is the source of truth for claimed results.
+5. Request an independent review. A PR author must not present their own review as independent approval.
+6. Link CI artifacts for all performance or accuracy claims. Do not copy locally observed numbers into README claims.
+7. Update the changelog when behavior or public interfaces change.
 
 ## Commands
 
