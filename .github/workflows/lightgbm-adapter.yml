@@ -39,3 +39,5 @@ jobs:
       - run: ruff format --check src/demand_forecast_kit/models tests/test_optional_models.py
       - run: pyright
       - run: pytest tests/test_optional_models.py
+      - run: pip-audit --skip-editable
+      - run: reuse lint
