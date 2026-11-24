@@ -136,7 +136,7 @@ def test_replenishment_endpoint_records_immutable_decision(client: TestClient) -
             "decision_key": "sku-decision:2026-01-01",
             "created_at": retrieved.json()["decisions"][0]["created_at"],
             "decision": {
-                "quantity": 30.0,
+                "quantity": 28,
                 "target_stock_level": 40.0,
                 "inventory_position": 12.0,
                 "target_service_level": 0.9,
