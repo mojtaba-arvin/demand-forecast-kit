@@ -237,6 +237,13 @@ def run(profile: str, output: Path, repeats: int) -> dict[str, Any]:
             "seed": seed,
             "workload_sha256": workload_sha256,
             "source_revision": os.environ.get("GITHUB_SHA"),
+            "execution": {
+                "workflow_run_id": os.environ.get("GITHUB_RUN_ID"),
+                "workflow_run_attempt": os.environ.get("GITHUB_RUN_ATTEMPT"),
+                "workflow": os.environ.get("GITHUB_WORKFLOW"),
+                "event": os.environ.get("GITHUB_EVENT_NAME"),
+                "ref": os.environ.get("GITHUB_REF"),
+            },
             "environment": _environment_metadata(),
             "workloads": {
                 "cli_cold_start": {
