@@ -150,7 +150,11 @@ def test_lightgbm_uses_only_aligned_future_known_covariates(
         )
     with pytest.raises(ValueError, match="align with horizon"):
         adapter.predict_with_covariates(
-            "sku", history, horizon=2, quantile_levels=(0.5,), seed=1,
+            "sku",
+            history,
+            horizon=2,
+            quantile_levels=(0.5,),
+            seed=1,
             historical_covariates={"price": [10.0] * len(history)},
             future_known_covariates={"price": [9.0]},
         )
