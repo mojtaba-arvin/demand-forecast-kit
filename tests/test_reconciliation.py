@@ -100,3 +100,39 @@ def test_mint_rejects_bad_residuals_and_requires_fit() -> None:
         reconciler.fit(((1, 2, 3),))
     with pytest.raises(ValueError, match="one value per hierarchy node"):
         reconciler.fit(((1, 2), (2, 3)))
+
+
+
+def test_prequential_reconciliation_never_uses_current_origin_residual() -> None:
+    from demand_forecast_kit.reconciliation import prequential_reconcile
+
+    residuals = (
+        (1.0, 0.0, 0.0),
+        (-1.0, 0.0, 0.0),
+        (0.0, 1.0, -1.0),
+        (0.0, -1.0, 1.0),
+    )
+    samples = (
+        ((10.0, 4.0, 8.0),),
+        ((10.0, 4.0, 8.0),),
+        ((10.0, 4.0, 8.0),),
+        ((10.0, 4.0, 8.0),),
+    )
+    kwargs = {
+        "node_ids": ("total", "a", "b"),
+        "bottom_ids": ("a", "b"),
+        "summing_matrix": ((1, 1), (1, 0), (0, 1)),
+        "shrinkage": 1.0,
+    }
+    first = prequential_reconcile(
+        **kwargs, residuals_by_origin=residuals, base_samples_by_origin=samples
+    )
+    changed_current = (residuals[0], residuals[1], (1000.0, -500.0, 700.0), residuals[3])
+    second = prequential_reconcile(
+        **kwargs, residuals_by_origin=changed_current, base_samples_by_origin=samples
+    )
+    assert first[0].origin_index == 2
+    assert first[0].residual_count == 2
+    assert first[0].samples == second[0].samples
+    assert first[1].residual_count == 3
+    assert first[1].samples != second[1].samples
