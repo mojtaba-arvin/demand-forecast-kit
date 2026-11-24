@@ -183,3 +183,17 @@ def test_lightgbm_adapter_runs_real_optional_backend() -> None:
         assert values == sorted(values)
         assert all(value >= 0.0 for value in values)
     assert adapter.model_version.startswith("lightgbm-")
+
+
+
+def test_lightgbm_routes_intermittent_history_to_specialized_adapter() -> None:
+    adapter = LightGBMAdapter(intermittent_zero_fraction=0.8)
+    history = [0.0] * 45 + [2.0, 1.0, 3.0, 0.0, 0.0]
+    with pytest.raises(ValueError, match="route this series to an intermittent-demand adapter"):
+        adapter.predict(
+            "intermittent-sku",
+            history,
+            horizon=7,
+            quantile_levels=(0.1, 0.5, 0.9),
+            seed=42,
+        )
