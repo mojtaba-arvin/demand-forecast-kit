@@ -223,6 +223,7 @@ def test_lightgbm_routes_intermittent_history_to_specialized_adapter() -> None:
             seed=42,
         )
 
+
 def test_chronos_validates_request_arguments_before_inference() -> None:
     adapter = Chronos2Adapter(pipeline=FakeChronosPipeline([[[1.0, 2.0, 3.0]]]))
     with pytest.raises(ValueError, match="series_id"):
