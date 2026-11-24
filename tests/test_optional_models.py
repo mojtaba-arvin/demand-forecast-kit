@@ -96,7 +96,9 @@ class FakeLightGBM:
     Dataset = FakeDataset
 
     @staticmethod
-    def train(params: dict[str, object], dataset: FakeDataset, *, num_boost_round: int) -> FakeBooster:
+    def train(
+        params: dict[str, object], dataset: FakeDataset, *, num_boost_round: int
+    ) -> FakeBooster:
         assert params["objective"] == "quantile"
         assert params["num_threads"] == 1
         assert num_boost_round > 0
