@@ -12,7 +12,13 @@ def make_artifact(index: int, *, seconds: float = 1.0) -> dict[str, object]:
     return {
         "schema_version": 2,
         "execution_id": f"run-{index}",
-        "execution": {"workflow_run_id": str(1000 + index), "workflow_run_attempt": "1"},
+        "execution": {
+            "workflow_run_id": str(1000 + index),
+            "workflow_run_attempt": "1",
+            "workflow": "Reproducible performance benchmarks",
+            "event": "workflow_dispatch",
+            "ref": "refs/heads/integration/parallel-workstreams",
+        },
         "profile": "full",
         "source_revision": "a" * 40,
         "workload_sha256": "workload-hash",
@@ -133,4 +139,18 @@ def test_calibration_rejects_artifacts_without_workflow_run_provenance() -> None
     reports = [make_artifact(index) for index in range(10)]
     del reports[0]["execution"]  # type: ignore[misc]
     with pytest.raises(ValueError, match="workflow_run_id"):
+        calibrate(reports)
+
+
+def test_calibration_rejects_mixed_workflow_context() -> None:
+    reports = [make_artifact(index) for index in range(10)]
+    reports[1]["execution"]["ref"] = "refs/heads/other"  # type: ignore[index]
+    with pytest.raises(ValueError, match="same GitHub Actions ref"):
+        calibrate(reports)
+
+
+def test_calibration_requires_manual_workflow_dispatch() -> None:
+    reports = [make_artifact(index) for index in range(10)]
+    reports[0]["execution"]["event"] = "pull_request"  # type: ignore[index]
+    with pytest.raises(ValueError, match="manual workflow_dispatch"):
         calibrate(reports)
