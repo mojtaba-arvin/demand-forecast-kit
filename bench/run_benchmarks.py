@@ -71,7 +71,14 @@ import polars as pl
 from demand_forecast_kit.data import scan_history
 count = scan_history(sys.argv[1]).select(pl.len()).collect(engine="streaming").item()
 rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-print(json.dumps({"row_count": int(count), "peak_rss_bytes": int(rss if platform.system() == "Darwin" else rss * 1024)}))
+print(
+    json.dumps(
+        {
+            "row_count": int(count),
+            "peak_rss_bytes": int(rss if platform.system() == "Darwin" else rss * 1024),
+        }
+    )
+)
 """
     completed = subprocess.run(
         [sys.executable, "-c", child, str(path)],
