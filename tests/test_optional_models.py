@@ -154,3 +154,32 @@ def test_lightgbm_validates_feature_history_before_loading_optional_dependency()
         LightGBMAdapter().predict(
             "sku", [1, 2, 3], horizon=1, quantile_levels=(0.5,), seed=1,
         )
+
+
+
+def test_lightgbm_adapter_runs_real_optional_backend() -> None:
+    pytest.importorskip("lightgbm")
+    adapter = LightGBMAdapter(
+        lags=(1, 2, 3),
+        rolling_windows=(2, 3),
+        num_boost_round=10,
+        num_leaves=7,
+        min_data_in_leaf=2,
+    )
+    history = [float((index * 3) % 11) for index in range(50)]
+    result = adapter.predict_with_covariates(
+        "sku-real-lightgbm",
+        history,
+        horizon=3,
+        quantile_levels=(0.1, 0.5, 0.9),
+        seed=42,
+        historical_covariates={"planned_price": [10.0 + index / 10 for index in range(50)]},
+        future_known_covariates={"planned_price": (15.1, 15.2, 15.3)},
+    )
+    assert result.horizon == 3
+    assert tuple(result.quantiles) == (0.1, 0.5, 0.9)
+    for step in range(result.horizon):
+        values = [result.quantiles[level][step] for level in (0.1, 0.5, 0.9)]
+        assert values == sorted(values)
+        assert all(value >= 0.0 for value in values)
+    assert adapter.model_version.startswith("lightgbm-")
