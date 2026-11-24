@@ -52,6 +52,8 @@ def test_cli_writes_tabular_forecast_formats(tmp_path, output_format: str) -> No
         "horizon_step",
         "quantile",
         "forecast",
+        "run_id",
+        "artifact_sha256",
     }
     assert frame.height == 9
 
