@@ -12,6 +12,7 @@ def make_artifact(index: int, *, seconds: float = 1.0) -> dict[str, object]:
     return {
         "schema_version": 2,
         "execution_id": f"run-{index}",
+        "execution": {"workflow_run_id": str(1000 + index), "workflow_run_attempt": "1"},
         "profile": "full",
         "source_revision": "a" * 40,
         "workload_sha256": "workload-hash",
@@ -119,3 +120,17 @@ def test_comparator_allows_new_source_revision_against_calibrated_baseline() -> 
     result = compare(current, baseline)
     assert result["current_source_revision"] == "b" * 40
     assert result["baseline_source_revision"] == "a" * 40
+
+
+def test_calibration_requires_distinct_github_workflow_runs() -> None:
+    reports = [make_artifact(index) for index in range(10)]
+    reports[1]["execution"]["workflow_run_id"] = reports[0]["execution"]["workflow_run_id"]  # type: ignore[index]
+    with pytest.raises(ValueError, match="distinct GitHub Actions workflow runs"):
+        calibrate(reports)
+
+
+def test_calibration_rejects_artifacts_without_workflow_run_provenance() -> None:
+    reports = [make_artifact(index) for index in range(10)]
+    del reports[0]["execution"]  # type: ignore[misc]
+    with pytest.raises(ValueError, match="workflow_run_id"):
+        calibrate(reports)
