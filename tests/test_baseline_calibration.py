@@ -98,3 +98,14 @@ def test_calibration_rejects_invalid_measurements() -> None:
     reports[0]["workloads"]["cli_cold_start"]["median_seconds"] = float("nan")  # type: ignore[index]
     with pytest.raises(ValueError, match="non-positive or non-finite"):
         calibrate(reports)
+
+
+
+def test_comparator_rejects_calibrated_baseline_provenance_mismatch() -> None:
+    current = make_artifact(101)
+    baseline = make_artifact(100)
+    baseline["baseline_type"] = "calibrated-performance-baseline"
+    baseline["sample_count"] = 10
+    baseline["workload_sha256"] = "expected-workload"
+    with pytest.raises(ValueError, match="workload_sha256 differs"):
+        compare(current, baseline)
