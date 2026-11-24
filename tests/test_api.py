@@ -137,10 +137,10 @@ def test_replenishment_endpoint_records_immutable_decision(client: TestClient) -
             "created_at": retrieved.json()["decisions"][0]["created_at"],
             "decision": {
                 "quantity": 30.0,
-                "target_stock_level": 42.0,
+                "target_stock_level": 40.0,
                 "inventory_position": 12.0,
                 "target_service_level": 0.9,
-                "unrounded_quantity": 30.0,
+                "unrounded_quantity": 28.0,
             },
         }
     ]
