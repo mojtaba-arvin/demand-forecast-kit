@@ -22,6 +22,7 @@ Demand Forecast Kit is an open-source library and API for turning sales and inve
 - Represent horizon-aligned, monotone quantile forecasts.
 - Run a deterministic seasonal-naive reference adapter without scientific-model dependencies.
 - Run optional StatsForecast-backed AutoETS, AutoARIMA, and Theta adapters for dense demand.
+- Run optional LightGBM recursive quantile forecasts with explicit future-known covariates, plus a revision-pinned Chronos-2 zero-shot adapter with offline-first weight loading.
 - Run CrostonClassic, CrostonOptimized, CrostonSBA, and TSB adapters for intermittent demand, with conformal prediction intervals.
 - Convert a supplied lead-time demand quantile curve and inventory position into a pack-size-aware newsvendor order quantity.
 - Generate deterministic synthetic daily demand for tests and examples.
@@ -54,7 +55,15 @@ python evals/run_uci_online_retail_benchmark.py "/path/to/Online Retail.xlsx"
 
 The runner constructs complete daily SKU histories, excludes cancellation invoices and non-positive quantities (returns), freezes deterministic dense/intermittent/very-intermittent cohorts using only the initial 180-day training window, and compares Seasonal Naive, Croston SBA, and TSB with prequential lead-time calibration for 7- and 14-day lead times. It writes a provenance-rich JSON report under `artifacts/`. See [the benchmark protocol](docs/benchmarks/uci-online-retail.md) for preprocessing, evaluation settings, and real-data results.
 
-Not implemented yet: online model learning, automatic retraining, foundation-model adapters, formal hierarchical forecast reconciliation, distributed registry/telemetry services, native Rust acceleration, production-scale SLO validation, and generalized accuracy or inventory-savings claims.
+Not implemented yet: online model learning, automatic retraining, formal hierarchical forecast reconciliation, distributed registry/telemetry services, native Rust acceleration, production-scale SLO validation, and generalized accuracy or inventory-savings claims.
+
+## Optional machine-learning adapters
+
+Install LightGBM separately with `python -m pip install -e ".[lightgbm]"`. Its quantile adapter trains one-step quantile models and recursively forecasts the requested horizon. External covariates are accepted only when historical values are paired with values genuinely known for every future step; past-only covariates are rejected rather than carried forward.
+
+Install Chronos-2 separately with `python -m pip install -e ".[chronos]"`. The adapter is pinned to the reviewed Amazon model revision and its Apache-2.0 model-card license. It uses CPU by default and only loads weights already present in the local Hugging Face cache. Set `allow_download=True` explicitly when a model download is intended. No model weights are downloaded by CI.
+
+These optional adapters implement the same marginal-quantile protocol. Their accuracy and operating cost must be evaluated on the target dataset before deployment; no general superiority claim is made.
 
 ## Statistical adapters
 
