@@ -18,7 +18,7 @@ def _load_lightgbm() -> tuple[Any, Any]:
         return lightgbm, numpy
     except ImportError as exc:
         raise ImportError(
-            'LightGBMAdapter requires the optional dependency. Install it with: '
+            "LightGBMAdapter requires the optional dependency. Install it with: "
             'pip install "demand-forecast-kit[lightgbm]"'
         ) from exc
 
@@ -58,10 +58,7 @@ class LightGBMAdapter:
         ):
             if type(value) is not int or value < 1:
                 raise ValueError(f"{name} must be a positive integer")
-        if (
-            not isfinite(intermittent_zero_fraction)
-            or not 0.0 < intermittent_zero_fraction < 1.0
-        ):
+        if not isfinite(intermittent_zero_fraction) or not 0.0 < intermittent_zero_fraction < 1.0:
             raise ValueError("intermittent_zero_fraction must be finite and in (0, 1)")
         self.num_boost_round = num_boost_round
         self.num_leaves = num_leaves
@@ -216,8 +213,7 @@ class LightGBMAdapter:
 
         # Quantile regression models can cross; rearrangement restores the public contract.
         ordered_by_step = [
-            tuple(sorted(forecasts[level][step] for level in levels))
-            for step in range(horizon)
+            tuple(sorted(forecasts[level][step] for level in levels)) for step in range(horizon)
         ]
         ordered_forecasts = {
             level: tuple(ordered_by_step[step][index] for step in range(horizon))
