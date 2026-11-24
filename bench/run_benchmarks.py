@@ -7,7 +7,6 @@ import hashlib
 import json
 import os
 import platform
-import resource
 import statistics
 import subprocess
 import sys
@@ -23,11 +22,6 @@ from demand_forecast_kit.data import scan_history, validate_history
 from demand_forecast_kit.models.seasonal_naive import SeasonalNaiveAdapter
 from demand_forecast_kit.run_service import RunService
 from demand_forecast_kit.api import create_app
-
-
-def _rss_bytes() -> int:
-    value = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-    return int(value if platform.system() == "Darwin" else value * 1024)
 
 
 def _measure(operation: Any, repeats: int) -> dict[str, Any]:
@@ -107,12 +101,21 @@ def _api_health(requests: int, state_dir: Path) -> dict[str, Any]:
     app = create_app(RunService(state_dir))
     with TestClient(app) as client:
         latencies: list[float] = []
-        for _ in range(requests):
+        history = [float((index * 7) % 13) for index in range(56)]
+        for index in range(requests):
             started = time.perf_counter()
-            response = client.get("/health")
+            response = client.post(
+                "/v1/forecasts",
+                json={
+                    "series_id": f"api-bench-{index}",
+                    "history": history,
+                    "horizon": 7,
+                    "season_length": 7,
+                },
+            )
             latencies.append(time.perf_counter() - started)
             if response.status_code != 200:
-                raise RuntimeError(f"health endpoint returned {response.status_code}")
+                raise RuntimeError(f"forecast endpoint returned {response.status_code}")
     ordered = sorted(latencies)
     p95 = ordered[min(len(ordered) - 1, int(0.95 * len(ordered)))]
     return {
@@ -202,7 +205,7 @@ def run(profile: str, output: Path, repeats: int) -> dict[str, Any]:
                     "adapter": "seasonal-naive",
                     "series_per_second": series_count / series_result["median_seconds"],
                 },
-                "api_health_latency": api_result,
+                "api_forecast_latency": api_result,
                 "streaming_scan_memory": {
                     "peak_rss_bytes": memory_result["peak_rss_bytes"],
                     "row_count": memory_result["row_count"],
