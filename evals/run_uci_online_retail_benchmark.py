@@ -15,6 +15,7 @@ import polars as pl
 
 from demand_forecast_kit.backtesting import BacktestConfig, run_backtest
 from demand_forecast_kit.lead_time import backtest_lead_time_calibration
+from demand_forecast_kit.models.lightgbm import LightGBMAdapter
 from demand_forecast_kit.models.seasonal_naive import SeasonalNaiveAdapter
 from demand_forecast_kit.models.statistical import CrostonAdapter, TSBAdapter
 from demand_forecast_kit.retail_benchmark import (
@@ -285,7 +286,7 @@ def run_benchmark(
         max_skus_per_cohort=max_skus_per_cohort,
         cohort_window_days=INITIAL_TRAIN_SIZE,
     )
-    adapters = [
+    statistical_adapters = [
         SeasonalNaiveAdapter(season_length=7),
         CrostonAdapter(variant="sba", conformal_windows=2),
         TSBAdapter(conformal_windows=2),
@@ -308,6 +309,12 @@ def run_benchmark(
         cohort_panel = panel.filter(pl.col("cohort") == cohort).drop("cohort")
         if cohort_panel.is_empty():
             continue
+        # LightGBM is evaluated on the dense cohort only. Its adapter deliberately
+        # rejects highly intermittent histories; those series remain covered by
+        # Croston/TSB rather than being silently dropped from the benchmark.
+        adapters = list(statistical_adapters)
+        if cohort == "dense":
+            adapters.append(LightGBMAdapter(num_boost_round=100))
         for adapter in adapters:
             try:
                 report = run_backtest(cohort_panel, [adapter], config)
