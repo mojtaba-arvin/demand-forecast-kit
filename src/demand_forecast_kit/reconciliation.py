@@ -33,7 +33,9 @@ class MinTReconciler:
     summing_matrix: tuple[tuple[float, ...], ...]
     shrinkage: float = 0.2
     ridge: float = 1e-8
-    _weight_covariance: tuple[tuple[float, ...], ...] | None = field(default=None, init=False, repr=False, compare=False)
+    _weight_covariance: tuple[tuple[float, ...], ...] | None = field(
+        default=None, init=False, repr=False, compare=False
+    )
 
     def __post_init__(self) -> None:
         nodes = tuple(self.node_ids)
@@ -81,7 +83,8 @@ class MinTReconciler:
             raise ValueError(f"missing hierarchy metadata columns: {', '.join(missing)}")
         metadata: dict[str, tuple[str, ...]] = {}
         levels: dict[str, str] = {}
-        for row in frame.select("series_id", "parent_series_ids", "hierarchy_level").iter_rows(named=True):
+        selected = frame.select("series_id", "parent_series_ids", "hierarchy_level")
+        for row in selected.iter_rows(named=True):
             node_id = str(row["series_id"])
             parents = tuple(str(value) for value in (row["parent_series_ids"] or ()))
             level = str(row["hierarchy_level"])
@@ -90,7 +93,9 @@ class MinTReconciler:
                 raise ValueError(f"inconsistent hierarchy metadata for node {node_id!r}")
             metadata[node_id] = parents
             levels[node_id] = level
-        bottom_ids = tuple(sorted(node for node, level in levels.items() if level == "sku-location"))
+        bottom_ids = tuple(
+            sorted(node for node, level in levels.items() if level == "sku-location")
+        )
         node_ids = tuple(sorted(metadata))
         if not bottom_ids:
             raise ValueError("hierarchy history contains no sku-location bottom series")
@@ -141,7 +146,9 @@ class MinTReconciler:
         object.__setattr__(self, "_weight_covariance", regularized)
         return self
 
-    def reconcile_samples(self, base_samples: Sequence[Sequence[float]]) -> tuple[tuple[float, ...], ...]:
+    def reconcile_samples(
+        self, base_samples: Sequence[Sequence[float]]
+    ) -> tuple[tuple[float, ...], ...]:
         """Reconcile aligned samples; each row contains one forecast per node."""
         if self._weight_covariance is None:
             raise RuntimeError("fit must be called with historical residuals before reconciliation")
@@ -199,7 +206,10 @@ class MinTReconciler:
             raise ValueError("quantile_levels must be non-empty and unique")
         if any(not isfinite(level) or not 0.0 < level < 1.0 for level in levels):
             raise ValueError("quantile levels must be finite and strictly between 0 and 1")
-        paths = tuple(tuple(tuple(float(value) for value in step) for step in path) for path in base_samples)
+        paths = tuple(
+            tuple(tuple(float(value) for value in step) for step in path)
+            for path in base_samples
+        )
         if not paths or not paths[0]:
             raise ValueError("base_samples must contain at least one non-empty path")
         horizon = len(paths[0])
