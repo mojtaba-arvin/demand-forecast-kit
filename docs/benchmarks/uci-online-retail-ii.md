@@ -109,3 +109,24 @@ The real-data run completed successfully on the same preprocessing and model con
 | Very-intermittent | TSB | **1.488** | 12.313 | **0.605** | 79.7% |
 
 TSB has the lowest MASE and mean pinball loss in every cohort; Croston SBA has the lowest WQL for very-intermittent demand. Dense Croston SBA/TSB central-80% coverage is only 63.9%, so those uncalibrated intervals are not suitable as inventory protection bounds. This expanded dataset is from the same retailer, not independent-retailer evidence.
+
+## Verified lead-time calibration run — 25 November 2026
+
+- Workflow run: [45633743983](https://github.com/mojtaba-arvin/demand-forecast-kit/actions/runs/45633743983)
+- Report artifact: `uci-online-retail-ii-benchmark`, artifact ID `15033220802`
+- Source workbook SHA-256: `bcbe73b35f5b7babf197fb0cb983a11f5d9ff929078d4aa53d171b1f2df2e980`
+- 739 calendar days, 60 selected SKUs (20 per cohort), 68 prequential origins per SKU.
+- 360 per-SKU/model/lead-time calibration diagnostics (7 and 14 days); zero skipped diagnostics.
+
+Across the model/lead-time macro summaries, cumulative P80 coverage was:
+
+| Demand cohort | Macro P80 coverage range | Lowest individual-SKU coverage |
+|---|---:|---:|
+| Dense | 55.0%–74.1% | 39.7% |
+| Intermittent | 71.5%–81.8% | 36.8% |
+| Very-intermittent | 77.3%–83.4% | 41.2% |
+
+The per-SKU minima are materially weaker than the cohort means. Dense demand remains under-covered across all evaluated models and both lead times; some intermittent SKUs also have severe under-coverage. The evidence therefore does not support a global calibration correction or a production inventory-protection claim. Keep the correction disabled and validate on an independent retailer plus an untouched chronological inventory-policy holdout.
+
+The benchmark run was performed on the calibration implementation before a subsequent formatting-only commit; the merged code changes no benchmark logic. The run is evidence for the evaluated revision, not a substitute for independent-retailer validation.
+
