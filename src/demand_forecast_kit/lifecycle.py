@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Any
@@ -132,6 +133,8 @@ class ModelLifecycle:
                 raise ValueError("retraining must return a new model version")
             if result.sample_count < 1:
                 raise ValueError("trainer must provide at least one validation sample")
+            if not math.isfinite(result.baseline_mae) or result.baseline_mae < 0:
+                raise ValueError("baseline_mae must be finite and non-negative")
         except Exception:
             self.store.finish_retraining(
                 tenant_id,
