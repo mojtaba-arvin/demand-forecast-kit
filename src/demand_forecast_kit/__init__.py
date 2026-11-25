@@ -33,6 +33,11 @@ from demand_forecast_kit.metrics import (
     pinball_loss,
     weighted_quantile_loss,
 )
+from demand_forecast_kit.model_registry import (
+    ModelActivation,
+    ModelArtifactRecord,
+    ModelArtifactRegistry,
+)
 from demand_forecast_kit.models import (
     AutoARIMAAdapter,
     AutoETSAdapter,
@@ -65,6 +70,9 @@ __all__ = [
     "InventoryScenario",
     "LeadTimeCalibrationBacktest",
     "LeadTimeDemandDistribution",
+    "ModelActivation",
+    "ModelArtifactRecord",
+    "ModelArtifactRegistry",
     "ModelRouter",
     "ModelSummary",
     "OrderRecommendation",
