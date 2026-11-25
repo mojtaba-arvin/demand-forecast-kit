@@ -1,7 +1,7 @@
 # Project roadmap and milestone status
 
 **Status date:** 2026-11-25  
-**Status baseline:** main after PR #54, commit \`ac32fc4e0d56689fa2b87d33c16094f9302ccf86\`
+**Status baseline:** main after PR #67, commit \`9cc351bdd4c93bf153387cfb276df95911315c57\`
 
 This document records implementation boundaries and the next engineering priorities.
 A feature is not considered production-ready merely because its unit tests pass.
@@ -45,7 +45,7 @@ See [versioned replenishment policies](policy-lifecycle.md) for validation, acti
 - PR #53: bounded ERPNext retries.
 - PR #54: persistent model artifacts, evaluation digests, explicit activation/rollback, and immutable activation history.
 - PR #62: active model artifact resolution in the operational worker and tenant-scoped versioned replenishment policy lifecycle.
-- PR #66 (current delivery): incremental ERPNext sync with per-resource watermarks, overlap replay, invoice correction/cancellation reconciliation, and purchase-order cancellation.
+- PR #67: incremental ERPNext sync with per-resource watermarks, overlap replay, invoice correction/cancellation reconciliation, and purchase-order cancellation.
 
 PR #54 merged as \`ac32fc4e0d56689fa2b87d33c16094f9302ccf86\`. Its PR CI and Release Candidate passed, including 398 tests, 92.18% coverage, strict Pyright, Python 3.13/3.14 compatibility, dependency audit, REUSE, wheel build/install, and source-distribution build/install.
 
