@@ -15,8 +15,8 @@ A feature is not considered production-ready merely because its unit tests pass.
 | Model selection and version routing | Implemented | Per-SKU out-of-sample ranking, minimum evidence, strict forecast-origin checks, exact (model_id, model_version) adapter resolution, and explicit fallback. |
 | Operational API and local persistence | Alpha / single-host | Tenant-scoped API, SQLite operational store, durable scheduler, lease fencing, model-health monitoring, and retraining queue. SQLite is not a multi-host database or SaaS control plane. |
 | ERPNext integration | Partial | Read-only Frappe connector with pagination and bounded retries for transient failures. Sync is still a full scan; per-resource watermarks, incremental import, cancellation/correction reconciliation, and deletion handling are not implemented. |
-| Model lifecycle and artifact persistence | Partial | Monitoring, retraining queue, stale-claim fencing, atomic baseline completion, and a content-addressed persistent ModelArtifactRegistry with explicit activation/rollback are implemented. The registry is not yet wired into OperationalWorker adapter loading. No built-in model-specific trainer is assumed. |
-| Replenishment policy lifecycle | Partial | Realized policy outcomes and evidence-based ranking exist. Persisted policy definitions/versions, active-policy state, explicit activation, and rollback are not implemented. |
+| Model lifecycle and artifact persistence | Partial | Monitoring, retraining queue, stale-claim fencing, atomic baseline completion, and a content-addressed persistent ModelArtifactRegistry with explicit activation/rollback are implemented. OperationalWorker supports opt-in exact-active-version resolution through explicitly registered media-type loaders; the CLI does not dynamically import plugins. No built-in model-specific trainer is assumed. |
+| Replenishment policy lifecycle | Implemented, opt-in single-host control plane | Tenant-scoped immutable Newsvendor definitions, SHA-256 identity, CAS activation, explicit rollback, append-only history, and worker enforcement/audit are implemented. Policy ranking remains advisory; no automatic promotion. SQLite is single-host. |
 | Performance regression calibration | Blocked on reference hardware | Benchmark harness and environment-aware comparator exist. Issue #31 still requires at least 10 independent full-profile runs on one fixed Linux x64 self-hosted reference runner before a regression gate can be enabled. |
 
 ## Non-negotiable correctness boundaries
@@ -31,13 +31,11 @@ A feature is not considered production-ready merely because its unit tests pass.
 
 ## Next engineering priorities
 
-1. **Connect model artifacts to runtime loading.** Add explicit media-type loader registration, load only the activated exact model version, preserve the current fallback when loading fails, and test restart/reload/rollback behavior. Do not activate newly trained candidates automatically.
-2. **Version replenishment policies.** Persist immutable policy definitions and versions, validate cost/pack constraints, require compare-and-swap activation, and provide explicit rollback. Keep automatic policy tuning/activation disabled until independent outcome evidence supports it.
-3. **Implement ERPNext incremental synchronization.** Use per-tenant/warehouse/resource watermarks with an overlap window; replay changed invoices and purchase orders idempotently; recompute affected SKU/day demand when old documents are edited or cancelled; advance watermarks only after successful application. Preserve read-only credentials and behavior.
-4. **Close Issue #31 with real reference hardware.** Collect 10 independent full-profile workflow artifacts on the same fixed runner, characterize variance, then enable only a justified environment-matched regression gate. Do not substitute GitHub-hosted runners or one multi-repeat workflow for the required independent runs.
-5. **Extend empirical calibration evidence.** The UCI purged holdout already exists; next use a larger cohort or independent dataset and more non-overlapping origins, report per-SKU coverage/bias and inventory cost, and keep corrections disabled until the result replicates.
+1. **Implement ERPNext incremental synchronization.** Use per-tenant/warehouse/resource watermarks with an overlap window; replay changed invoices and purchase orders idempotently; recompute affected SKU/day demand when old documents are edited or cancelled; advance watermarks only after successful application. Preserve read-only credentials and behavior.
+2. **Close Issue #31 with real reference hardware.** Collect 10 independent full-profile workflow artifacts on the same fixed runner, characterize variance, then enable only a justified environment-matched regression gate. Do not substitute GitHub-hosted runners or one multi-repeat workflow for the required independent runs.
+3. **Extend empirical calibration evidence.** The UCI purged holdout already exists; next use a larger cohort or independent dataset and more non-overlapping origins, report per-SKU coverage/bias and inventory cost, and keep corrections disabled until the result replicates.
 
-See the [UCI benchmark and purged holdout report](benchmarks/uci-online-retail.md) for cohort-level coverage, SKU dispersion, baseline bias, and the width/bias adjustment trade-off.
+See [versioned replenishment policies](policy-lifecycle.md) for validation, activation, rollback, and worker enforcement. See the [UCI benchmark and purged holdout report](benchmarks/uci-online-retail.md) for cohort-level coverage, SKU dispersion, baseline bias, and the width/bias adjustment trade-off.
 
 ## Recent verified delivery
 
@@ -47,6 +45,7 @@ See the [UCI benchmark and purged holdout report](benchmarks/uci-online-retail.m
 - PR #52: scheduled-job lease fencing.
 - PR #53: bounded ERPNext retries.
 - PR #54: persistent model artifacts, evaluation digests, explicit activation/rollback, and immutable activation history.
+- PR #56 (current delivery): active model artifact resolution in the operational worker and tenant-scoped versioned replenishment policy lifecycle.
 
 PR #54 merged as \`ac32fc4e0d56689fa2b87d33c16094f9302ccf86\`. Its PR CI and Release Candidate passed, including 398 tests, 92.18% coverage, strict Pyright, Python 3.13/3.14 compatibility, dependency audit, REUSE, wheel build/install, and source-distribution build/install.
 

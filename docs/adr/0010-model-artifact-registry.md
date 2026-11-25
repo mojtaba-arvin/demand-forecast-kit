@@ -25,14 +25,24 @@ model artifact exists.
 - Append immutable activation/rollback events.
 - Never deserialize or execute stored bytes in the registry. Model-specific
   loaders remain an application responsibility.
-- Do not automatically activate a trained candidate or change the default
-  worker's adapter selection.
+- Do not automatically activate a trained candidate.
+- The operational worker may opt into the artifact registry and must resolve
+  non-baseline candidates against the exact active version.
+- Applications explicitly register reviewed loaders by media type; artifact
+  metadata never selects or imports executable code.
+- A missing active version, missing loader, digest/read failure, loader error, or
+  adapter identity mismatch falls back to seasonal-naive rather than serving an
+  unactivated or mismatched candidate.
+- Cache loaded adapters by immutable artifact digest; active-pointer changes
+  naturally select a different cache key for activation and rollback.
 
 ## Consequences
 
 The registry can recover model bytes, evidence, active version, and history
-after process restart on one host. File writes may leave unreferenced blobs if
-a later database operation fails; such blobs are safe and can be garbage
-collected by a future explicit maintenance tool. This does not provide
-distributed serving, multi-host activation, automatic canary rollout, or
-statistical validation of caller-supplied evidence.
+after process restart on one host. The worker integration remains opt-in and
+requires deployment code to construct the registry and register each reviewed
+media-type loader; the CLI does not dynamically import plugins. File writes may
+leave unreferenced blobs if a later database operation fails; such blobs are
+safe and can be garbage collected by a future explicit maintenance tool. This
+does not provide distributed serving, multi-host activation, automatic canary
+rollout, or statistical validation of caller-supplied evidence.
