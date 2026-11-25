@@ -270,4 +270,3 @@ def test_worker_routes_to_exact_selected_model_version_when_multiple_are_registe
     assert forecast["model_id"] == "shared-model"
     assert forecast["model_version"] == "v1"
     assert forecast["quantiles"]["0.5"] == [1.0, 1.0]
-
