@@ -1086,7 +1086,15 @@ class OperationalStore:
             if current is None:
                 raise ValueError("retraining claim is stale or no longer owned by this worker")
             if baseline_values is not None:
-                warehouse_id, sku_id, model_id, model_version, value, sample_count, created_at = baseline_values
+                (
+                    warehouse_id,
+                    sku_id,
+                    model_id,
+                    model_version,
+                    value,
+                    sample_count,
+                    created_at,
+                ) = baseline_values
                 if (warehouse_id, sku_id, model_id) != (
                     str(current["warehouse_id"]), str(current["sku_id"]), str(current["model_id"])
                 ):
