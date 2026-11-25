@@ -49,7 +49,12 @@ def main() -> None:
         page_size=args.page_size,
     )
     store = OperationalStore(args.database)
-    result = client.reconcile_warehouse(\n        store,\n        args.tenant_id,\n        args.warehouse_id,\n        allow_empty_snapshot=args.allow_empty_snapshot,\n    )
+    result = client.reconcile_warehouse(
+        store,
+        args.tenant_id,
+        args.warehouse_id,
+        allow_empty_snapshot=args.allow_empty_snapshot,
+    )
     print(json.dumps(result, sort_keys=True))
 
 
