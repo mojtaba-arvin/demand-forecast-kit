@@ -854,6 +854,34 @@ class OperationalStore:
                 reconciled += 1
         return reconciled
 
+    def get_erpnext_snapshot_counts(self, tenant_id: str, warehouse_id: str) -> dict[str, int]:
+        """Count previously imported ERPNext records by resource for empty-snapshot safeguards."""
+        tenant = self._tenant(tenant_id)
+        if not warehouse_id.strip():
+            raise ValueError("warehouse_id must not be blank")
+        with self._connect() as db:
+            bins = db.execute(
+                """SELECT COUNT(DISTINCT sku_id) AS count FROM inventory_snapshots
+                   WHERE tenant_id=? AND warehouse_id=? AND source='erpnext:Bin'""",
+                (tenant, warehouse_id),
+            ).fetchone()
+            invoices = db.execute(
+                """SELECT COUNT(*) AS count FROM erpnext_sales_invoice_state
+                   WHERE tenant_id=? AND warehouse_id=? AND source_deleted=0""",
+                (tenant, warehouse_id),
+            ).fetchone()
+            orders = db.execute(
+                """SELECT COUNT(*) AS count FROM purchase_orders
+                   WHERE tenant_id=? AND warehouse_id=? AND order_id LIKE 'erpnext:%'
+                     AND source_modified_at IS NOT NULL AND status!='cancelled'""",
+                (tenant, warehouse_id),
+            ).fetchone()
+        return {
+            "Bin": int(bins["count"]),
+            "Sales Invoice": int(invoices["count"]),
+            "Purchase Order": int(orders["count"]),
+        }
+
     def list_erpnext_sales_invoice_ids(self, tenant_id: str, warehouse_id: str) -> set[str]:
         """Return currently active invoice IDs imported for one tenant warehouse."""
         tenant = self._tenant(tenant_id)
