@@ -43,9 +43,7 @@ def test_policy_activation_uses_compare_and_swap_and_supports_explicit_rollback(
     assert rollback.action == "rollback"
     active = registry.get_active("tenant-a", "service-level")
     assert active is not None and active.policy_version == "v1"
-    assert [
-        event.action for event in registry.activation_history("tenant-a", "service-level")
-    ] == [
+    assert [event.action for event in registry.activation_history("tenant-a", "service-level")] == [
         "activate",
         "activate",
         "rollback",
