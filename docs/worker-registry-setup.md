@@ -31,9 +31,11 @@ worker.register_artifact_loader(
 )
 ```
 
-The application must implement `load_reviewed_model` for its artifact format
-and return a `ForecastAdapter` whose `model_id` and `model_version` exactly
-match the record. Artifact metadata is never used to import executable code.
+The application must implement `load_reviewed_model` for its artifact format,
+validate the artifact format/version before parsing, and return a
+`ForecastAdapter` whose `model_id` and `model_version` exactly match the record.
+Loaders are trusted application code; they must not deserialize arbitrary
+Python objects or execute artifact-supplied code. Artifact metadata is never used to import executable code.
 The registry verifies the artifact digest before calling the loader.
 
 When model registry mode is enabled, a non-baseline model is served only if the
