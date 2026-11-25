@@ -39,4 +39,4 @@ rm -f "$archive"
 docker compose start api worker
 trap - EXIT
 rm -rf "$temporary"
-printf 'Encrypted off-host backup completed: %s\n' "$archive"
+printf 'Encrypted off-host backup completed; temporary plaintext staging removed.\n'
