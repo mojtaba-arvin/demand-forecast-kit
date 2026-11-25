@@ -414,13 +414,9 @@ def test_expired_scheduler_worker_cannot_complete_or_release_new_lease(
     assert first["lease_token"] != second["lease_token"]
 
     with pytest.raises(ValueError, match="owned by this worker"):
-        store.complete_schedule(
-            "tenant-a", job["job_id"], lease_token=first["lease_token"]
-        )
+        store.complete_schedule("tenant-a", job["job_id"], lease_token=first["lease_token"])
     with pytest.raises(ValueError, match="owned by this worker"):
-        store.release_schedule(
-            "tenant-a", job["job_id"], lease_token=first["lease_token"]
-        )
+        store.release_schedule("tenant-a", job["job_id"], lease_token=first["lease_token"])
     current = store.list_schedules("tenant-a")[0]
     assert current["lease_until"] == second["lease_until"]
     completed = store.complete_schedule(
