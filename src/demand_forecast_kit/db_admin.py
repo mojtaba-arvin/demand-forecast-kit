@@ -114,7 +114,11 @@ def restore_database(
     _integrity_report(backup)
 
     temporary = _temporary_database(destination.parent, f".{destination.name}.restore.")
-    sidecars = [Path(f"{destination}-wal"), Path(f"{destination}-shm")]
+    sidecars = [
+        Path(f"{destination}-wal"),
+        Path(f"{destination}-shm"),
+        Path(f"{destination}-journal"),
+    ]
     moved_sidecars: list[tuple[Path, Path]] = []
     try:
         source_connection = sqlite3.connect(_readonly_uri(backup), uri=True)
