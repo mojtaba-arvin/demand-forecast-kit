@@ -417,3 +417,188 @@ def test_erpnext_purchase_order_source_timestamps_fence_stale_updates(tmp_path) 
         source_modified_at="2026-11-26T10:00:00+00:00",
     )
     assert stale_replay["status"] == "cancelled"
+
+
+def test_erpnext_full_reconciliation_removes_hard_deleted_source_records(tmp_path) -> None:
+    resources = {
+        "Bin": [
+            {
+                "item_code": "SKU-1",
+                "warehouse": "WH-1",
+                "actual_qty": 20,
+                "reserved_qty": 2,
+                "modified": "2026-11-25 09:00:00",
+            },
+            {
+                "item_code": "SKU-2",
+                "warehouse": "WH-1",
+                "actual_qty": 8,
+                "reserved_qty": 0,
+                "modified": "2026-11-25 09:01:00",
+            },
+        ],
+        "Sales Invoice": [
+            {
+                "name": "SINV-1",
+                "posting_date": "2026-11-24",
+                "docstatus": 1,
+                "modified": "2026-11-25 10:00:00",
+            }
+        ],
+        "Sales Invoice Item": [
+            {"item_code": "SKU-1", "qty": 5, "parent": "SINV-1", "warehouse": "WH-1"}
+        ],
+        "Purchase Order": [
+            {
+                "name": "PO-1",
+                "supplier": "SUP-1",
+                "schedule_date": "2026-11-30",
+                "docstatus": 1,
+                "modified": "2026-11-25 11:00:00",
+            }
+        ],
+        "Purchase Order Item": [
+            {
+                "item_code": "SKU-1",
+                "qty": 10,
+                "received_qty": 0,
+                "rate": 4,
+                "parent": "PO-1",
+                "warehouse": "WH-1",
+            }
+        ],
+    }
+
+    def transport(url, method, headers, body, timeout):
+        doctype = urlsplit(url).path.rsplit("/", 1)[-1]
+        return json.dumps({"data": resources[doctype]}).encode()
+
+    store = OperationalStore(tmp_path / "hard-delete.sqlite")
+    store.create_warehouse("tenant-a", "WH-1", "Main", "main")
+    client = ERPNextClient("https://erp.example", "key", "secret", transport=transport)
+    client.sync_warehouse(store, "tenant-a", "WH-1")
+    store.record_inventory("tenant-a", "WH-1", "SKU-1", 99, source="manual")
+
+    # An empty incremental delta is not proof of deletion and must not remove state.
+    for resource in resources:
+        resources[resource] = []
+    client.sync_warehouse(store, "tenant-a", "WH-1")
+    assert store.demand_history("tenant-a", "WH-1", "SKU-1")[0]["demand"] == 5
+    assert store.get_purchase_order("tenant-a", "erpnext:PO-1")["status"] == "submitted"
+    assert store.inventory_position("tenant-a", "WH-1", "SKU-2")["on_hand"] == 8
+
+    result = client.reconcile_warehouse(store, "tenant-a", "WH-1")
+
+    assert result == {
+        "inventory_items": 0,
+        "daily_demand_rows": 0,
+        "purchase_orders": 0,
+        "deleted_inventory_items": 1,
+        "deleted_sales_invoices": 1,
+        "deleted_purchase_orders": 1,
+        "snapshot_verified": True,
+    }
+    assert store.demand_history("tenant-a", "WH-1", "SKU-1")[0]["demand"] == 0
+    assert store.list_erpnext_sales_invoice_ids("tenant-a", "WH-1") == set()
+    assert store.get_purchase_order("tenant-a", "erpnext:PO-1")["status"] == "cancelled"
+    assert store.inventory_position("tenant-a", "WH-1", "SKU-1")["on_hand"] == 99
+    assert store.inventory_position("tenant-a", "WH-1", "SKU-2")["on_hand"] == 0
+
+    # Delayed pre-delete events cannot resurrect invoice demand or purchase orders.
+    assert (
+        store.apply_erpnext_sales_invoice(
+            "tenant-a",
+            "WH-1",
+            "SINV-1",
+            posting_date="2026-11-24",
+            docstatus=1,
+            modified_at="2026-11-25T10:00:00+00:00",
+            lines=[{"sku_id": "SKU-1", "quantity": 5}],
+        )
+        == set()
+    )
+    stale_order = store.sync_purchase_order(
+        "tenant-a",
+        order_id="erpnext:PO-1",
+        supplier_id="SUP-1",
+        warehouse_id="WH-1",
+        lines=[{"sku_id": "SKU-1", "quantity": 10, "received_quantity": 0}],
+        source_modified_at="2026-11-25T11:00:00+00:00",
+    )
+    assert stale_order["status"] == "cancelled"
+    assert store.demand_history("tenant-a", "WH-1", "SKU-1")[0]["demand"] == 0
+
+
+def test_erpnext_full_reconciliation_fetch_failure_does_not_apply_deletions(tmp_path) -> None:
+    resources = {
+        "Bin": [
+            {
+                "item_code": "SKU-1",
+                "warehouse": "WH-1",
+                "actual_qty": 20,
+                "reserved_qty": 0,
+                "modified": "2026-11-25 09:00:00",
+            }
+        ],
+        "Sales Invoice": [
+            {
+                "name": "SINV-1",
+                "posting_date": "2026-11-24",
+                "docstatus": 1,
+                "modified": "2026-11-25 10:00:00",
+            }
+        ],
+        "Sales Invoice Item": [
+            {"item_code": "SKU-1", "qty": 5, "parent": "SINV-1", "warehouse": "WH-1"}
+        ],
+        "Purchase Order": [
+            {
+                "name": "PO-1",
+                "supplier": "SUP-1",
+                "schedule_date": "2026-11-30",
+                "docstatus": 1,
+                "modified": "2026-11-25 11:00:00",
+            }
+        ],
+        "Purchase Order Item": [
+            {
+                "item_code": "SKU-1",
+                "qty": 10,
+                "received_qty": 0,
+                "rate": 4,
+                "parent": "PO-1",
+                "warehouse": "WH-1",
+            }
+        ],
+    }
+
+    def transport(url, method, headers, body, timeout):
+        doctype = urlsplit(url).path.rsplit("/", 1)[-1]
+        if doctype == "Purchase Order":
+            raise RuntimeError("simulated incomplete ERPNext snapshot")
+        return json.dumps({"data": resources[doctype]}).encode()
+
+    store = OperationalStore(tmp_path / "incomplete-snapshot.sqlite")
+    store.create_warehouse("tenant-a", "WH-1", "Main", "main")
+    client = ERPNextClient("https://erp.example", "key", "secret", transport=transport)
+
+    # Seed the local state with a complete initial import using a transport without failures.
+    def seed_transport(url, method, headers, body, timeout):
+        doctype = urlsplit(url).path.rsplit("/", 1)[-1]
+        return json.dumps({"data": resources[doctype]}).encode()
+
+    ERPNextClient("https://erp.example", "key", "secret", transport=seed_transport).sync_warehouse(
+        store, "tenant-a", "WH-1"
+    )
+    resources["Bin"] = []
+    resources["Sales Invoice"] = []
+    resources["Sales Invoice Item"] = []
+    resources["Purchase Order"] = []
+    resources["Purchase Order Item"] = []
+
+    with pytest.raises(RuntimeError, match="incomplete ERPNext snapshot"):
+        client.reconcile_warehouse(store, "tenant-a", "WH-1")
+
+    assert store.demand_history("tenant-a", "WH-1", "SKU-1")[0]["demand"] == 5
+    assert store.inventory_position("tenant-a", "WH-1", "SKU-1")["on_hand"] == 20
+    assert store.get_purchase_order("tenant-a", "erpnext:PO-1")["status"] == "submitted"
