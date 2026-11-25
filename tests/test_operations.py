@@ -313,9 +313,16 @@ def test_reclaimed_worker_cannot_finish_or_persist_a_stale_baseline(
             claim_token=first_claim["claim_token"],
             baseline=stale_baseline,
         )
-    assert store.model_baselines(
-        "tenant-a", warehouse_id="WH-1", sku_id="SKU-1"
-    ) == []
+    assert (
+        store.model_health(
+            "tenant-a",
+            warehouse_id="WH-1",
+            sku_id="SKU-1",
+            model_id="model-a",
+            model_version="stale-v2",
+        )["status"]
+        == "baseline_missing"
+    )
     assert store.list_retraining_requests("tenant-a")[0]["status"] == "claimed"
 
     current_baseline = {**stale_baseline, "model_version": "current-v2", "baseline_mae": 0.8}
@@ -327,8 +334,14 @@ def test_reclaimed_worker_cannot_finish_or_persist_a_stale_baseline(
         baseline=current_baseline,
     )
     assert finished["status"] == "completed"
-    baselines = store.model_baselines("tenant-a", warehouse_id="WH-1", sku_id="SKU-1")
-    assert [item["model_version"] for item in baselines] == ["current-v2"]
+    current_health = store.model_health(
+        "tenant-a",
+        warehouse_id="WH-1",
+        sku_id="SKU-1",
+        model_id="model-a",
+        model_version="current-v2",
+    )
+    assert current_health["baseline_mae"] == 0.8
 
 
 def test_stale_retraining_recovery_is_tenant_scoped(store: OperationalStore) -> None:
