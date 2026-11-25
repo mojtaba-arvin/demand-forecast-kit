@@ -126,7 +126,7 @@ def run_benchmark(
             separators=(",", ":"),
             allow_nan=False,
         )
-        + "\\n",
+        + "\n",
         encoding="utf-8",
     )
     daily_path.unlink(missing_ok=True)
