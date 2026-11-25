@@ -71,7 +71,7 @@ class ERPNextClient:
             "filters": json.dumps(filters or [], separators=(",", ":")),
             "limit_start": str(limit_start),
             "limit_page_length": str(self.page_size),
-            "order_by": "modified asc",
+            "order_by": "modified asc, name asc",
         }
         url = urljoin(self.base_url, f"api/resource/{doctype}") + "?" + urlencode(query)
         headers = {
@@ -95,8 +95,27 @@ class ERPNextClient:
             raise RuntimeError("ERPNext response does not contain a valid data list")
         return cast(list[dict[str, Any]], data_items)
 
+    def _all_resources(
+        self,
+        doctype: str,
+        *,
+        fields: list[str],
+        filters: list[list[Any]] | None = None,
+    ) -> list[dict[str, Any]]:
+        """Fetch every page using the configured bounded page size."""
+        records: list[dict[str, Any]] = []
+        offset = 0
+        while True:
+            page = self._resource(
+                doctype, fields=fields, filters=filters, limit_start=offset
+            )
+            records.extend(page)
+            if len(page) < self.page_size:
+                return records
+            offset += len(page)
+
     def list_warehouses(self) -> list[dict[str, Any]]:
-        return self._resource(
+        return self._all_resources(
             "Warehouse",
             fields=["name", "warehouse_name", "parent_warehouse", "is_group", "disabled"],
             filters=[["disabled", "=", 0], ["is_group", "=", 0]],
@@ -105,7 +124,7 @@ class ERPNextClient:
     def fetch_bin_balances(self, warehouse: str) -> list[dict[str, Any]]:
         if not warehouse.strip():
             raise ValueError("warehouse must not be blank")
-        return self._resource(
+        return self._all_resources(
             "Bin",
             fields=["item_code", "warehouse", "actual_qty", "reserved_qty", "modified"],
             filters=[["warehouse", "=", warehouse]],
