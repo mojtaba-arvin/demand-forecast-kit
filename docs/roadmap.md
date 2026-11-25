@@ -1,7 +1,7 @@
 # Project roadmap and milestone status
 
 **Status date:** 2026-11-25  
-**Status baseline:** main at the start of this work; see the merged PR history for the exact revision.
+**Status baseline:** main after PRs #72, #77, and #78; latest delivery is recorded below.
 
 This document records implementation boundaries and the next engineering priorities.
 A feature is not considered production-ready merely because its unit tests pass.
@@ -11,7 +11,7 @@ A feature is not considered production-ready merely because its unit tests pass.
 | Area | Status | Verified scope and remaining boundary |
 | --- | --- | --- |
 | Forecasting and rolling-origin evaluation | Implemented | Quantile contracts, baseline/statistical/optional ML adapters, chronological evaluation, leakage-aware model routing, deterministic evaluation artifacts. No universal accuracy claim. |
-| Lead-time calibration and inventory evaluation | Implemented, empirical limits remain | Same-series/model residual-path calibration, prequential diagnostics, inventory cost/fill-rate evaluation, and UCI real-data plus purged temporal holdout experiments. Latest retail rerun (20 slices, 10 SKUs/cohort, 16 origins/series) has mean P80 coverage 64.81% (46.88%–81.88%); dense/intermittent cohorts remain under-covered. Cross-domain electricity evidence is being expanded separately and cannot substitute for retail calibration. No global correction is enabled. |
+| Lead-time calibration and inventory evaluation | Implemented, empirical limits remain | Same-series/model residual-path calibration, prequential diagnostics, inventory cost/fill-rate evaluation, and chronological holdout experiments. UCI Online Retail II adds 60 SKUs (20 per dense/intermittent/very-intermittent cohort), 739 days, and 68 prequential origins per series; 7/14-day P80 lead-time coverage is 55.0%–74.1% for dense, 71.5%–81.8% for intermittent, and 77.3%–83.4% for very-intermittent cohorts. Per-SKU minima fall to 36.8%. Retail II is the same retailer as the original dataset, so independent-retailer validation remains open. No global correction is enabled. |
 | Model selection and version routing | Implemented | Per-SKU out-of-sample ranking, minimum evidence, strict forecast-origin checks, exact (model_id, model_version) adapter resolution, and explicit fallback. |
 | Operational API and local persistence | Alpha / single-host | Tenant-scoped API, SQLite operational store, durable scheduler, lease fencing, model-health monitoring, retraining queue, online backup/integrity/controlled-restore CLI, and local dependency readiness probes. Encrypted off-host retention, scheduled backups, restore drills, worker recovery, and a supported deployment profile remain deployment work. |
 | ERPNext integration | Implemented, read-only incremental + explicit full reconciliation | Independent tenant/warehouse/resource watermarks, bounded overlap, idempotent Bin/Invoice/Purchase Order replay, invoice edit/cancellation reconciliation, stale-source fencing, and operator-triggered double-snapshot reconciliation for hard deletes. Full reconciliation preserves newer manual stock and tombstones deleted invoice/PO state; live ERPNext validation remains deployment-specific. |
@@ -32,7 +32,7 @@ A feature is not considered production-ready merely because its unit tests pass.
 
 ## Next engineering priorities
 
-1. **Extend independent empirical evidence (Issue #75).** Run the complete UCI Electricity 370-series benchmark with immutable data/runtime provenance; inspect per-series dispersion and failure modes rather than only a macro score. Keep the retail-specific calibration gate disabled until larger retail cohorts or another independent retail dataset replicate the result.
+1. **Extend independent retail evidence (Issue #75).** UCI Online Retail II has now quantified dense-demand under-coverage and per-SKU dispersion, but it is the same retailer as the original dataset. Evaluate an independent retail dataset and an untouched chronological inventory-policy holdout; keep global correction disabled until coverage and service/cost outcomes replicate.
 2. **Validate ERPNext full reconciliation in a representative deployment (Issue #73).** The explicit double-snapshot operator command is implemented; exercise it against a real ERPNext test site, confirm pagination/permissions, and retain the read-only boundary.
 3. **Advance operational readiness (Issue #74).** Online SQLite backup, integrity verification, controlled restore (PR #72), and API liveness/readiness probes (PR #77) are implemented. Add encrypted off-host retention, scheduled backup policy, periodic restore drills, tenant-isolation tests, worker heartbeat/scheduler recovery, and a supported deployment boundary before claiming production deployment.
 4. **Resume Issue #31 after external host provisioning.** Collect 10 independent full-profile artifacts on one fixed Linux x64 runner, characterize variance, and enable only an environment-matched threshold justified by the measured distribution.
@@ -52,7 +52,8 @@ See [versioned replenishment policies](policy-lifecycle.md) for validation, acti
 - PR #70: independent UCI Electricity benchmark provenance and Issue #31 deferral decision.
 - PR #71: operator-triggered ERPNext full reconciliation for hard-deleted Bin, Sales Invoice, and Purchase Order records (ADR 0013).
 - PR #72: SQLite online backup, integrity verification, and controlled restore CLI (ADR 0014).
-- PR #77: explicit API liveness and dependency readiness probes.
+- PR #77: explicit API liveness and dependency readiness probes (ADR 0015).
+- PR #78: UCI Online Retail II prequential 7/14-day lead-time calibration diagnostics; real-data benchmark run #45633743983 completed successfully.
 
 ## Issue #31 deferral decision
 
