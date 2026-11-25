@@ -7,6 +7,7 @@ consistency for a local deployment; it is not a distributed database.
 from __future__ import annotations
 
 import json
+import secrets
 import sqlite3
 from collections.abc import Generator
 from contextlib import contextmanager
@@ -137,6 +138,7 @@ class OperationalStore:
                     model_id TEXT NOT NULL, model_version TEXT NOT NULL,
                     reason TEXT NOT NULL, status TEXT NOT NULL CHECK(status IN
                       ('queued','claimed','completed','failed')),
+                    claim_token TEXT,
                     created_at TEXT NOT NULL, updated_at TEXT NOT NULL
                 );
                 CREATE UNIQUE INDEX IF NOT EXISTS one_active_retraining_request
@@ -160,6 +162,11 @@ class OperationalStore:
                 db.execute(
                     "ALTER TABLE inventory_snapshots ADD COLUMN backorders REAL NOT NULL DEFAULT 0"
                 )
+            retraining_columns = {
+                str(row["name"]) for row in db.execute("PRAGMA table_info(retraining_requests)")
+            }
+            if "claim_token" not in retraining_columns:
+                db.execute("ALTER TABLE retraining_requests ADD COLUMN claim_token TEXT")
 
     @contextmanager
     def _connect(self) -> Generator[sqlite3.Connection]:
@@ -1016,7 +1023,7 @@ class OperationalStore:
         cutoff = (current.astimezone(UTC) - timedelta(seconds=stale_after_seconds)).isoformat()
         with self._connect() as db:
             cursor = db.execute(
-                """UPDATE retraining_requests SET status='queued', updated_at=?
+                """UPDATE retraining_requests SET status='queued', claim_token=NULL, updated_at=?
                    WHERE tenant_id=? AND status='claimed' AND updated_at<=?""",
                 (current.astimezone(UTC).isoformat(), self._tenant(tenant_id), cutoff),
             )
@@ -1024,11 +1031,13 @@ class OperationalStore:
 
     def claim_retraining(self, tenant_id: str, request_id: str) -> dict[str, Any]:
         now = _now().isoformat()
+        claim_token = secrets.token_urlsafe(32)
         with self._connect() as db:
             cursor = db.execute(
-                """UPDATE retraining_requests SET status='claimed', updated_at=?
+                """UPDATE retraining_requests
+                   SET status='claimed', claim_token=?, updated_at=?
                    WHERE tenant_id=? AND request_id=? AND status='queued'""",
-                (now, self._tenant(tenant_id), request_id),
+                (claim_token, now, self._tenant(tenant_id), request_id),
             )
             if cursor.rowcount != 1:
                 raise ValueError("retraining request is missing or already claimed")
@@ -1040,21 +1049,77 @@ class OperationalStore:
         return dict(row)
 
     def finish_retraining(
-        self, tenant_id: str, request_id: str, *, success: bool
+        self,
+        tenant_id: str,
+        request_id: str,
+        *,
+        success: bool,
+        claim_token: str,
+        baseline: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
+        """Finish only the current claim; optionally persist its baseline atomically."""
+        if not claim_token:
+            raise ValueError("claim_token must not be blank")
+        baseline_values: tuple[str, str, str, str, float, int, str] | None = None
+        if baseline is not None:
+            if not success:
+                raise ValueError("a failed retraining request cannot persist a baseline")
+            value = _positive(float(baseline["baseline_mae"]), "baseline_mae")
+            sample_count = baseline["sample_count"]
+            if type(sample_count) is not int or sample_count < 1:
+                raise ValueError("sample_count must be a positive integer")
+            baseline_values = (
+                str(baseline["warehouse_id"]),
+                str(baseline["sku_id"]),
+                str(baseline["model_id"]),
+                str(baseline["model_version"]),
+                value,
+                sample_count,
+                _now().isoformat(),
+            )
         with self._connect() as db:
+            current = db.execute(
+                """SELECT warehouse_id, sku_id, model_id FROM retraining_requests
+                   WHERE tenant_id=? AND request_id=? AND status='claimed' AND claim_token=?""",
+                (self._tenant(tenant_id), request_id, claim_token),
+            ).fetchone()
+            if current is None:
+                raise ValueError("retraining claim is stale or no longer owned by this worker")
+            if baseline_values is not None:
+                warehouse_id, sku_id, model_id, model_version, value, sample_count, created_at = baseline_values
+                if (warehouse_id, sku_id, model_id) != (
+                    str(current["warehouse_id"]), str(current["sku_id"]), str(current["model_id"])
+                ):
+                    raise ValueError("baseline identity does not match the claimed request")
+                warehouse = db.execute(
+                    "SELECT 1 FROM warehouses WHERE tenant_id=? AND warehouse_id=?",
+                    (self._tenant(tenant_id), warehouse_id),
+                ).fetchone()
+                if warehouse is None:
+                    raise KeyError("warehouse not found")
+                db.execute(
+                    """INSERT INTO model_baselines VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                       ON CONFLICT(tenant_id, warehouse_id, sku_id, model_id, model_version)
+                       DO UPDATE SET baseline_mae=excluded.baseline_mae,
+                         sample_count=excluded.sample_count, created_at=excluded.created_at""",
+                    (
+                        self._tenant(tenant_id), warehouse_id, sku_id, model_id, model_version,
+                        value, sample_count, created_at,
+                    ),
+                )
             cursor = db.execute(
-                """UPDATE retraining_requests SET status=?, updated_at=?
-                   WHERE tenant_id=? AND request_id=? AND status='claimed'""",
+                """UPDATE retraining_requests SET status=?, claim_token=NULL, updated_at=?
+                   WHERE tenant_id=? AND request_id=? AND status='claimed' AND claim_token=?""",
                 (
                     "completed" if success else "failed",
                     _now().isoformat(),
                     self._tenant(tenant_id),
                     request_id,
+                    claim_token,
                 ),
             )
             if cursor.rowcount != 1:
-                raise ValueError("only a claimed retraining request can be completed")
+                raise ValueError("retraining claim is stale or no longer owned by this worker")
             row = db.execute(
                 "SELECT * FROM retraining_requests WHERE tenant_id=? AND request_id=?",
                 (self._tenant(tenant_id), request_id),
