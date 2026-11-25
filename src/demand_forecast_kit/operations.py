@@ -162,7 +162,7 @@ class OperationalStore:
                 )
 
     @contextmanager
-    def _connect(self) -> Generator[sqlite3.Connection, None, None]:
+    def _connect(self) -> Generator[sqlite3.Connection]:
         db = sqlite3.connect(self.database, timeout=15.0)
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA foreign_keys = ON")
