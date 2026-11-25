@@ -42,13 +42,12 @@ def _http_transport(
     except HTTPError as exc:
         # Do not include request headers or credentials in raised messages.
         retry_after = None
-        if exc.headers is not None:
-            raw_retry_after = exc.headers.get("Retry-After")
-            if raw_retry_after is not None:
-                try:
-                    retry_after = float(raw_retry_after)
-                except ValueError:
-                    retry_after = None
+        raw_retry_after = exc.headers.get("Retry-After")
+        if raw_retry_after is not None:
+            try:
+                retry_after = float(raw_retry_after)
+            except ValueError:
+                retry_after = None
         raise ERPNextRequestError(
             f"ERPNext returned HTTP {exc.code}",
             status_code=exc.code,
