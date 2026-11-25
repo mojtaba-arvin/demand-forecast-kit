@@ -1,4 +1,5 @@
 import json
+import sqlite3
 from urllib.parse import urlsplit
 
 import pytest
@@ -776,3 +777,27 @@ def test_empty_invoice_warehouse_contribution_tombstones_stale_line_replays(tmp_
     )
     assert store.demand_history("tenant-a", "WH-1", "SKU-1")[0]["demand"] == 7
     assert store.list_erpnext_sales_invoice_ids("tenant-a", "WH-1") == {"SINV-1"}
+
+
+def test_existing_operational_store_migrates_invoice_inactive_tombstone_column(tmp_path) -> None:
+    database = tmp_path / "legacy-erpnext-state.sqlite"
+    with sqlite3.connect(database) as connection:
+        connection.execute(
+            """CREATE TABLE erpnext_sales_invoice_state (
+                tenant_id TEXT NOT NULL,
+                warehouse_id TEXT NOT NULL,
+                invoice_id TEXT NOT NULL,
+                posting_date TEXT NOT NULL,
+                docstatus INTEGER NOT NULL,
+                modified_at TEXT NOT NULL,
+                PRIMARY KEY (tenant_id, warehouse_id, invoice_id)
+            )"""
+        )
+
+    OperationalStore(database)
+
+    with sqlite3.connect(database) as connection:
+        columns = {
+            row[1] for row in connection.execute("PRAGMA table_info(erpnext_sales_invoice_state)")
+        }
+    assert "source_inactive" in columns
