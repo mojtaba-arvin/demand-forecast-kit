@@ -135,8 +135,9 @@ Demand rows already owned by another source are not silently overwritten. A
 source conflict fails the invoice batch and leaves its watermark unchanged so
 an operator can reconcile the source-of-truth conflict. Incremental sync
 detects ERPNext cancellations and edits, but cannot detect hard-deleted source
-documents that no longer appear in modified-time queries; run an explicit full
-reconciliation after source-system hard deletes.
+documents that no longer appear in modified-time queries; an operator-led full
+reconciliation outside this incremental path is required after source-system
+hard deletes.
 
 The connector is read-only: it does not create purchase orders, alter stock
 ledgers, or submit ERPNext documents. It uses the Frappe token header and does

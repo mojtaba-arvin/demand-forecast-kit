@@ -294,10 +294,9 @@ def test_erpnext_watermarks_are_tenant_warehouse_and_resource_scoped(tmp_path) -
     assert store.get_erpnext_watermark("tenant-a", "WH-1", "Bin") is None
     assert store.get_erpnext_watermark("tenant-a", "WH-2", "Sales Invoice") is None
     assert store.get_erpnext_watermark("tenant-b", "WH-1", "Sales Invoice") is None
-    with pytest.raises(ValueError, match="cannot move backwards"):
-        store.advance_erpnext_watermark(
-            "tenant-a", "WH-1", "Sales Invoice", "2026-11-25T09:00:00+00:00"
-        )
+    assert store.advance_erpnext_watermark(
+        "tenant-a", "WH-1", "Sales Invoice", "2026-11-25T09:00:00+00:00"
+    ) == "2026-11-25T10:00:00+00:00"
 
 
 def test_erpnext_invoice_replay_does_not_regress_newer_source_state(tmp_path) -> None:

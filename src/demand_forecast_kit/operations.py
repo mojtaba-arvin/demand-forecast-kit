@@ -638,8 +638,8 @@ class OperationalStore:
                    WHERE tenant_id=? AND warehouse_id=? AND resource=?""",
                 (tenant, warehouse_id, resource),
             ).fetchone()
-            if current is not None and timestamp < str(current["modified_at"]):
-                raise ValueError("ERPNext watermark cannot move backwards")
+            if current is not None and timestamp <= str(current["modified_at"]):
+                return str(current["modified_at"])
             db.execute(
                 """INSERT INTO erpnext_sync_watermarks
                    (tenant_id, warehouse_id, resource, modified_at) VALUES (?, ?, ?, ?)
