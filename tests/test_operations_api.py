@@ -18,7 +18,6 @@ def client(tmp_path, monkeypatch) -> TestClient:
     return TestClient(create_app(RunService(tmp_path / "ops-api-state")))
 
 
-
 def test_retraining_api_requires_current_claim_token_to_finish(client: TestClient) -> None:
     assert (
         client.post(
