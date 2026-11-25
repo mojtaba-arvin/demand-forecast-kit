@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 import pytest
 
@@ -69,7 +70,7 @@ def test_erpnext_reconcile_cli_uses_environment_credentials_and_reports_result(
         9.0,
         100,
     )
-    assert calls["reconcile"] == (("state.sqlite", marker_store), "tenant-a", "WH-1", False)
+    assert calls["reconcile"] == ((Path("state.sqlite"), marker_store), "tenant-a", "WH-1", False)
     assert json.loads(capsys.readouterr().out) == {
         "snapshot_verified": True,
         "deleted_sales_invoices": 2,
