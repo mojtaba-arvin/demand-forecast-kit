@@ -144,7 +144,8 @@ hard deletes.
 
 Incremental sync deliberately does not interpret an empty delta as a deletion.
 After ERPNext hard deletes or a suspected source/local divergence, run the
-explicit full-snapshot command from the host that owns the SQLite database:
+explicit full-snapshot command from the host that owns the SQLite database.
+The tenant and warehouse must already be configured in that same local store:
 
 ```bash
 export DEMAND_FORECAST_ERPNEXT_URL="https://erp.example.com"
