@@ -121,10 +121,12 @@ connector reads ERPNext Warehouse/Bin, submitted Sales Invoice/Sales Invoice
 Item, and Purchase Order/Purchase Order Item records. It imports stock,
 reservations, daily SKU demand (including zero-demand days within the observed
 period), and open/partially received purchase orders.
-The initial connector is read-only: it does not create purchase orders, alter
-stock ledgers, or submit ERPNext documents. It uses the Frappe token header and
-does not log credentials. Warehouse, Bin, invoice, and purchase-order resources
-are paginated with stable ordering. Transient connection failures, HTTP 429,
+The connector is read-only: it does not create purchase orders, alter stock
+ledgers, or submit ERPNext documents. It uses the Frappe token header and does
+not log credentials. Warehouse, Bin, invoice, and purchase-order resources are
+paginated with stable ordering. Operational sync uses independent tenant /
+warehouse watermarks for Bin, Sales Invoice, and Purchase Order, with a bounded
+five-minute overlap by default. Replayed changes are idempotent. Transient connection failures, HTTP 429,
 and selected 5xx responses are retried with bounded exponential backoff; a
 numeric `Retry-After` header is honored. Client errors such as HTTP 400/401 are
 not retried. Configure `max_retries` and `retry_backoff_seconds` on

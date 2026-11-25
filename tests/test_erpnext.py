@@ -30,8 +30,8 @@ def test_erpnext_sync_imports_bin_stock_and_daily_sales(tmp_path) -> None:
             ]
         elif doctype == "Sales Invoice":
             data = [
-                {"name": "SINV-1", "posting_date": "2026-11-23", "docstatus": 1},
-                {"name": "SINV-2", "posting_date": "2026-11-25", "docstatus": 1},
+                {"name": "SINV-1", "posting_date": "2026-11-23", "docstatus": 1, "modified": "2026-11-25 10:00:00"},
+                {"name": "SINV-2", "posting_date": "2026-11-25", "docstatus": 1, "modified": "2026-11-25 11:00:00"},
             ]
         elif doctype == "Sales Invoice Item":
             data = [
@@ -46,6 +46,7 @@ def test_erpnext_sync_imports_bin_stock_and_daily_sales(tmp_path) -> None:
                     "supplier": "SUP-1",
                     "schedule_date": "2026-11-30",
                     "docstatus": 1,
+                    "modified": "2026-11-25 12:00:00",
                 }
             ]
         elif doctype == "Purchase Order Item":
@@ -122,3 +123,156 @@ def test_erpnext_client_rejects_invalid_data_shape() -> None:
     )
     with pytest.raises(RuntimeError, match="data list"):
         client.list_warehouses()
+
+
+
+def test_erpnext_incremental_sync_reconciles_invoice_edits_and_cancellations(tmp_path) -> None:
+    invoices = [
+        {
+            "name": "SINV-1",
+            "posting_date": "2026-11-23",
+            "docstatus": 1,
+            "modified": "2026-11-25 10:00:00",
+        },
+        {
+            "name": "SINV-2",
+            "posting_date": "2026-11-25",
+            "docstatus": 1,
+            "modified": "2026-11-25 11:00:00",
+        },
+    ]
+    invoice_items = {
+        "SINV-1": [{"item_code": "SKU-1", "qty": 5, "parent": "SINV-1", "warehouse": "WH-1"}],
+        "SINV-2": [{"item_code": "SKU-1", "qty": 4, "parent": "SINV-2", "warehouse": "WH-1"}],
+    }
+    bins = [
+        {
+            "item_code": "SKU-1",
+            "warehouse": "WH-1",
+            "actual_qty": 20,
+            "reserved_qty": 3,
+            "modified": "2026-11-25 09:00:00",
+        }
+    ]
+    orders = [
+        {
+            "name": "PO-1",
+            "supplier": "SUP-1",
+            "schedule_date": "2026-11-30",
+            "docstatus": 1,
+            "modified": "2026-11-25 12:00:00",
+        }
+    ]
+    purchase_items = [
+        {
+            "item_code": "SKU-1",
+            "qty": 12,
+            "received_qty": 2,
+            "rate": 4,
+            "parent": "PO-1",
+            "warehouse": "WH-1",
+        }
+    ]
+
+    def transport(url, method, headers, body, timeout):
+        doctype = urlsplit(url).path.rsplit("/", 1)[-1]
+        if doctype == "Bin":
+            data = bins
+        elif doctype == "Sales Invoice":
+            data = invoices
+        elif doctype == "Sales Invoice Item":
+            data = [
+                item
+                for invoice_lines in invoice_items.values()
+                for item in invoice_lines
+            ]
+        elif doctype == "Purchase Order":
+            data = orders
+        elif doctype == "Purchase Order Item":
+            data = purchase_items if orders and orders[0]["docstatus"] == 1 else []
+        else:
+            raise AssertionError(doctype)
+        return json.dumps({"data": data}).encode()
+
+    client = ERPNextClient(
+        "https://erp.example", "key", "secret", transport=transport
+    )
+    store = OperationalStore(tmp_path / "incremental.sqlite")
+    store.create_warehouse("tenant-a", "WH-1", "Main", "main")
+
+    first = client.sync_warehouse(store, "tenant-a", "WH-1")
+    assert first["daily_demand_rows"] == 3
+    assert [row["demand"] for row in store.demand_history("tenant-a", "WH-1", "SKU-1")] == [
+        5.0,
+        0.0,
+        4.0,
+    ]
+    assert store.inventory_position("tenant-a", "WH-1", "SKU-1")["confirmed_inbound"] == 10
+
+    invoices[0] = {
+        "name": "SINV-1",
+        "posting_date": "2026-11-24",
+        "docstatus": 1,
+        "modified": "2026-11-26 10:00:00",
+    }
+    invoice_items["SINV-1"] = [
+        {"item_code": "SKU-1", "qty": 7, "parent": "SINV-1", "warehouse": "WH-1"}
+    ]
+    bins[0] = {**bins[0], "actual_qty": 30, "modified": "2026-11-26 09:00:00"}
+    second = client.sync_warehouse(store, "tenant-a", "WH-1")
+    assert second["daily_demand_rows"] == 3
+    assert [row["demand"] for row in store.demand_history("tenant-a", "WH-1", "SKU-1")] == [
+        0.0,
+        7.0,
+        4.0,
+    ]
+    assert store.inventory_position("tenant-a", "WH-1", "SKU-1")["on_hand"] == 30
+
+    invoices[1] = {
+        "name": "SINV-2",
+        "posting_date": "2026-11-25",
+        "docstatus": 2,
+        "modified": "2026-11-27 11:00:00",
+    }
+    orders[0] = {**orders[0], "docstatus": 2, "modified": "2026-11-27 12:00:00"}
+    third = client.sync_warehouse(store, "tenant-a", "WH-1")
+    assert third["daily_demand_rows"] == 3
+    assert [row["demand"] for row in store.demand_history("tenant-a", "WH-1", "SKU-1")] == [
+        0.0,
+        7.0,
+        0.0,
+    ]
+    assert store.get_purchase_order("tenant-a", "erpnext:PO-1")["status"] == "cancelled"
+    assert store.inventory_position("tenant-a", "WH-1", "SKU-1")["confirmed_inbound"] == 0
+    assert store.get_erpnext_watermark("tenant-a", "WH-1", "Sales Invoice") == (
+        "2026-11-27T11:00:00+00:00"
+    )
+    assert store.get_erpnext_watermark("tenant-a", "WH-1", "Purchase Order") == (
+        "2026-11-27T12:00:00+00:00"
+    )
+
+
+def test_erpnext_incremental_sync_does_not_advance_failed_resource_watermark(tmp_path) -> None:
+    def transport(url, method, headers, body, timeout):
+        doctype = urlsplit(url).path.rsplit("/", 1)[-1]
+        if doctype == "Sales Invoice":
+            data = [
+                {
+                    "name": "SINV-BAD",
+                    "posting_date": "not-a-date",
+                    "docstatus": 1,
+                    "modified": "2026-11-25 10:00:00",
+                }
+            ]
+        else:
+            data = []
+        return json.dumps({"data": data}).encode()
+
+    store = OperationalStore(tmp_path / "failed-sync.sqlite")
+    store.create_warehouse("tenant-a", "WH-1", "Main", "main")
+    client = ERPNextClient("https://erp.example", "key", "secret", transport=transport)
+
+    with pytest.raises(ValueError):
+        client.sync_warehouse(store, "tenant-a", "WH-1")
+
+    assert store.get_erpnext_watermark("tenant-a", "WH-1", "Sales Invoice") is None
