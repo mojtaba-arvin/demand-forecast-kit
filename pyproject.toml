@@ -29,6 +29,7 @@ dependencies = ["polars>=1.35,<2"]
 [project.scripts]
 demand-forecast = "demand_forecast_kit.cli:main"
 demand-forecast-evaluate = "demand_forecast_kit.evaluation_cli:main"
+demand-forecast-worker = "demand_forecast_kit.operations_worker:main"
 
 [project.optional-dependencies]
 io = ["duckdb>=1.4,<2", "pyarrow>=22,<25"]
@@ -88,6 +89,7 @@ source = ["demand_forecast_kit"]
 omit = [
   "src/demand_forecast_kit/models/statistical.py",
   "src/demand_forecast_kit/api.py",
+  "src/demand_forecast_kit/operations_api.py",
 ]
 
 [tool.coverage.report]
