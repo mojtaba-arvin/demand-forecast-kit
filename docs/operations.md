@@ -183,6 +183,15 @@ the embedding worker before running long jobs. Trainers should be idempotent:
 a process can stop after writing a validated baseline but before marking the
 request complete, causing the request to be retried after recovery.
 
+Each claim also receives a unique ownership token. Recovery invalidates the old
+token, and completion requires the current token. A worker that resumes after
+its claim expired therefore cannot complete a newer worker's request. Baseline
+persistence and successful completion are committed in one SQLite transaction,
+so a stale worker cannot publish a model baseline after losing ownership. API
+clients must pass the token returned by the claim endpoint when finishing a
+request. This fencing protects retraining claims; the SQLite scheduler remains
+a single-host mechanism, not a distributed multi-host lease service.
+
 Submit realized replenishment outcomes to
 `POST /v1/ops/monitoring/policy-outcomes`. The store calculates realized
 holding/shortage cost, fill rate, and cycle service level. The
