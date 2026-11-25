@@ -46,7 +46,6 @@ def test_erpnext_configuration_and_empty_resource_paths() -> None:
         client.fetch_purchase_orders(" ")
 
 
-
 def test_erpnext_retries_transient_server_errors_with_bounded_backoff() -> None:
     attempts = 0
     delays: list[float] = []
