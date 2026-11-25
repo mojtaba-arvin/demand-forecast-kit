@@ -1,4 +1,4 @@
-""""Run an opt-in independent benchmark on UCI Electricity Load Diagrams."""
+"""Run an opt-in independent benchmark on UCI Electricity Load Diagrams."""
 
 from __future__ import annotations
 
