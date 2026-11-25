@@ -598,8 +598,6 @@ class ERPNextClient:
                 f"({resources}); verify API read permissions or explicitly allow an empty snapshot"
             )
 
-        reconciled_at = datetime.now(UTC)
-        reconciled_at_iso = reconciled_at.isoformat()
         known_invoice_ids = store.list_erpnext_sales_invoice_ids(tenant_id, warehouse_id)
         present_invoice_ids = {str(invoice["invoice_id"]) for invoice in invoices}
         deleted_invoice_count = len(known_invoice_ids - present_invoice_ids)
@@ -613,8 +611,7 @@ class ERPNextClient:
             sku = str(item["item_code"]).strip()
             if not sku:
                 raise RuntimeError("ERPNext Bin record is missing item_code")
-            source_modified = datetime.fromisoformat(self._modified_timestamp(item["modified"]))
-            effective_as_of = max(source_modified, reconciled_at).isoformat()
+            effective_as_of = self._modified_timestamp(item["modified"])
             if store.record_erpnext_inventory_snapshot(
                 tenant_id,
                 warehouse_id,
@@ -626,8 +623,7 @@ class ERPNextClient:
                 imported_stock += 1
 
         for invoice in invoices:
-            source_modified = datetime.fromisoformat(str(invoice["modified"]))
-            effective_modified = max(source_modified, reconciled_at).isoformat()
+            effective_modified = str(invoice["modified"])
             affected_skus.update(
                 store.apply_erpnext_sales_invoice(
                     tenant_id,
@@ -644,7 +640,6 @@ class ERPNextClient:
                 tenant_id,
                 warehouse_id,
                 {str(invoice["invoice_id"]) for invoice in invoices},
-                reconciled_at=reconciled_at_iso,
             )
         )
         imported_demand = (
@@ -655,8 +650,7 @@ class ERPNextClient:
 
         for order in purchase_orders:
             order_id = f"erpnext:{order['order_id']}"
-            source_modified = datetime.fromisoformat(str(order["modified"]))
-            effective_modified = max(source_modified, reconciled_at).isoformat()
+            effective_modified = str(order["modified"])
             if int(order["docstatus"]) == 2 or not order["lines"]:
                 store.cancel_purchase_order(
                     tenant_id,
@@ -682,13 +676,11 @@ class ERPNextClient:
             tenant_id,
             warehouse_id,
             {f"erpnext:{order['order_id']}" for order in purchase_orders},
-            reconciled_at=reconciled_at_iso,
         )
         deleted_bins = store.reconcile_erpnext_missing_bins(
             tenant_id,
             warehouse_id,
             {str(item["item_code"]).strip() for item in bins},
-            reconciled_at=reconciled_at_iso,
         )
 
         for resource, records in (
