@@ -1241,12 +1241,14 @@ class OperationalStore:
             ).fetchall()
             lease = (current + timedelta(seconds=lease_seconds)).astimezone(UTC).isoformat()
             for row in rows:
+                lease_token = secrets.token_urlsafe(32)
                 cursor = db.execute(
-                    """UPDATE scheduled_jobs SET lease_until=?
+                    """UPDATE scheduled_jobs SET lease_until=?, lease_token=?
                        WHERE tenant_id=? AND job_id=?
                          AND (lease_until IS NULL OR lease_until<=?)""",
                     (
                         lease,
+                        lease_token,
                         self._tenant(tenant_id),
                         row["job_id"],
                         current.astimezone(UTC).isoformat(),
@@ -1258,11 +1260,16 @@ class OperationalStore:
                         (self._tenant(tenant_id), row["job_id"]),
                     ).fetchone()
                     assert claimed_row is not None
-                    claimed.append(self._schedule_record(claimed_row))
+                    claimed.append(self._schedule_record(claimed_row, include_lease_token=True))
         return claimed
 
     def complete_schedule(
-        self, tenant_id: str, job_id: str, *, completed_at: datetime | None = None
+        self,
+        tenant_id: str,
+        job_id: str,
+        *,
+        lease_token: str,
+        completed_at: datetime | None = None,
     ) -> dict[str, Any]:
         current = completed_at or _now()
         if current.tzinfo is None:
@@ -1276,17 +1283,19 @@ class OperationalStore:
                 raise KeyError("scheduled job not found")
             next_run = (current + timedelta(seconds=int(row["interval_seconds"]))).astimezone(UTC)
             cursor = db.execute(
-                """UPDATE scheduled_jobs SET last_run_at=?, next_run_at=?, lease_until=NULL
-                   WHERE tenant_id=? AND job_id=? AND lease_until IS NOT NULL""",
+                """UPDATE scheduled_jobs
+                   SET last_run_at=?, next_run_at=?, lease_until=NULL, lease_token=NULL
+                   WHERE tenant_id=? AND job_id=? AND lease_until IS NOT NULL AND lease_token=?""",
                 (
                     current.astimezone(UTC).isoformat(),
                     next_run.isoformat(),
                     self._tenant(tenant_id),
                     job_id,
+                    lease_token,
                 ),
             )
             if cursor.rowcount != 1:
-                raise ValueError("scheduled job has no active lease")
+                raise ValueError("scheduled job has no active lease owned by this worker")
             updated = db.execute(
                 "SELECT * FROM scheduled_jobs WHERE tenant_id=? AND job_id=?",
                 (self._tenant(tenant_id), job_id),
@@ -1295,16 +1304,22 @@ class OperationalStore:
         return self._schedule_record(updated)
 
     def release_schedule(
-        self, tenant_id: str, job_id: str, *, retry_after_seconds: int = 60
+        self,
+        tenant_id: str,
+        job_id: str,
+        *,
+        lease_token: str,
+        retry_after_seconds: int = 60,
     ) -> dict[str, Any]:
         if type(retry_after_seconds) is not int or retry_after_seconds < 1:
             raise ValueError("retry_after_seconds must be a positive integer")
         retry_at = (_now() + timedelta(seconds=retry_after_seconds)).isoformat()
         with self._connect() as db:
             cursor = db.execute(
-                """UPDATE scheduled_jobs SET next_run_at=?, lease_until=NULL
-                   WHERE tenant_id=? AND job_id=? AND lease_until IS NOT NULL""",
-                (retry_at, self._tenant(tenant_id), job_id),
+                """UPDATE scheduled_jobs
+                   SET next_run_at=?, lease_until=NULL, lease_token=NULL
+                   WHERE tenant_id=? AND job_id=? AND lease_until IS NOT NULL AND lease_token=?""",
+                (retry_at, self._tenant(tenant_id), job_id, lease_token),
             )
             if cursor.rowcount != 1:
                 raise ValueError("scheduled job has no active lease")
@@ -1316,8 +1331,13 @@ class OperationalStore:
         return self._schedule_record(row)
 
     @staticmethod
-    def _schedule_record(row: sqlite3.Row) -> dict[str, Any]:
+    def _schedule_record(
+        row: sqlite3.Row, *, include_lease_token: bool = False
+    ) -> dict[str, Any]:
         record = dict(row)
+        lease_token = record.pop("lease_token", None)
+        if include_lease_token:
+            record["lease_token"] = lease_token
         record["payload"] = json.loads(record.pop("payload_json"))
         record["enabled"] = bool(record["enabled"])
         return record
