@@ -5,6 +5,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from demand_forecast_kit.api import create_app
+from demand_forecast_kit.operations import OperationalStore
 from demand_forecast_kit.run_service import RunService
 
 testclient = pytest.importorskip("fastapi.testclient")
@@ -271,7 +272,7 @@ def test_api_keys_enforce_scopes_and_tenant_isolation(tmp_path, monkeypatch) -> 
                     "key_id": "b-read",
                     "token_sha256": digest(tenant_b_token),
                     "tenant_id": "tenant-b",
-                    "scopes": ["ops:read"],
+                    "scopes": ["ops:read", "ops:write", "ops:admin"],
                 },
             ]
         ),
@@ -291,15 +292,64 @@ def test_api_keys_enforce_scopes_and_tenant_isolation(tmp_path, monkeypatch) -> 
     created = client.post(
         "/v1/ops/warehouses",
         headers={"Authorization": f"Bearer {write_token}"},
-        json={"warehouse_id": "WH-1", "name": "Main", "location_code": "main"},
+        json={"warehouse_id": "WH-1", "name": "Main A", "location_code": "main-a"},
     )
     assert created.status_code == 201
+    created_b = client.post(
+        "/v1/ops/warehouses",
+        headers={"Authorization": f"Bearer {tenant_b_token}"},
+        json={"warehouse_id": "WH-1", "name": "Main B", "location_code": "main-b"},
+    )
+    assert created_b.status_code == 201
+    client.post(
+        "/v1/ops/inventory/snapshots",
+        headers={"Authorization": f"Bearer {write_token}"},
+        json={"warehouse_id": "WH-1", "sku_id": "SKU-1", "quantity": 10},
+    )
+    client.post(
+        "/v1/ops/inventory/snapshots",
+        headers={"Authorization": f"Bearer {tenant_b_token}"},
+        json={"warehouse_id": "WH-1", "sku_id": "SKU-1", "quantity": 90},
+    )
+    tenant_a_stock = client.get(
+        "/v1/ops/inventory/WH-1/SKU-1",
+        headers={"Authorization": f"Bearer {read_token}"},
+    )
+    tenant_b_stock = client.get(
+        "/v1/ops/inventory/WH-1/SKU-1",
+        headers={"Authorization": f"Bearer {tenant_b_token}"},
+    )
+    assert tenant_a_stock.json()["on_hand"] == 10
+    assert tenant_b_stock.json()["on_hand"] == 90
+    client.post(
+        "/v1/ops/warehouses",
+        headers={"Authorization": f"Bearer {write_token}"},
+        json={"warehouse_id": "WH-A-ONLY", "name": "Private A", "location_code": "private-a"},
+    )
+    cross_tenant_lookup = client.get(
+        "/v1/ops/inventory/WH-A-ONLY/SKU-1",
+        headers={"Authorization": f"Bearer {tenant_b_token}"},
+    )
+    assert cross_tenant_lookup.status_code == 404
 
     tenant_b = client.get(
         "/v1/ops/warehouses", headers={"Authorization": f"Bearer {tenant_b_token}"}
     )
     assert tenant_b.status_code == 200
-    assert tenant_b.json()["warehouses"] == []
+    assert [item["name"] for item in tenant_b.json()["warehouses"]] == ["Main B"]
+
+    store = OperationalStore(tmp_path / "secure-api-state" / "operations.sqlite")
+    now = datetime(2026, 11, 25, 12, 0, tzinfo=UTC)
+    store.heartbeat_worker("tenant-a", "host-a:101", "host-a", 101, now, now=now)
+    store.heartbeat_worker("tenant-b", "host-b:202", "host-b", 202, now, now=now)
+    worker_a = client.get(
+        "/v1/ops/worker/status", headers={"Authorization": f"Bearer {read_token}"}
+    )
+    worker_b = client.get(
+        "/v1/ops/worker/status", headers={"Authorization": f"Bearer {tenant_b_token}"}
+    )
+    assert [item["worker_id"] for item in worker_a.json()["workers"]] == ["host-a:101"]
+    assert [item["worker_id"] for item in worker_b.json()["workers"]] == ["host-b:202"]
 
     shared_legacy = client.get("/v1/runs/1", headers={"Authorization": f"Bearer {read_token}"})
     assert shared_legacy.status_code == 403
