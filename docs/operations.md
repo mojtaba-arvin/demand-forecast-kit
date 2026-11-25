@@ -236,7 +236,7 @@ demand-forecast-db verify ./state/operations.sqlite
 ```
 
 Restore verifies the backup, stages a temporary database, checks its integrity
-and foreign keys, then atomically replaces the target. The explicit confirmation
+and foreign keys, then atomically replaces the target and removes stale WAL/SHM/journal sidecars. The explicit confirmation
 is required because replacing an open SQLite database is unsafe. Keep the old
 database and backup until the restored API/worker pass a smoke check. This tool
 does not schedule backups or upload them to remote storage; configure those
