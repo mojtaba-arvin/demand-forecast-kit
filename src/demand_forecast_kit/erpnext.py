@@ -313,8 +313,14 @@ class ERPNextClient:
             filters=filters,
         )
         for header in headers:
-            if not header.get("name") or not header.get("posting_date") or not header.get("modified"):
-                raise RuntimeError("ERPNext invoice header is missing name, posting_date, or modified")
+            if (
+                not header.get("name")
+                or not header.get("posting_date")
+                or not header.get("modified")
+            ):
+                raise RuntimeError(
+                    "ERPNext invoice header is missing name, posting_date, or modified"
+                )
         submitted = [
             str(header["name"]) for header in headers if int(header.get("docstatus", 0)) == 1
         ]
