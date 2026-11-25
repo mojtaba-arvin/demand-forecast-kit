@@ -129,9 +129,7 @@ class OperationalWorker:
         adapter = (
             None
             if selection["used_fallback"] or selected["model_id"] == fallback.model_id
-            else self.adapters.get(
-                (str(selected["model_id"]), str(selected["model_version"]))
-            )
+            else self.adapters.get((str(selected["model_id"]), str(selected["model_version"])))
         )
         if adapter is None or (
             selected["model_version"] is not None
