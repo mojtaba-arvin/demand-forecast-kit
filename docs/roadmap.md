@@ -49,10 +49,10 @@ See [versioned replenishment policies](policy-lifecycle.md) for validation, acti
 - PR #54: persistent model artifacts, evaluation digests, explicit activation/rollback, and immutable activation history.
 - PR #62: active model artifact resolution in the operational worker and tenant-scoped versioned replenishment policy lifecycle.
 - PR #67: incremental ERPNext sync with per-resource watermarks, overlap replay, invoice correction/cancellation reconciliation, and purchase-order cancellation.
+- PR #70: independent UCI Electricity benchmark provenance and Issue #31 deferral decision.
+- Current work: operator-triggered ERPNext full reconciliation for hard-deleted Bin, Sales Invoice, and Purchase Order records (ADR 0013).
 
 ## Issue #31 deferral decision
 
 The reference-runner calibration task is deliberately deferred, not treated as a release blocker. Continue feature development, dataset evaluation, and correctness work on GitHub-hosted CI. The performance comparator stays informational and no machine-specific regression gate is enabled. When a stable Linux x64 host becomes available, resume the issue's original acceptance criteria without substituting mismatched hosted-runner measurements.
 
-
-- ADR 0013: explicit ERPNext full reconciliation for hard deletes.
