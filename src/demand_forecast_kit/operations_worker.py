@@ -72,9 +72,7 @@ class OperationalWorker:
                         tenant_id, str(job["job_id"]), lease_token=str(job["lease_token"])
                     )
                 except Exception as release_exc:
-                    error += (
-                        f"; lease release failed: {type(release_exc).__name__}: {release_exc}"
-                    )
+                    error += f"; lease release failed: {type(release_exc).__name__}: {release_exc}"
                 failed.append({"job_id": str(job["job_id"]), "error": error})
         for request in self.store.list_retraining_requests(tenant_id, limit=1000):
             if request["status"] != "queued" or request["model_id"] not in self.lifecycle.trainers:
