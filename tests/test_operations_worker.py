@@ -350,6 +350,7 @@ def test_worker_loads_only_explicitly_activated_model_artifact(tmp_path) -> None
     assert forecast["model_version"] == "v1"
     assert forecast["quantiles"]["0.5"] == [42.0, 42.0]
     assert forecast["model_selection"]["active_artifact_version"] == "v1"
+    assert forecast["model_selection"]["adapter_fallback"] is False
     assert loads == [b"reviewed-model-bytes"]
 
 
@@ -422,6 +423,7 @@ def test_worker_falls_back_when_selected_artifact_is_not_active(tmp_path) -> Non
     forecast = report["completed"][0]["result"]["forecast"]
     assert report["failed"] == []
     assert forecast["model_id"] == "seasonal-naive"
+    assert forecast["model_selection"]["adapter_fallback"] is True
     assert forecast["model_selection"]["adapter_fallback_reason"] == "no_active_model_artifact"
 
 
