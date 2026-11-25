@@ -1,6 +1,6 @@
 # Evaluation
 
-Evaluation is separate from unit tests and model training. The repository contains no third-party evaluation datasets and does not download evaluation data or model weights in CI.
+Evaluation is separate from unit tests and model training. The repository contains deterministic synthetic smoke evaluations plus opt-in third-party dataset benchmarks. The latter download source data only in dedicated workflows; raw third-party datasets and model weights are not committed or fetched by regular quality CI.
 
 ## Rolling-origin evaluation
 
@@ -26,6 +26,27 @@ The command compares the seasonal-naive reference against AutoETS, AutoARIMA, an
 These synthetic comparisons verify adapter execution, rolling-origin integration, and artifact serialization only. They are not evidence that one model is more accurate than another and must not be presented as benchmark performance.
 
 Use `demand_forecast_kit.backtesting.run_backtest` for user datasets and compare models only with matching dataset fingerprints, split settings, quantile levels, and seeds.
+
+## Independent real-data benchmarks
+
+### UCI Electricity Load Diagrams 2011–2014
+
+This benchmark evaluates daily energy demand across up to 370 independent client series using Seasonal Naive, AutoETS, and Theta. It downloads the official UCI archive in a dedicated GitHub Actions workflow and records the source-file SHA-256, selected series IDs, preprocessing summary, runtime versions, and rolling-origin metrics in its artifact.
+
+Run locally after extracting `LD2011_2014.txt`:
+
+```bash
+python -m pip install -e ".[benchmark,dev]"
+python evals/run_uci_electricity_benchmark.py LD2011_2014.txt \
+  --max-series 370 \
+  --output artifacts/uci-electricity-benchmark.json
+```
+
+This is cross-domain evidence for dense multi-series forecasting and data handling. Electricity consumption is not retail SKU sales, so it cannot validate intermittent retail performance, inventory costs, or replenishment service levels. See [the benchmark protocol](../docs/benchmarks/uci-electricity-load.md).
+
+### UCI Online Retail
+
+The UCI Online Retail workflow evaluates dense, intermittent, and very-intermittent SKU cohorts with prequential cumulative lead-time calibration. It is the retail-specific evidence source; see [the benchmark protocol](../docs/benchmarks/uci-online-retail.md).
 
 ## Per-series model routing
 

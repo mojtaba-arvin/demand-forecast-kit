@@ -7,6 +7,12 @@ on:
       - "evals/run_uci_electricity_benchmark.py"
       - "src/demand_forecast_kit/datasets.py"
       - "pyproject.toml"
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "evals/run_uci_electricity_benchmark.py"
+      - "src/demand_forecast_kit/datasets.py"
+      - "pyproject.toml"
   workflow_dispatch:
     inputs:
       max_series:

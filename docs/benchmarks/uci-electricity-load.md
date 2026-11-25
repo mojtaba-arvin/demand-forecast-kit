@@ -28,23 +28,35 @@ preprocessor does not fabricate a uniform 96-interval day or reinterpret these
 records as UTC. The source reports no missing values; the adapter fails closed
 on null, non-finite, or negative measurements.
 
-## Reproduce
+## Reproduction and evaluation protocol
 
-Download and extract the official UCI archive, then run:
+Install the optional dependencies, download and extract the official UCI archive,
+then run:
 
 ```bash
-python -c "from demand_forecast_kit.datasets import prepare_uci_electricity; print(prepare_uci_electricity('LD2011_2014.txt', 'artifacts/uci-electricity-daily.parquet'))"
+python -m pip install -e ".[benchmark,dev]"
+python evals/run_uci_electricity_benchmark.py LD2011_2014.txt \
+  --max-series 370 \
+  --output artifacts/uci-electricity-benchmark.json
 ```
 
-The raw archive is not committed to this repository. Record the source archive
-SHA-256 alongside every benchmark report. Daily aggregation is a deliberate
-frequency conversion; do not compare its scores directly with hourly or
-quarter-hourly benchmarks.
+The benchmark selects the first 370 series in stable lexical order (or a smaller
+prefix for a smoke run), fits Seasonal Naive, AutoETS, and additive Theta, and
+uses a 365-day expanding initial training window, a 7-day horizon, and a 90-day
+origin step. It reports P10/P50/P90 forecasts, P80 interval coverage, MASE,
+WQL, and pinball loss through the shared rolling-origin evaluator.
+
+Each JSON report records the raw text file SHA-256, selected series IDs, source
+citation and license, preprocessing summary, Python/platform/Polars/StatsForecast
+versions, and exact evaluation configuration. The raw archive is not committed.
+Daily aggregation is a deliberate frequency conversion; do not compare its scores
+directly with hourly or quarter-hourly benchmarks.
 
 ## Limitations
 
 - This is electricity consumption, not retail sales or intermittent SKU demand.
 - The series have different start dates; leading zeroes are part of the source
   representation and must not be silently trimmed.
-- The benchmark tests dense multi-series forecasting and data pipeline scale.
-  Retail-specific conclusions still require a separate retail dataset.
+- This benchmark tests dense multi-series forecasting and data-pipeline scale.
+  It cannot validate retail accuracy, intermittent-demand calibration, inventory
+  costs, or replenishment service levels. Those require separate retail evidence.
