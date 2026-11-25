@@ -52,7 +52,7 @@ See [versioned replenishment policies](policy-lifecycle.md) for validation, acti
 - PR #70: independent UCI Electricity benchmark provenance and Issue #31 deferral decision.
 - PR #71: operator-triggered ERPNext full reconciliation for hard-deleted Bin, Sales Invoice, and Purchase Order records (ADR 0013).
 - PR #72: SQLite online backup, integrity verification, and controlled restore CLI (ADR 0014).
-- PR #76: explicit API liveness and dependency readiness probes.
+- PR #77: explicit API liveness and dependency readiness probes.
 
 ## Issue #31 deferral decision
 
