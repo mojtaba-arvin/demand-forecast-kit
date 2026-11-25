@@ -56,3 +56,32 @@ The deterministic local-file adapter and synthetic tests are implemented.
 No M5 real-data benchmark result is claimed until an authorized copy of the
 official files is available and the untouched 28-day policy holdout has been
 run. Keep global lead-time calibration correction disabled in the meantime.
+
+
+## Reproducible calibration and chronological holdout runner
+
+After placing the official M5 files outside the repository, run:
+
+```bash
+python evals/run_m5_walmart_benchmark.py \
+  --sales-file datasets/m5/sales_train_evaluation.csv \
+  --calendar-file datasets/m5/calendar.csv \
+  --max-series-per-cohort 20 \
+  --holdout-days 28 \
+  --output artifacts/m5-walmart-benchmark.json
+```
+
+The runner freezes item/store cohorts from the first 180 days, performs rolling-origin
+training backtests only before the final 28 labeled days, and reports 7- and 14-day
+lead-time calibration. It then evaluates non-overlapping 7- and 14-day rolling origins
+inside the final 28-day demand holdout. Later holdout origins may use earlier realized
+holdout days as history, as they would in a live sequential process; calibration residuals
+and model selection never use holdout outcomes.
+
+The policy comparison uses identical scenarios for a baseline and a higher-service
+newsvendor policy. M5 does not provide on-hand stock, purchase orders, receipts, or
+retailer-specific holding/shortage costs. Therefore the runner uses explicit synthetic
+assumptions (inventory position at 50% of the uncalibrated median cumulative forecast and
+relative cost weights) and labels the result as a demand-only policy simulation. It is
+not evidence of production replenishment performance. Global calibration correction
+remains disabled.
