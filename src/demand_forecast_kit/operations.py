@@ -321,6 +321,51 @@ class OperationalStore:
             )
         return self.inventory_position(tenant, warehouse_id, sku_id)
 
+    def record_erpnext_inventory_snapshot(
+        self,
+        tenant_id: str,
+        warehouse_id: str,
+        sku_id: str,
+        quantity: float,
+        *,
+        reserved: float = 0,
+        as_of: datetime | str,
+    ) -> bool:
+        """Apply ERPNext Bin stock unless a manual or other source owns the latest snapshot."""
+        tenant = self._tenant(tenant_id)
+        if not warehouse_id.strip() or not sku_id.strip():
+            raise ValueError("warehouse_id and sku_id must not be blank")
+        qty = _positive(quantity, "quantity")
+        held = _positive(reserved, "reserved")
+        if held > qty:
+            raise ValueError("reserved cannot exceed on-hand quantity")
+        timestamp = _iso(as_of)
+        with self._connect() as db:
+            exists = db.execute(
+                "SELECT 1 FROM warehouses WHERE tenant_id=? AND warehouse_id=?",
+                (tenant, warehouse_id),
+            ).fetchone()
+            if exists is None:
+                raise KeyError("warehouse not found")
+            latest = db.execute(
+                """SELECT source FROM inventory_snapshots
+                   WHERE tenant_id=? AND warehouse_id=? AND sku_id=?
+                   ORDER BY as_of DESC LIMIT 1""",
+                (tenant, warehouse_id, sku_id.strip()),
+            ).fetchone()
+            if latest is not None and str(latest["source"]) != "erpnext:Bin":
+                return False
+            db.execute(
+                """INSERT INTO inventory_snapshots
+                   (tenant_id, warehouse_id, sku_id, quantity, reserved, backorders, as_of, source)
+                   VALUES (?, ?, ?, ?, ?, 0, ?, 'erpnext:Bin')
+                   ON CONFLICT(tenant_id, warehouse_id, sku_id, as_of)
+                   DO UPDATE SET quantity=excluded.quantity, reserved=excluded.reserved,
+                     backorders=0, source='erpnext:Bin'""",
+                (tenant, warehouse_id, sku_id.strip(), qty, held, timestamp),
+            )
+        return True
+
     def inventory_position(self, tenant_id: str, warehouse_id: str, sku_id: str) -> dict[str, Any]:
         tenant = self._tenant(tenant_id)
         with self._connect() as db:
