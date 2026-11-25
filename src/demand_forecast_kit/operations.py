@@ -1096,7 +1096,9 @@ class OperationalStore:
                     created_at,
                 ) = baseline_values
                 if (warehouse_id, sku_id, model_id) != (
-                    str(current["warehouse_id"]), str(current["sku_id"]), str(current["model_id"])
+                    str(current["warehouse_id"]),
+                    str(current["sku_id"]),
+                    str(current["model_id"]),
                 ):
                     raise ValueError("baseline identity does not match the claimed request")
                 warehouse = db.execute(
@@ -1111,8 +1113,14 @@ class OperationalStore:
                        DO UPDATE SET baseline_mae=excluded.baseline_mae,
                          sample_count=excluded.sample_count, created_at=excluded.created_at""",
                     (
-                        self._tenant(tenant_id), warehouse_id, sku_id, model_id, model_version,
-                        value, sample_count, created_at,
+                        self._tenant(tenant_id),
+                        warehouse_id,
+                        sku_id,
+                        model_id,
+                        model_version,
+                        value,
+                        sample_count,
+                        created_at,
                     ),
                 )
             cursor = db.execute(
