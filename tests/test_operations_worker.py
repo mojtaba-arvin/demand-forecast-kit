@@ -396,9 +396,11 @@ def test_worker_falls_back_when_selected_artifact_is_not_active(tmp_path) -> Non
             actual=10.0,
         )
     store.create_schedule(
-        "tenant-a", job_type="forecast_refresh",
+        "tenant-a",
+        job_type="forecast_refresh",
         payload={"warehouse_id": "WH-1", "sku_id": "SKU-1", "horizon": 2},
-        interval_seconds=300, first_run_at=datetime.now(UTC) - timedelta(seconds=1),
+        interval_seconds=300,
+        first_run_at=datetime.now(UTC) - timedelta(seconds=1),
     )
     artifacts = ModelArtifactRegistry(
         service.state_dir / "models.sqlite", service.state_dir / "model-artifacts"
