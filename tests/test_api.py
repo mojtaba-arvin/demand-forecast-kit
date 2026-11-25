@@ -21,7 +21,6 @@ def test_health_endpoint(client: TestClient) -> None:
     assert response.json()["status"] == "ok"
 
 
-
 def test_liveness_and_readiness_report_operational_dependencies(client: TestClient) -> None:
     live = client.get("/health/live")
     ready = client.get("/health/ready")
