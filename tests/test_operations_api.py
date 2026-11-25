@@ -75,6 +75,9 @@ def test_retraining_api_requires_current_claim_token_to_finish(client: TestClien
     claim = client.post(f"/v1/ops/retraining-requests/{request_id}/claim")
     assert claim.status_code == 200
     token = claim.json()["claim_token"]
+    listed = client.get("/v1/ops/retraining-requests")
+    assert listed.status_code == 200
+    assert "claim_token" not in listed.json()["requests"][0]
 
     missing_token = client.post(
         f"/v1/ops/retraining-requests/{request_id}/finish",
