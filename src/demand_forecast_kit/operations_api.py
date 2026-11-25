@@ -329,6 +329,22 @@ def build_operations_router(service: Any) -> Any:
         tenant = authorize(user, "ops:read")
         return {"schedules": store.list_schedules(tenant)}
 
+    @router.get("/worker/status")
+    def worker_status(
+        stale_after_seconds: int = 90,
+        user: dict[str, Any] = Depends(principal),
+    ) -> dict[str, Any]:
+        tenant = authorize(user, "ops:read")
+        workers = call(
+            store.list_worker_heartbeats,
+            tenant,
+            stale_after_seconds=stale_after_seconds,
+        )
+        return {
+            "workers": workers,
+            "healthy": any(worker["healthy"] for worker in workers),
+        }
+
     @router.post("/schedules/claim-due")
     def claim_due_schedules(
         limit: int = 20, user: dict[str, Any] = Depends(principal)

@@ -140,6 +140,31 @@ loss window during a scheduled restore exercise. Keep the previous state
 directory until application smoke checks pass. Multi-host failover remains
 out of scope.
 
+## Worker heartbeat and scheduler recovery
+
+API liveness/readiness probes do not establish that the background worker is
+alive or making progress. Monitor the tenant-scoped worker heartbeat separately:
+
+```http
+GET /v1/ops/worker/status?stale_after_seconds=90
+Authorization: Bearer <tenant-scoped-token>
+```
+
+The endpoint requires the `ops:read` scope and returns only the authenticated
+tenant's workers. It reports each worker's status and last-seen time, plus a
+top-level `healthy` flag (true when at least one worker is healthy). The stale
+threshold is configurable from 5 to 3,600 seconds; the default is 90 seconds.
+Workers heartbeat at startup and every `min(--poll-seconds, 30)` seconds
+(default 15). A graceful stop is recorded as stopped; a process crash is
+classified as stale after the threshold expires. Heartbeat responses do not
+expose lease tokens or credentials.
+
+A worker restart should recover through the existing expiring scheduler leases
+and fencing rules. Do not manually clear lease tokens or mark a stale worker
+healthy. Alert on a missing/stale heartbeat and inspect the worker container
+logs before replaying jobs. API readiness and worker health are separate
+signals and both must be monitored.
+
 ## Health and readiness probes
 
 Use `/health` or `/health/live` for process liveness. These endpoints return

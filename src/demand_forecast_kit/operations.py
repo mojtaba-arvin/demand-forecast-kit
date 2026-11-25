@@ -190,6 +190,18 @@ class OperationalStore:
                     enabled INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL,
                     PRIMARY KEY(tenant_id, job_id)
                 );
+                CREATE TABLE IF NOT EXISTS worker_heartbeats (
+                    tenant_id TEXT NOT NULL,
+                    worker_id TEXT NOT NULL,
+                    hostname TEXT NOT NULL,
+                    pid INTEGER NOT NULL CHECK(pid > 0),
+                    started_at TEXT NOT NULL,
+                    last_seen_at TEXT NOT NULL,
+                    status TEXT NOT NULL CHECK(status IN ('running', 'stopped')),
+                    PRIMARY KEY(tenant_id, worker_id)
+                );
+                CREATE INDEX IF NOT EXISTS worker_heartbeat_age
+                  ON worker_heartbeats(tenant_id, last_seen_at);
                 """
             )
             inventory_columns = {
@@ -1836,6 +1848,88 @@ class OperationalStore:
             ).fetchone()
         assert row is not None
         return dict(row)
+
+    def heartbeat_worker(
+        self,
+        tenant_id: str,
+        worker_id: str,
+        hostname: str,
+        pid: int,
+        started_at: datetime,
+        *,
+        now: datetime | None = None,
+    ) -> dict[str, Any]:
+        """Record a tenant-scoped worker heartbeat without exposing lease tokens."""
+        tenant = self._tenant(tenant_id)
+        if not worker_id.strip() or not hostname.strip():
+            raise ValueError("worker_id and hostname must not be blank")
+        if type(pid) is not int or pid < 1:
+            raise ValueError("pid must be a positive integer")
+        current = now or _now()
+        last_seen = _iso(current)
+        started = _iso(started_at)
+        with self._connect() as db:
+            db.execute(
+                """INSERT INTO worker_heartbeats
+                   (tenant_id, worker_id, hostname, pid, started_at, last_seen_at, status)
+                   VALUES (?, ?, ?, ?, ?, ?, 'running')
+                   ON CONFLICT(tenant_id, worker_id) DO UPDATE SET
+                     hostname=excluded.hostname, pid=excluded.pid,
+                     last_seen_at=excluded.last_seen_at, status='running'""",
+                (tenant, worker_id.strip(), hostname.strip(), pid, started, last_seen),
+            )
+            row = db.execute(
+                "SELECT * FROM worker_heartbeats WHERE tenant_id=? AND worker_id=?",
+                (tenant, worker_id.strip()),
+            ).fetchone()
+        assert row is not None
+        return dict(row)
+
+    def stop_worker(
+        self,
+        tenant_id: str,
+        worker_id: str,
+        *,
+        now: datetime | None = None,
+    ) -> bool:
+        """Mark a gracefully stopped worker; crashes are detected by heartbeat age."""
+        with self._connect() as db:
+            cursor = db.execute(
+                """UPDATE worker_heartbeats SET status='stopped', last_seen_at=?
+                   WHERE tenant_id=? AND worker_id=?""",
+                (_iso(now or _now()), self._tenant(tenant_id), worker_id),
+            )
+        return cursor.rowcount == 1
+
+    def list_worker_heartbeats(
+        self,
+        tenant_id: str,
+        *,
+        stale_after_seconds: int = 90,
+        now: datetime | None = None,
+    ) -> list[dict[str, Any]]:
+        """List only one tenant's workers and classify expired heartbeats as stale."""
+        if type(stale_after_seconds) is not int or not 5 <= stale_after_seconds <= 3600:
+            raise ValueError("stale_after_seconds must be between 5 and 3600")
+        current = now or _now()
+        if current.tzinfo is None:
+            raise ValueError("now must include timezone information")
+        cutoff = current.astimezone(UTC) - timedelta(seconds=stale_after_seconds)
+        with self._connect() as db:
+            rows = db.execute(
+                """SELECT worker_id, hostname, pid, started_at, last_seen_at, status
+                   FROM worker_heartbeats WHERE tenant_id=? ORDER BY worker_id""",
+                (self._tenant(tenant_id),),
+            ).fetchall()
+        workers: list[dict[str, Any]] = []
+        for row in rows:
+            item = dict(row)
+            last_seen = datetime.fromisoformat(str(item["last_seen_at"]).replace("Z", "+00:00"))
+            if item["status"] == "running" and last_seen < cutoff:
+                item["status"] = "stale"
+            item["healthy"] = item["status"] == "running"
+            workers.append(item)
+        return workers
 
     def create_schedule(
         self,

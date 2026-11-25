@@ -429,6 +429,75 @@ def test_worker_falls_back_when_selected_artifact_is_not_active(tmp_path) -> Non
     assert forecast["model_selection"]["adapter_fallback_reason"] == "no_active_model_artifact"
 
 
+def test_worker_heartbeat_is_tenant_scoped_and_stops_cleanly(tmp_path) -> None:
+    service = RunService(tmp_path / "state")
+    store = OperationalStore(service.state_dir / "operations.sqlite")
+    worker = OperationalWorker(service, store)
+
+    worker.heartbeat("tenant-a")
+    active = store.list_worker_heartbeats("tenant-a")
+    assert len(active) == 1
+    assert active[0]["status"] == "running"
+    assert active[0]["healthy"] is True
+    assert store.list_worker_heartbeats("tenant-b") == []
+
+    assert worker.stop("tenant-a") is True
+    stopped = store.list_worker_heartbeats("tenant-a")
+    assert stopped[0]["status"] == "stopped"
+    assert stopped[0]["healthy"] is False
+
+
+def test_worker_heartbeat_expires_after_process_crash(tmp_path) -> None:
+    service = RunService(tmp_path / "state")
+    store = OperationalStore(service.state_dir / "operations.sqlite")
+    worker = OperationalWorker(service, store)
+    started = datetime(2026, 11, 25, 12, 0, tzinfo=UTC)
+    store.heartbeat_worker(
+        "tenant-a",
+        worker.worker_id,
+        worker.hostname,
+        1234,
+        started,
+        now=started,
+    )
+
+    stale = store.list_worker_heartbeats(
+        "tenant-a",
+        stale_after_seconds=90,
+        now=started + timedelta(seconds=91),
+    )
+    assert stale[0]["status"] == "stale"
+    assert stale[0]["healthy"] is False
+
+
+def test_worker_only_claims_jobs_for_the_requested_tenant(tmp_path) -> None:
+    service = RunService(tmp_path / "state")
+    store = OperationalStore(service.state_dir / "operations.sqlite")
+    due = datetime.now(UTC) - timedelta(seconds=1)
+    store.create_warehouse("tenant-a", "WH-A", "A", "a")
+    store.create_warehouse("tenant-b", "WH-B", "B", "b")
+    store.create_schedule(
+        "tenant-a",
+        job_type="forecast_refresh",
+        payload={"warehouse_id": "WH-A", "sku_id": "missing"},
+        interval_seconds=300,
+        first_run_at=due,
+    )
+    store.create_schedule(
+        "tenant-b",
+        job_type="forecast_refresh",
+        payload={"warehouse_id": "WH-B", "sku_id": "missing"},
+        interval_seconds=300,
+        first_run_at=due,
+    )
+
+    report = OperationalWorker(service, store).run_once("tenant-a")
+
+    assert report["claimed"] == 1
+    assert len(store.list_schedules("tenant-b")) == 1
+    assert store.list_schedules("tenant-b")[0]["lease_until"] is None
+
+
 def test_worker_uses_active_versioned_policy_instead_of_schedule_costs(tmp_path) -> None:
     from demand_forecast_kit.policy_registry import ReplenishmentPolicyRegistry
 

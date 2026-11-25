@@ -6,8 +6,11 @@ import argparse
 import hashlib
 import json
 import os
+import socket
+import threading
 import time
 from collections.abc import Callable
+from datetime import UTC, datetime
 from typing import Any
 
 from demand_forecast_kit.decisions import newsvendor_order
@@ -40,6 +43,9 @@ class OperationalWorker:
             raise ValueError("retraining_stale_after_seconds must be a positive integer")
         self.service = service
         self.store = store
+        self.hostname = socket.gethostname()
+        self.worker_id = f"{self.hostname}:{os.getpid()}"
+        self.started_at = datetime.now(UTC)
         self.lifecycle = lifecycle or ModelLifecycle(store)
         self.retraining_stale_after_seconds = retraining_stale_after_seconds
         self.model_artifact_registry = model_artifact_registry
@@ -53,6 +59,20 @@ class OperationalWorker:
         self.adapters: dict[tuple[str, str], ForecastAdapter] = {
             (fallback.model_id, fallback.model_version): fallback
         }
+
+    def heartbeat(self, tenant_id: str) -> dict[str, Any]:
+        """Refresh this process's tenant-scoped liveness record."""
+        return self.store.heartbeat_worker(
+            tenant_id,
+            self.worker_id,
+            self.hostname,
+            os.getpid(),
+            self.started_at,
+        )
+
+    def stop(self, tenant_id: str) -> bool:
+        """Mark this worker stopped after a graceful shutdown."""
+        return self.store.stop_worker(tenant_id, self.worker_id)
 
     def register_adapter(self, adapter: ForecastAdapter) -> None:
         """Register an available adapter for automatic SKU-level model routing."""
@@ -112,6 +132,7 @@ class OperationalWorker:
         self.lifecycle.register_trainer(model_id, trainer)
 
     def run_once(self, tenant_id: str, *, limit: int = 20) -> dict[str, Any]:
+        self.heartbeat(tenant_id)
         recovered_retraining = self.store.recover_stale_retraining(
             tenant_id, stale_after_seconds=self.retraining_stale_after_seconds
         )
@@ -406,13 +427,32 @@ def main() -> None:
     service = RunService.from_environment()
     store = OperationalStore(service.state_dir / "operations.sqlite")
     worker = OperationalWorker(service, store)
-    while True:
-        report = worker.run_once(args.tenant_id)
-        if report["claimed"]:
-            print(json.dumps(report, sort_keys=True, allow_nan=False))
-        if args.once:
-            break
-        time.sleep(args.poll_seconds)
+    stop_event = threading.Event()
+
+    def maintain_heartbeat() -> None:
+        interval = min(args.poll_seconds, 30)
+        while not stop_event.wait(interval):
+            worker.heartbeat(args.tenant_id)
+
+    worker.heartbeat(args.tenant_id)
+    heartbeat_thread = threading.Thread(
+        target=maintain_heartbeat,
+        name="demand-forecast-worker-heartbeat",
+        daemon=True,
+    )
+    heartbeat_thread.start()
+    try:
+        while True:
+            report = worker.run_once(args.tenant_id)
+            if report["claimed"] or report["failed"] or report["retraining"]:
+                print(json.dumps(report, sort_keys=True, allow_nan=False), flush=True)
+            if args.once:
+                break
+            time.sleep(args.poll_seconds)
+    finally:
+        stop_event.set()
+        heartbeat_thread.join(timeout=5)
+        worker.stop(args.tenant_id)
 
 
 if __name__ == "__main__":
