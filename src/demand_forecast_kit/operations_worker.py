@@ -196,12 +196,14 @@ class OperationalWorker:
         if not selection["used_fallback"] and selected["model_id"] != fallback.model_id:
             try:
                 adapter = self._resolve_selected_adapter(selected, fallback)
+                selection["adapter_fallback"] = False
                 if self.model_artifact_registry is not None:
                     active = self.model_artifact_registry.get_active(str(selected["model_id"]))
                     if active is not None:
                         selection["active_artifact_version"] = active.model_version
                         selection["active_artifact_sha256"] = active.artifact_sha256
             except Exception as exc:
+                selection["adapter_fallback"] = True
                 selection["adapter_fallback_reason"] = (
                     str(exc)
                     if isinstance(exc, LookupError)
