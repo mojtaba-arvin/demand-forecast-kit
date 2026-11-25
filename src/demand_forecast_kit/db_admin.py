@@ -191,8 +191,6 @@ def main() -> None:
                 confirm_services_stopped=args.confirm_services_stopped,
             )
     except (
-        FileNotFoundError,
-        FileExistsError,
         OSError,
         sqlite3.Error,
         RuntimeError,
