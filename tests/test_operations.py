@@ -250,6 +250,52 @@ def test_retraining_request_state_transitions_are_guarded(store: OperationalStor
     assert finished["status"] == "failed"
 
 
+def test_stale_retraining_claims_are_requeued_after_worker_crash(store: OperationalStore) -> None:
+    create_warehouse(store)
+    request = store.queue_retraining(
+        "tenant-a",
+        warehouse_id="WH-1",
+        sku_id="SKU-1",
+        model_id="model-a",
+        model_version="v1",
+        reason="drift",
+    )
+    store.claim_retraining("tenant-a", request["request_id"])
+    now = datetime.now(UTC)
+
+    assert store.recover_stale_retraining("tenant-a", stale_after_seconds=60, now=now) == 0
+    assert (
+        store.recover_stale_retraining(
+            "tenant-a",
+            stale_after_seconds=60,
+            now=now + timedelta(seconds=120),
+        )
+        == 1
+    )
+    recovered = store.list_retraining_requests("tenant-a")[0]
+    assert recovered["status"] == "queued"
+    assert store.claim_retraining("tenant-a", request["request_id"])["status"] == "claimed"
+
+
+def test_stale_retraining_recovery_is_tenant_scoped(store: OperationalStore) -> None:
+    create_warehouse(store, "tenant-a")
+    create_warehouse(store, "tenant-b")
+    request = store.queue_retraining(
+        "tenant-a",
+        warehouse_id="WH-1",
+        sku_id="SKU-1",
+        model_id="model-a",
+        model_version="v1",
+        reason="drift",
+    )
+    store.claim_retraining("tenant-a", request["request_id"])
+    now = datetime.now(UTC) + timedelta(hours=2)
+
+    assert store.recover_stale_retraining("tenant-b", now=now) == 0
+    assert store.list_retraining_requests("tenant-a")[0]["status"] == "claimed"
+    assert store.recover_stale_retraining("tenant-a", now=now) == 1
+
+
 def test_schedules_claim_complete_and_retry(store: OperationalStore) -> None:
     create_warehouse(store)
     start = datetime(2026, 5, 1, tzinfo=UTC)
