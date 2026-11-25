@@ -794,7 +794,10 @@ class OperationalStore:
                                  AND observed_at=?""",
                             (tenant, warehouse_id, sku, observed_at),
                         ).fetchone()
-                        if existing is not None and str(existing["source"]) != "erpnext:Sales Invoice Item":
+                        if (
+                            existing is not None
+                            and str(existing["source"]) != "erpnext:Sales Invoice Item"
+                        ):
                             if value > 0:
                                 raise ValueError(
                                     "ERPNext demand conflicts with a non-ERPNext observation "
