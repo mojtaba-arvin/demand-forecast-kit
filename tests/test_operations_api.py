@@ -69,6 +69,7 @@ def test_retraining_api_requires_current_claim_token_to_finish(client: TestClien
         },
     )
     assert health.json()["alert"] is True
+    assert "claim_token" not in health.json()["retraining_request"]
     request_id = health.json()["retraining_request"]["request_id"]
 
     claim = client.post(f"/v1/ops/retraining-requests/{request_id}/claim")
