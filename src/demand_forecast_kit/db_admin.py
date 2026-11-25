@@ -165,7 +165,9 @@ def main() -> None:
     verify = commands.add_parser("verify", help="verify a database or backup")
     verify.add_argument("database", type=Path)
 
-    restore = commands.add_parser(\n        "restore", help="restore a backup while services are stopped"\n    )
+    restore = commands.add_parser(
+        "restore", help="restore a backup while services are stopped"
+    )
     restore.add_argument("backup", type=Path)
     restore.add_argument("database", type=Path)
     restore.add_argument("--confirm-services-stopped", action="store_true")
@@ -173,7 +175,9 @@ def main() -> None:
     args = parser.parse_args()
     try:
         if args.command == "backup":
-            result = backup_database(\n                args.database, args.destination, overwrite=args.overwrite\n            )
+            result = backup_database(
+                args.database, args.destination, overwrite=args.overwrite
+            )
         elif args.command == "verify":
             result = verify_database(args.database)
         else:
@@ -182,7 +186,14 @@ def main() -> None:
                 args.database,
                 confirm_services_stopped=args.confirm_services_stopped,
             )
-    except (\n        FileNotFoundError,\n        FileExistsError,\n        OSError,\n        sqlite3.Error,\n        RuntimeError,\n        ValueError,\n    ) as exc:
+    except (
+        FileNotFoundError,
+        FileExistsError,
+        OSError,
+        sqlite3.Error,
+        RuntimeError,
+        ValueError,
+    ) as exc:
         parser.error(str(exc))
     print(json.dumps(result, sort_keys=True))
 
