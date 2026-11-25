@@ -40,8 +40,12 @@ def test_online_backup_verify_and_restore_round_trip(tmp_path) -> None:
         connection.execute("UPDATE parent SET value='changed' WHERE id=1")
         connection.execute("INSERT INTO parent (id, value) VALUES (2, 'new')")
 
+    for suffix in ("-wal", "-shm", "-journal"):
+        Path(f"{database}{suffix}").write_bytes(b"stale-sidecar")
+
     restored = restore_database(backup, database, confirm_services_stopped=True)
     assert restored["integrity_check"] == "ok"
+    assert all(not Path(f"{database}{suffix}").exists() for suffix in ("-wal", "-shm", "-journal"))
     with sqlite3.connect(database) as connection:
         assert connection.execute("SELECT value FROM parent WHERE id=1").fetchone()[0] == "original"
         assert connection.execute("SELECT COUNT(*) FROM parent").fetchone()[0] == 1
