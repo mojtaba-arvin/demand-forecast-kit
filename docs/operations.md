@@ -175,6 +175,14 @@ assumed: adapters in this package have different fitting semantics. The
 standalone CLI has no built-in trainer registrations yet, so model-specific
 fitting must be supplied by the embedding worker process.
 
+Retraining claims are recovered after one hour without an update. This covers a
+worker crash between claiming a request and recording its result; the next
+worker cycle returns the abandoned request to the queue. Keep individual
+training runs below this recovery window, or extend the recovery timeout in
+the embedding worker before running long jobs. Trainers should be idempotent:
+a process can stop after writing a validated baseline but before marking the
+request complete, causing the request to be retried after recovery.
+
 Submit realized replenishment outcomes to
 `POST /v1/ops/monitoring/policy-outcomes`. The store calculates realized
 holding/shortage cost, fill rate, and cycle service level. The
