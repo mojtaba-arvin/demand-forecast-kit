@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 from collections import defaultdict
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import asdict
 from datetime import timedelta
 from pathlib import Path

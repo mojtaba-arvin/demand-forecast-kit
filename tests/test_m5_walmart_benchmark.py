@@ -4,8 +4,9 @@ import csv
 from datetime import date, timedelta
 from pathlib import Path
 
-from evals.run_m5_walmart_benchmark import run_m5_walmart_benchmark
 from demand_forecast_kit.models.seasonal_naive import SeasonalNaiveAdapter
+
+from evals.run_m5_walmart_benchmark import run_m5_walmart_benchmark
 
 
 def _write_m5_fixture(directory: Path, *, day_count: int = 360) -> tuple[Path, Path]:
