@@ -597,7 +597,8 @@ class ERPNextClient:
         if unexpectedly_empty and not allow_empty_snapshot:
             resources = ", ".join(unexpectedly_empty)
             raise RuntimeError(
-                "ERPNext returned an unexpectedly empty full snapshot for locally populated resources "
+                "ERPNext returned an unexpectedly empty full snapshot for "
+                "locally populated resources "
                 f"({resources}); verify API read permissions or explicitly allow an empty snapshot"
             )
 
