@@ -157,11 +157,11 @@ def test_restore_failure_restores_sidecars_and_preserves_database(
     with pytest.raises(OSError, match="simulated replacement failure"):
         restore_database(backup, database, confirm_services_stopped=True)
 
+    for suffix, content in sidecars.items():
+        assert Path(f"{database}{suffix}").read_bytes() == content
     with sqlite3.connect(database) as connection:
         value = connection.execute("SELECT value FROM parent WHERE id=1").fetchone()[0]
     assert value == "current"
-    for suffix, content in sidecars.items():
-        assert Path(f"{database}{suffix}").read_bytes() == content
 
 
 def test_backup_does_not_overwrite_destination_created_during_publish(
