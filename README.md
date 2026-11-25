@@ -41,6 +41,7 @@ Demand Forecast Kit is an open-source library and API for turning sales and inve
 - Simulate delayed replenishment receipts, stockouts, backorders, and lost sales; compare multiple policies on identical realized scenarios.
 - Expose forecast and rolling-origin evaluation through FastAPI, a Forecast CLI, and an independent Evaluation CLI.
 - Persist idempotent runs and immutable inventory decisions in SQLite; store binary artifacts by SHA-256.
+- Back up the operational SQLite store online, verify integrity and foreign keys, and perform an explicitly confirmed controlled restore.
 - Register immutable model versions with content-addressed model/evaluation artifacts, durable active-version state, compare-and-swap activation, and explicit rollback history.
 - Emit structured JSON logs and thread-safe process-local metrics snapshots.
 - Maintain tenant-scoped warehouse, stock, purchase-order, receipt, and demand-observation records in a local operational store.
