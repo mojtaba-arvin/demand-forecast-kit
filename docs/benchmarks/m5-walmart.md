@@ -60,8 +60,14 @@ run. Keep global lead-time calibration correction disabled in the meantime.
 
 ## Reproducible calibration and chronological holdout runner
 
-After placing the official M5 files outside the repository, run:
+Install the optional statistical adapters, then place the official M5 files outside
+the repository:
 
+```bash
+pip install ".[stats]"
+```
+
+Run the benchmark:
 ```bash
 python evals/run_m5_walmart_benchmark.py \
   --sales-file datasets/m5/sales_train_evaluation.csv \

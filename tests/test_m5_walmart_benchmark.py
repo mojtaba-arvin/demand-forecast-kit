@@ -5,6 +5,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 from evals.run_m5_walmart_benchmark import run_m5_walmart_benchmark
+from demand_forecast_kit.models.seasonal_naive import SeasonalNaiveAdapter
 
 
 def _write_m5_fixture(directory: Path, *, day_count: int = 360) -> tuple[Path, Path]:
@@ -66,6 +67,7 @@ def test_m5_runner_keeps_final_28_days_out_of_training_and_writes_policy_report(
         max_series_per_cohort=1,
         holdout_days=28,
         output=output,
+        adapters=[SeasonalNaiveAdapter(season_length=7)],
     )
 
     assert result["cohort_counts"] == {

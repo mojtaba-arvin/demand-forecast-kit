@@ -19,6 +19,7 @@ from demand_forecast_kit.lead_time import (
     calibrate_lead_time_demand,
     to_inventory_scenario,
 )
+from demand_forecast_kit.models.base import ForecastAdapter
 from demand_forecast_kit.models.seasonal_naive import SeasonalNaiveAdapter
 from demand_forecast_kit.models.statistical import CrostonAdapter, TSBAdapter
 from demand_forecast_kit.policy_comparison import InventoryPolicy, compare_inventory_policies
@@ -78,6 +79,7 @@ def run_m5_walmart_benchmark(
     max_series_per_cohort: int = 20,
     holdout_days: int = 28,
     output: Path = Path("artifacts/m5-walmart-benchmark.json"),
+    adapters: Sequence[ForecastAdapter] | None = None,
 ) -> dict[str, object]:
     """Run training-only calibration and a final rolling-origin demand holdout.
 
@@ -116,11 +118,13 @@ def run_m5_walmart_benchmark(
     if train_panel.get_column("timestamp").max() != training_end:
         raise ValueError("M5 training history does not end immediately before the holdout")
 
-    adapters = [
+    selected_adapters = list(adapters) if adapters is not None else [
         SeasonalNaiveAdapter(season_length=7),
         CrostonAdapter(variant="sba", conformal_windows=2),
         TSBAdapter(conformal_windows=2),
     ]
+    if not selected_adapters:
+        raise ValueError("at least one forecasting adapter is required")
     config = BacktestConfig(
         initial_train_size=180,
         horizon=14,
@@ -163,7 +167,7 @@ def run_m5_walmart_benchmark(
             cast(list[str], cohort_train.get_column("series_id").unique().to_list())
         )
 
-        for adapter in adapters:
+        for adapter in selected_adapters:
             report = run_backtest(cohort_train, [adapter], config)
             fingerprints[f"{cohort}:{adapter.model_id}"] = report.dataset_fingerprint
             for summary in report.model_summaries:
