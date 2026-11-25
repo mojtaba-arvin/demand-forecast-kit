@@ -25,8 +25,16 @@ model artifact exists.
 - Append immutable activation/rollback events.
 - Never deserialize or execute stored bytes in the registry. Model-specific
   loaders remain an application responsibility.
-- Do not automatically activate a trained candidate or change the default
-  worker's adapter selection.
+- Do not automatically activate a trained candidate.
+- The operational worker may opt into the artifact registry and must resolve
+  non-baseline candidates against the exact active version.
+- Applications explicitly register reviewed loaders by media type; artifact
+  metadata never selects or imports executable code.
+- A missing active version, missing loader, digest/read failure, loader error, or
+  adapter identity mismatch falls back to seasonal-naive rather than serving an
+  unactivated or mismatched candidate.
+- Cache loaded adapters by immutable artifact digest; active-pointer changes
+  naturally select a different cache key for activation and rollback.
 
 ## Consequences
 
