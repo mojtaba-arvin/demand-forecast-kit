@@ -27,9 +27,7 @@ def _integrity_report(path: Path) -> dict[str, int | str]:
     if integrity_rows != ["ok"]:
         raise RuntimeError(f"SQLite integrity_check failed: {integrity_rows}")
     if foreign_key_errors:
-        raise RuntimeError(
-            f"SQLite foreign_key_check found {len(foreign_key_errors)} violation(s)"
-        )
+        raise RuntimeError(f"SQLite foreign_key_check found {len(foreign_key_errors)} violation(s)")
     return {
         "integrity_check": "ok",
         "foreign_key_violations": len(foreign_key_errors),
@@ -174,9 +172,7 @@ def main() -> None:
     verify = commands.add_parser("verify", help="verify a database or backup")
     verify.add_argument("database", type=Path)
 
-    restore = commands.add_parser(
-        "restore", help="restore a backup while services are stopped"
-    )
+    restore = commands.add_parser("restore", help="restore a backup while services are stopped")
     restore.add_argument("backup", type=Path)
     restore.add_argument("database", type=Path)
     restore.add_argument("--confirm-services-stopped", action="store_true")
