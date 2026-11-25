@@ -27,20 +27,20 @@ def build_operations_router(service: Any) -> Any:
     if not configured and environment == "production":
         raise RuntimeError("DEMAND_FORECAST_API_KEYS must be configured in production")
     try:
-        key_records = json.loads(configured) if configured else []
+        key_records_raw: Any = json.loads(configured) if configured else []
     except json.JSONDecodeError as exc:
         raise RuntimeError("DEMAND_FORECAST_API_KEYS must be valid JSON") from exc
-    if not isinstance(key_records, list):
+    if not isinstance(key_records_raw, list):
         raise RuntimeError("DEMAND_FORECAST_API_KEYS must be a JSON array")
-    key_records = cast(list[dict[str, Any]], key_records)
+    if not all(isinstance(record, dict) for record in key_records_raw):
+        raise RuntimeError("each API key record must be an object")
+    key_records = cast(list[dict[str, Any]], key_records_raw)
     keys: dict[str, dict[str, Any]] = {}
     for record in key_records:
-        if not isinstance(record, dict):
-            raise RuntimeError("each API key record must be an object")
         key_id = record.get("key_id")
         digest = record.get("token_sha256")
         tenant = record.get("tenant_id")
-        scopes = record.get("scopes")
+        scopes_raw = record.get("scopes")
         if (
             not isinstance(key_id, str)
             or not key_id.strip()
@@ -48,15 +48,15 @@ def build_operations_router(service: Any) -> Any:
             or len(digest) != 64
             or not isinstance(tenant, str)
             or not tenant.strip()
-            or not isinstance(scopes, list)
-            or not all(isinstance(item, str) for item in scopes)
+            or not isinstance(scopes_raw, list)
+            or not all(isinstance(item, str) for item in scopes_raw)
         ):
             raise RuntimeError(
                 "API key records require key_id, SHA-256 token digest, tenant_id, scopes"
             )
         if key_id in keys:
             raise RuntimeError("API key identifiers must be unique")
-        typed_scopes = cast(list[str], scopes)
+        typed_scopes = cast(list[str], scopes_raw)
         keys[key_id] = {
             "digest": digest.lower(),
             "tenant_id": tenant,
@@ -474,25 +474,25 @@ def install_api_auth(app: Any) -> None:
             raise RuntimeError("DEMAND_FORECAST_API_KEYS must be configured in production")
         return
     try:
-        records = json.loads(configured)
+        records_raw: Any = json.loads(configured)
     except json.JSONDecodeError as exc:
         raise RuntimeError("DEMAND_FORECAST_API_KEYS must be valid JSON") from exc
-    if not isinstance(records, list):
+    if not isinstance(records_raw, list):
         raise RuntimeError("DEMAND_FORECAST_API_KEYS must be a JSON array")
-    records = cast(list[dict[str, Any]], records)
+    if not all(isinstance(record, dict) for record in records_raw):
+        raise RuntimeError("each API key record must be an object")
+    records = cast(list[dict[str, Any]], records_raw)
     tokens: list[tuple[str, set[str]]] = []
     for record in records:
-        if not isinstance(record, dict):
-            raise RuntimeError("each API key record must be an object")
-        digest, scopes = record.get("token_sha256"), record.get("scopes")
+        digest, scopes_raw = record.get("token_sha256"), record.get("scopes")
         if (
             not isinstance(digest, str)
             or len(digest) != 64
-            or not isinstance(scopes, list)
-            or not all(isinstance(scope, str) for scope in scopes)
+            or not isinstance(scopes_raw, list)
+            or not all(isinstance(scope, str) for scope in scopes_raw)
         ):
             raise RuntimeError("API key records require token_sha256 and scopes")
-        tokens.append((digest.lower(), set(cast(list[str], scopes))))
+        tokens.append((digest.lower(), set(cast(list[str], scopes_raw))))
     if not tokens:
         raise RuntimeError("at least one API key must be configured in production")
 

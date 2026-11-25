@@ -81,12 +81,13 @@ class ERPNextClient:
         }
         raw = self.transport(url, "GET", headers, None, self.timeout)
         try:
-            payload = json.loads(raw)
+            payload_raw: Any = json.loads(raw)
         except (UnicodeDecodeError, json.JSONDecodeError) as exc:
             raise RuntimeError("ERPNext returned invalid JSON") from exc
-        if not isinstance(payload, dict):
+        if not isinstance(payload_raw, dict):
             raise RuntimeError("ERPNext response must be a JSON object")
-        data = payload.get("data")
+        payload = cast(dict[str, Any], payload_raw)
+        data: Any = payload.get("data")
         if not isinstance(data, list) or any(not isinstance(item, dict) for item in data):
             raise RuntimeError("ERPNext response does not contain a valid data list")
         return cast(list[dict[str, Any]], data)
