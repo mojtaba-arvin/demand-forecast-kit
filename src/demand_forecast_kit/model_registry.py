@@ -164,7 +164,11 @@ class ModelArtifactRegistry:
             raise ValueError("payload must contain non-empty bytes")
         if not isinstance(evaluation_report, bytes) or not evaluation_report:
             raise ValueError("evaluation_report must contain non-empty bytes")
-        if not math.isfinite(validation_mae) or validation_mae < 0:
+        if (
+            isinstance(validation_mae, bool)
+            or not math.isfinite(validation_mae)
+            or validation_mae < 0
+        ):
             raise ValueError("validation_mae must be finite and non-negative")
         if type(validation_sample_count) is not int or validation_sample_count < 1:
             raise ValueError("validation_sample_count must be a positive integer")
@@ -219,7 +223,9 @@ class ModelArtifactRegistry:
             str(row["metadata_json"]),
         )
         if existing != requested:
-            raise ValueError("model version is already registered with different content or evidence")
+            raise ValueError(
+                "model version is already registered with different content or evidence"
+            )
         return self._record(row)
 
     def get_artifact(self, model_id: str, model_version: str) -> ModelArtifactRecord:
@@ -227,7 +233,10 @@ class ModelArtifactRegistry:
         with self._connect() as connection:
             row = connection.execute(
                 "SELECT * FROM model_artifacts WHERE model_id=? AND model_version=?",
-                (self._required(model_id, "model_id"), self._required(model_version, "model_version")),
+                (
+                    self._required(model_id, "model_id"),
+                    self._required(model_version, "model_version"),
+                ),
             ).fetchone()
         if row is None:
             raise KeyError("model artifact not found")
