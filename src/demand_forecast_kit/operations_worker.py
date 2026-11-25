@@ -42,6 +42,7 @@ class OperationalWorker:
         self.lifecycle.register_trainer(model_id, trainer)
 
     def run_once(self, tenant_id: str, *, limit: int = 20) -> dict[str, Any]:
+        recovered_retraining = self.store.recover_stale_retraining(tenant_id)
         jobs = self.store.claim_due_schedules(tenant_id, limit=limit)
         completed: list[dict[str, Any]] = []
         failed: list[dict[str, str]] = []
@@ -77,6 +78,7 @@ class OperationalWorker:
                 )
         return {
             "claimed": len(jobs),
+            "recovered_retraining": recovered_retraining,
             "completed": completed,
             "failed": failed,
             "retraining": retrained,
