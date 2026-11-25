@@ -412,10 +412,11 @@ def test_scheduler_validation_edges(tmp_path) -> None:
         store.complete_schedule(
             "tenant-a",
             "missing",
+            lease_token="invalid",
             completed_at=datetime(2026, 1, 1),
         )
     with pytest.raises(KeyError, match="scheduled job"):
-        store.complete_schedule("tenant-a", "missing")
+        store.complete_schedule("tenant-a", "missing", lease_token="invalid")
     job = store.create_schedule(
         "tenant-a",
         job_type="forecast_refresh",
@@ -423,8 +424,10 @@ def test_scheduler_validation_edges(tmp_path) -> None:
         interval_seconds=60,
     )
     with pytest.raises(ValueError, match="active lease"):
-        store.complete_schedule("tenant-a", job["job_id"])
+        store.complete_schedule("tenant-a", job["job_id"], lease_token="invalid")
     with pytest.raises(ValueError, match="positive integer"):
-        store.release_schedule("tenant-a", job["job_id"], retry_after_seconds=0)
+        store.release_schedule(
+            "tenant-a", job["job_id"], lease_token="invalid", retry_after_seconds=0
+        )
     with pytest.raises(ValueError, match="active lease"):
-        store.release_schedule("tenant-a", job["job_id"])
+        store.release_schedule("tenant-a", job["job_id"], lease_token="invalid")
