@@ -19,6 +19,9 @@ build/
 *.arrow
 *.feather
 artifacts/
+state/
+state.pre-restore-*/
+backups/
 .env
 .env.*
 !.env.example

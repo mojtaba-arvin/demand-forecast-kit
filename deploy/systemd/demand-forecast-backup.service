@@ -1,0 +1,11 @@
+[Unit]
+Description=Encrypted off-host backup for demand-forecast-kit
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/demand-forecast-kit
+EnvironmentFile=/etc/demand-forecast-kit/restic.env
+ExecStart=/opt/demand-forecast-kit/scripts/backup-restic.sh
