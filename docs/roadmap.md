@@ -32,8 +32,8 @@ A feature is not considered production-ready merely because its unit tests pass.
 ## Next engineering priorities
 
 1. **Implement ERPNext incremental synchronization.** Use per-tenant/warehouse/resource watermarks with an overlap window; replay changed invoices and purchase orders idempotently; recompute affected SKU/day demand when old documents are edited or cancelled; advance watermarks only after successful application. Preserve read-only credentials and behavior.
-3. **Close Issue #31 with real reference hardware.** Collect 10 independent full-profile workflow artifacts on the same fixed runner, characterize variance, then enable only a justified environment-matched regression gate. Do not substitute GitHub-hosted runners or one multi-repeat workflow for the required independent runs.
-4. **Extend empirical calibration evidence.** The UCI purged holdout already exists; next use a larger cohort or independent dataset and more non-overlapping origins, report per-SKU coverage/bias and inventory cost, and keep corrections disabled until the result replicates.
+2. **Close Issue #31 with real reference hardware.** Collect 10 independent full-profile workflow artifacts on the same fixed runner, characterize variance, then enable only a justified environment-matched regression gate. Do not substitute GitHub-hosted runners or one multi-repeat workflow for the required independent runs.
+3. **Extend empirical calibration evidence.** The UCI purged holdout already exists; next use a larger cohort or independent dataset and more non-overlapping origins, report per-SKU coverage/bias and inventory cost, and keep corrections disabled until the result replicates.
 
 See [versioned replenishment policies](policy-lifecycle.md) for validation, activation, rollback, and worker enforcement. See the [UCI benchmark and purged holdout report](benchmarks/uci-online-retail.md) for cohort-level coverage, SKU dispersion, baseline bias, and the width/bias adjustment trade-off.
 
@@ -45,7 +45,7 @@ See [versioned replenishment policies](policy-lifecycle.md) for validation, acti
 - PR #52: scheduled-job lease fencing.
 - PR #53: bounded ERPNext retries.
 - PR #54: persistent model artifacts, evaluation digests, explicit activation/rollback, and immutable activation history.
-- PR #56: active model artifact resolution in the operational worker and tenant-scoped versioned replenishment policy lifecycle.
+- PR #56 (current delivery): active model artifact resolution in the operational worker and tenant-scoped versioned replenishment policy lifecycle.
 
 PR #54 merged as \`ac32fc4e0d56689fa2b87d33c16094f9302ccf86\`. Its PR CI and Release Candidate passed, including 398 tests, 92.18% coverage, strict Pyright, Python 3.13/3.14 compatibility, dependency audit, REUSE, wheel build/install, and source-distribution build/install.
 
