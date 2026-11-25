@@ -539,7 +539,9 @@ class ERPNextClient:
     ) -> None:
         values = [str(record.get(key, "")).strip() for record in records]
         if any(not value for value in values) or len(values) != len(set(values)):
-            raise RuntimeError(\n                f"ERPNext {resource} full snapshot contains missing or duplicate keys"\n            )
+            raise RuntimeError(
+                f"ERPNext {resource} full snapshot contains missing or duplicate keys"
+            )
 
     def reconcile_warehouse(
         self,
