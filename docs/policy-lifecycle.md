@@ -18,13 +18,12 @@ from demand_forecast_kit.policy_registry import ReplenishmentPolicyRegistry
 
 registry = ReplenishmentPolicyRegistry("state/policies.sqlite")
 registry.register_policy(
-    "tenant-a", "service-level-90", "v1",
-    {"policy_type": "newsvendor", "underage_cost": 9,
-     "overage_cost": 1, "pack_size": 6},
+    "tenant-a",
+    "service-level-90",
+    "v1",
+    {"policy_type": "newsvendor", "underage_cost": 9, "overage_cost": 1, "pack_size": 6},
 )
-registry.activate(
-    "tenant-a", "service-level-90", "v1", expected_active_version=None
-)
+registry.activate("tenant-a", "service-level-90", "v1", expected_active_version=None)
 ```
 
 Pass the registry to `OperationalWorker(policy_registry=registry)`. In this

@@ -1,4 +1,5 @@
 """Immutable, tenant-scoped replenishment policy versions and activation history."""
+
 from __future__ import annotations
 
 import hashlib
@@ -16,6 +17,7 @@ from typing import Any
 @dataclass(frozen=True, slots=True)
 class ReplenishmentPolicyRecord:
     """Immutable validated policy definition."""
+
     tenant_id: str
     policy_id: str
     policy_version: str
@@ -27,6 +29,7 @@ class ReplenishmentPolicyRecord:
 @dataclass(frozen=True, slots=True)
 class PolicyActivation:
     """Result of an explicit policy activation or rollback."""
+
     event_id: int | None
     action: str
     tenant_id: str
@@ -122,8 +125,12 @@ class ReplenishmentPolicyRegistry:
     @staticmethod
     def _encode_definition(definition: dict[str, Any]) -> str:
         allowed = {
-            "policy_type", "underage_cost", "overage_cost", "pack_size",
-            "description", "metadata",
+            "policy_type",
+            "underage_cost",
+            "overage_cost",
+            "pack_size",
+            "description",
+            "metadata",
         }
         if not isinstance(definition, dict) or set(definition) - allowed:
             raise ValueError("policy definition must be an object with supported fields")
@@ -147,14 +154,15 @@ class ReplenishmentPolicyRegistry:
             raise ValueError("metadata must be a JSON object")
         normalized = {**definition, "pack_size": pack_size}
         try:
-            return json.dumps(
-                normalized, sort_keys=True, separators=(",", ":"), allow_nan=False
-            )
+            return json.dumps(normalized, sort_keys=True, separators=(",", ":"), allow_nan=False)
         except (TypeError, ValueError) as exc:
             raise ValueError("policy definition must contain finite JSON data") from exc
 
     def register_policy(
-        self, tenant_id: str, policy_id: str, policy_version: str,
+        self,
+        tenant_id: str,
+        policy_id: str,
+        policy_version: str,
         definition: dict[str, Any],
     ) -> ReplenishmentPolicyRecord:
         tenant = self._required(tenant_id, "tenant_id")
@@ -207,9 +215,7 @@ class ReplenishmentPolicyRegistry:
             ).fetchall()
         return tuple(self._record(row) for row in rows)
 
-    def get_active(
-        self, tenant_id: str, policy_id: str
-    ) -> ReplenishmentPolicyRecord | None:
+    def get_active(self, tenant_id: str, policy_id: str) -> ReplenishmentPolicyRecord | None:
         tenant = self._required(tenant_id, "tenant_id")
         identifier = self._required(policy_id, "policy_id")
         with self._connect() as db:
@@ -223,26 +229,45 @@ class ReplenishmentPolicyRegistry:
         return self.get_policy(tenant, identifier, str(row["policy_version"]))
 
     def activate(
-        self, tenant_id: str, policy_id: str, policy_version: str, *,
+        self,
+        tenant_id: str,
+        policy_id: str,
+        policy_version: str,
+        *,
         expected_active_version: str | None,
     ) -> PolicyActivation:
         return self._set_active(
-            tenant_id, policy_id, policy_version,
-            expected_active_version=expected_active_version, action="activate",
+            tenant_id,
+            policy_id,
+            policy_version,
+            expected_active_version=expected_active_version,
+            action="activate",
         )
 
     def rollback(
-        self, tenant_id: str, policy_id: str, target_version: str, *,
+        self,
+        tenant_id: str,
+        policy_id: str,
+        target_version: str,
+        *,
         expected_active_version: str,
     ) -> PolicyActivation:
         return self._set_active(
-            tenant_id, policy_id, target_version,
-            expected_active_version=expected_active_version, action="rollback",
+            tenant_id,
+            policy_id,
+            target_version,
+            expected_active_version=expected_active_version,
+            action="rollback",
         )
 
     def _set_active(
-        self, tenant_id: str, policy_id: str, policy_version: str, *,
-        expected_active_version: str | None, action: str,
+        self,
+        tenant_id: str,
+        policy_id: str,
+        policy_version: str,
+        *,
+        expected_active_version: str | None,
+        action: str,
     ) -> PolicyActivation:
         tenant = self._required(tenant_id, "tenant_id")
         identifier = self._required(policy_id, "policy_id")
@@ -268,7 +293,12 @@ class ReplenishmentPolicyRegistry:
                 raise ValueError("active policy version changed; activation was not applied")
             if current_version == version:
                 return PolicyActivation(
-                    None, "unchanged", tenant, identifier, current_version, version,
+                    None,
+                    "unchanged",
+                    tenant,
+                    identifier,
+                    current_version,
+                    version,
                     datetime.now(UTC).isoformat(),
                 )
             activated_at = datetime.now(UTC).isoformat()
@@ -287,13 +317,16 @@ class ReplenishmentPolicyRegistry:
             if cursor.lastrowid is None:
                 raise RuntimeError("policy activation event was not persisted")
             return PolicyActivation(
-                int(cursor.lastrowid), action, tenant, identifier, current_version,
-                version, activated_at,
+                int(cursor.lastrowid),
+                action,
+                tenant,
+                identifier,
+                current_version,
+                version,
+                activated_at,
             )
 
-    def activation_history(
-        self, tenant_id: str, policy_id: str
-    ) -> tuple[PolicyActivation, ...]:
+    def activation_history(self, tenant_id: str, policy_id: str) -> tuple[PolicyActivation, ...]:
         with self._connect() as db:
             rows = db.execute(
                 """SELECT * FROM replenishment_policy_events
@@ -302,11 +335,15 @@ class ReplenishmentPolicyRegistry:
             ).fetchall()
         return tuple(
             PolicyActivation(
-                int(row["event_id"]), str(row["action"]), str(row["tenant_id"]),
+                int(row["event_id"]),
+                str(row["action"]),
+                str(row["tenant_id"]),
                 str(row["policy_id"]),
-                None if row["previous_policy_version"] is None
+                None
+                if row["previous_policy_version"] is None
                 else str(row["previous_policy_version"]),
-                str(row["active_policy_version"]), str(row["activated_at"]),
+                str(row["active_policy_version"]),
+                str(row["activated_at"]),
             )
             for row in rows
         )
@@ -314,7 +351,10 @@ class ReplenishmentPolicyRegistry:
     @staticmethod
     def _record(row: sqlite3.Row) -> ReplenishmentPolicyRecord:
         return ReplenishmentPolicyRecord(
-            str(row["tenant_id"]), str(row["policy_id"]), str(row["policy_version"]),
-            str(row["definition_sha256"]), str(row["created_at"]),
+            str(row["tenant_id"]),
+            str(row["policy_id"]),
+            str(row["policy_version"]),
+            str(row["definition_sha256"]),
+            str(row["created_at"]),
             json.loads(str(row["definition_json"])),
         )

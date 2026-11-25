@@ -295,28 +295,42 @@ def test_worker_loads_only_explicitly_activated_model_artifact(tmp_path) -> None
     start = datetime(2026, 5, 1, tzinfo=UTC)
     for index in range(21):
         store.record_demand(
-            "tenant-a", "WH-1", "SKU-1", float(index % 7),
+            "tenant-a",
+            "WH-1",
+            "SKU-1",
+            float(index % 7),
             observed_at=start + timedelta(days=index),
         )
     for index in range(5):
         store.record_outcome(
-            "tenant-a", warehouse_id="WH-1", sku_id="SKU-1",
-            model_id="artifact-model", model_version="v1",
+            "tenant-a",
+            warehouse_id="WH-1",
+            sku_id="SKU-1",
+            model_id="artifact-model",
+            model_version="v1",
             forecast_origin=start + timedelta(days=index),
-            target_at=start + timedelta(days=index + 1), predicted=10.5, actual=10.0,
+            target_at=start + timedelta(days=index + 1),
+            predicted=10.5,
+            actual=10.0,
         )
     store.create_schedule(
-        "tenant-a", job_type="forecast_refresh",
+        "tenant-a",
+        job_type="forecast_refresh",
         payload={"warehouse_id": "WH-1", "sku_id": "SKU-1", "horizon": 2},
-        interval_seconds=300, first_run_at=datetime.now(UTC) - timedelta(seconds=1),
+        interval_seconds=300,
+        first_run_at=datetime.now(UTC) - timedelta(seconds=1),
     )
     artifacts = ModelArtifactRegistry(
         service.state_dir / "models.sqlite", service.state_dir / "model-artifacts"
     )
     artifacts.register_artifact(
-        "artifact-model", "v1", b"reviewed-model-bytes",
-        evaluation_report=b'{"wql":0.1}', media_type="application/vnd.test.forecast",
-        validation_mae=0.5, validation_sample_count=100,
+        "artifact-model",
+        "v1",
+        b"reviewed-model-bytes",
+        evaluation_report=b'{"wql":0.1}',
+        media_type="application/vnd.test.forecast",
+        validation_mae=0.5,
+        validation_sample_count=100,
     )
     artifacts.activate("artifact-model", "v1", expected_active_version=None)
     worker = OperationalWorker(service, store, model_artifact_registry=artifacts)
@@ -362,15 +376,23 @@ def test_worker_falls_back_when_selected_artifact_is_not_active(tmp_path) -> Non
     start = datetime(2026, 6, 1, tzinfo=UTC)
     for index in range(21):
         store.record_demand(
-            "tenant-a", "WH-1", "SKU-1", float(index % 7),
+            "tenant-a",
+            "WH-1",
+            "SKU-1",
+            float(index % 7),
             observed_at=start + timedelta(days=index),
         )
     for index in range(5):
         store.record_outcome(
-            "tenant-a", warehouse_id="WH-1", sku_id="SKU-1",
-            model_id="inactive-model", model_version="v1",
+            "tenant-a",
+            warehouse_id="WH-1",
+            sku_id="SKU-1",
+            model_id="inactive-model",
+            model_version="v1",
             forecast_origin=start + timedelta(days=index),
-            target_at=start + timedelta(days=index + 1), predicted=10.5, actual=10.0,
+            target_at=start + timedelta(days=index + 1),
+            predicted=10.5,
+            actual=10.0,
         )
     store.create_schedule(
         "tenant-a", job_type="forecast_refresh",
@@ -381,9 +403,13 @@ def test_worker_falls_back_when_selected_artifact_is_not_active(tmp_path) -> Non
         service.state_dir / "models.sqlite", service.state_dir / "model-artifacts"
     )
     artifacts.register_artifact(
-        "inactive-model", "v1", b"candidate-bytes",
-        evaluation_report=b'{"wql":0.1}', media_type="application/vnd.test.forecast",
-        validation_mae=0.5, validation_sample_count=100,
+        "inactive-model",
+        "v1",
+        b"candidate-bytes",
+        evaluation_report=b'{"wql":0.1}',
+        media_type="application/vnd.test.forecast",
+        validation_mae=0.5,
+        validation_sample_count=100,
     )
     worker = OperationalWorker(service, store, model_artifact_registry=artifacts)
     worker.register_adapter(CandidateAdapter())
@@ -408,18 +434,26 @@ def test_worker_uses_active_versioned_policy_instead_of_schedule_costs(tmp_path)
     store.record_inventory("tenant-a", "WH-1", "SKU-1", 10, reserved=2)
     policies = ReplenishmentPolicyRegistry(service.state_dir / "policies.sqlite")
     policies.register_policy(
-        "tenant-a", "service-level-90", "v2",
+        "tenant-a",
+        "service-level-90",
+        "v2",
         {"policy_type": "newsvendor", "underage_cost": 9, "overage_cost": 1, "pack_size": 6},
     )
     policies.activate("tenant-a", "service-level-90", "v2", expected_active_version=None)
     store.create_schedule(
-        "tenant-a", job_type="replenishment_review",
+        "tenant-a",
+        job_type="replenishment_review",
         payload={
-            "warehouse_id": "WH-1", "sku_id": "SKU-1", "policy_id": "service-level-90",
+            "warehouse_id": "WH-1",
+            "sku_id": "SKU-1",
+            "policy_id": "service-level-90",
             "lead_time_demand_quantiles": {"0.1": 10, "0.5": 20, "0.9": 40},
-            "underage_cost": 1, "overage_cost": 99, "pack_size": 1,
+            "underage_cost": 1,
+            "overage_cost": 99,
+            "pack_size": 1,
         },
-        interval_seconds=300, first_run_at=datetime.now(UTC) - timedelta(seconds=1),
+        interval_seconds=300,
+        first_run_at=datetime.now(UTC) - timedelta(seconds=1),
     )
 
     report = OperationalWorker(service, store, policy_registry=policies).run_once("tenant-a")

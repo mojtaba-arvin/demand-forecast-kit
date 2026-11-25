@@ -32,27 +32,23 @@ def test_policy_activation_uses_compare_and_swap_and_supports_explicit_rollback(
     registry.register_policy("tenant-a", "service-level", "v1", _definition())
     registry.register_policy("tenant-a", "service-level", "v2", _definition(4.0))
 
-    first = registry.activate(
-        "tenant-a", "service-level", "v1", expected_active_version=None
-    )
-    second = registry.activate(
-        "tenant-a", "service-level", "v2", expected_active_version="v1"
-    )
+    first = registry.activate("tenant-a", "service-level", "v1", expected_active_version=None)
+    second = registry.activate("tenant-a", "service-level", "v2", expected_active_version="v1")
     with pytest.raises(ValueError, match="active policy version changed"):
-        registry.activate(
-            "tenant-a", "service-level", "v1", expected_active_version=None
-        )
-    rollback = registry.rollback(
-        "tenant-a", "service-level", "v1", expected_active_version="v2"
-    )
+        registry.activate("tenant-a", "service-level", "v1", expected_active_version=None)
+    rollback = registry.rollback("tenant-a", "service-level", "v1", expected_active_version="v2")
 
     assert first.action == "activate"
     assert second.previous_policy_version == "v1"
     assert rollback.action == "rollback"
     active = registry.get_active("tenant-a", "service-level")
     assert active is not None and active.policy_version == "v1"
-    assert [event.action for event in registry.activation_history("tenant-a", "service-level")] == [
-        "activate", "activate", "rollback"
+    assert [
+        event.action for event in registry.activation_history("tenant-a", "service-level")
+    ] == [
+        "activate",
+        "activate",
+        "rollback",
     ]
 
 

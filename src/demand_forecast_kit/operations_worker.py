@@ -203,7 +203,8 @@ class OperationalWorker:
                         selection["active_artifact_sha256"] = active.artifact_sha256
             except Exception as exc:
                 selection["adapter_fallback_reason"] = (
-                    str(exc) if isinstance(exc, LookupError)
+                    str(exc)
+                    if isinstance(exc, LookupError)
                     else f"active_model_artifact_load_failed:{type(exc).__name__}"
                 )
                 adapter = fallback
