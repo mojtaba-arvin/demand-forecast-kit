@@ -664,6 +664,7 @@ def test_erpnext_full_reconciliation_rejects_unexpected_empty_snapshot(tmp_path)
     assert store.demand_history("tenant-a", "WH-1", "SKU-1")[0]["demand"] == 5
     assert store.inventory_position("tenant-a", "WH-1", "SKU-1")["on_hand"] == 20
 
+
 def test_erpnext_full_reconciliation_aborts_if_snapshot_changes_between_reads(
     tmp_path,
 ) -> None:
