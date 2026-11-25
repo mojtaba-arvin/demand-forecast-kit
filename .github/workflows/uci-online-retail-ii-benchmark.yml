@@ -4,6 +4,7 @@ on:
   push:
     branches: ["main", "work/**", "integration/**"]
     paths:
+      - ".github/workflows/uci-online-retail-ii-benchmark.yml"
       - "evals/run_uci_online_retail_ii_benchmark.py"
       - "src/demand_forecast_kit/retail_benchmark.py"
       - "pyproject.toml"
