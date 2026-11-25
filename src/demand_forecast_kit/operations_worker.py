@@ -7,10 +7,12 @@ import hashlib
 import json
 import os
 import time
+from collections.abc import Callable
 from typing import Any
 
 from demand_forecast_kit.decisions import newsvendor_order
 from demand_forecast_kit.lifecycle import ModelLifecycle
+from demand_forecast_kit.model_registry import ModelArtifactRecord, ModelArtifactRegistry
 from demand_forecast_kit.models.base import ForecastAdapter
 from demand_forecast_kit.models.seasonal_naive import SeasonalNaiveAdapter
 from demand_forecast_kit.operations import OperationalStore
@@ -27,6 +29,7 @@ class OperationalWorker:
         lifecycle: ModelLifecycle | None = None,
         *,
         retraining_stale_after_seconds: int = 3600,
+        model_artifact_registry: ModelArtifactRegistry | None = None,
     ) -> None:
         if type(retraining_stale_after_seconds) is not int or retraining_stale_after_seconds < 1:
             raise ValueError("retraining_stale_after_seconds must be a positive integer")
@@ -34,6 +37,9 @@ class OperationalWorker:
         self.store = store
         self.lifecycle = lifecycle or ModelLifecycle(store)
         self.retraining_stale_after_seconds = retraining_stale_after_seconds
+        self.model_artifact_registry = model_artifact_registry
+        self.artifact_loaders: dict[str, Callable[[bytes, ModelArtifactRecord], ForecastAdapter]] = {}
+        self._artifact_adapter_cache: dict[tuple[str, str, str], ForecastAdapter] = {}
         fallback = SeasonalNaiveAdapter()
         self.fallback_adapter = fallback
         self.adapters: dict[tuple[str, str], ForecastAdapter] = {
@@ -43,6 +49,55 @@ class OperationalWorker:
     def register_adapter(self, adapter: ForecastAdapter) -> None:
         """Register an available adapter for automatic SKU-level model routing."""
         self.adapters[(adapter.model_id, adapter.model_version)] = adapter
+
+    def register_artifact_loader(
+        self,
+        media_type: str,
+        loader: Callable[[bytes, ModelArtifactRecord], ForecastAdapter],
+    ) -> None:
+        """Register reviewed application code for one opaque artifact media type."""
+        content_type = media_type.strip()
+        if not content_type:
+            raise ValueError("media_type must not be blank")
+        if not callable(loader):
+            raise TypeError("loader must be callable")
+        self.artifact_loaders[content_type] = loader
+        self._artifact_adapter_cache.clear()
+
+    def _resolve_selected_adapter(
+        self, selected: dict[str, Any], fallback: ForecastAdapter
+    ) -> ForecastAdapter:
+        model_id = str(selected["model_id"])
+        model_version = selected["model_version"]
+        if model_id == fallback.model_id:
+            return fallback
+        if self.model_artifact_registry is None:
+            adapter = self.adapters.get((model_id, str(model_version)))
+            if adapter is None or (
+                model_version is not None and adapter.model_version != model_version
+            ):
+                raise LookupError("selected_adapter_not_registered_or_version_mismatch")
+            return adapter
+
+        active = self.model_artifact_registry.get_active(model_id)
+        if active is None:
+            raise LookupError("no_active_model_artifact")
+        if model_version is None or active.model_version != str(model_version):
+            raise LookupError("selected_model_version_is_not_active")
+        loader = self.artifact_loaders.get(active.media_type)
+        if loader is None:
+            raise LookupError("no_loader_registered_for_active_artifact_media_type")
+        cache_key = (active.model_id, active.model_version, active.artifact_sha256)
+        adapter = self._artifact_adapter_cache.get(cache_key)
+        if adapter is None:
+            payload = self.model_artifact_registry.read_artifact(
+                active.model_id, active.model_version
+            )
+            adapter = loader(payload, active)
+            if adapter.model_id != active.model_id or adapter.model_version != active.model_version:
+                raise ValueError("artifact loader returned an adapter with mismatched identity")
+            self._artifact_adapter_cache[cache_key] = adapter
+        return adapter
 
     def register_trainer(self, model_id: str, trainer: Any) -> None:
         """Register the model-specific trainer used for queued automatic retraining."""
@@ -129,20 +184,21 @@ class OperationalWorker:
             fallback_model_id=fallback.model_id,
         )
         selected = selection["selected"]
-        adapter = (
-            None
-            if selection["used_fallback"] or selected["model_id"] == fallback.model_id
-            else self.adapters.get((str(selected["model_id"]), str(selected["model_version"])))
-        )
-        if adapter is None or (
-            selected["model_version"] is not None
-            and adapter.model_version != selected["model_version"]
-        ):
-            adapter = fallback
-            if not selection["used_fallback"]:
+        adapter = fallback
+        if not selection["used_fallback"] and selected["model_id"] != fallback.model_id:
+            try:
+                adapter = self._resolve_selected_adapter(selected, fallback)
+                if self.model_artifact_registry is not None:
+                    active = self.model_artifact_registry.get_active(str(selected["model_id"]))
+                    if active is not None:
+                        selection["active_artifact_version"] = active.model_version
+                        selection["active_artifact_sha256"] = active.artifact_sha256
+            except Exception as exc:
                 selection["adapter_fallback_reason"] = (
-                    "selected_adapter_not_registered_or_version_mismatch"
+                    str(exc) if isinstance(exc, LookupError)
+                    else f"active_model_artifact_load_failed:{type(exc).__name__}"
                 )
+                adapter = fallback
         forecast = adapter.predict(
             f"{warehouse_id}:{sku_id}",
             history,
