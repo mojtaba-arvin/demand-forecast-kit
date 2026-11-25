@@ -45,6 +45,7 @@ Demand Forecast Kit is an open-source library and API for turning sales and inve
 - Emit structured JSON logs and thread-safe process-local metrics snapshots.
 - Maintain tenant-scoped warehouse, stock, purchase-order, receipt, and demand-observation records in a local operational store.
 - Import warehouse stock and submitted sales history from ERPNext through a read-only Frappe REST connector.
+- Run an explicit, double-snapshot-verified ERPNext full reconciliation to correct hard-deleted Bin, Sales Invoice, and Purchase Order records without inferring deletions from incremental deltas.
 - Run durable scheduled forecast refreshes, replenishment reviews, and model-health checks with a separate worker process.
 - Track out-of-sample forecast outcomes, detect rolling-MAE degradation, queue retraining requests, and rank candidate models from recent SKU-level evidence.
 - Evaluate realized replenishment outcomes and rank policy versions by observed holding/shortage cost, fill rate, and cycle service level.
