@@ -375,15 +375,58 @@ def test_schedules_claim_complete_and_retry(store: OperationalStore) -> None:
     )
     claimed = store.claim_due_schedules("tenant-a", now=start, lease_seconds=30)
     assert [item["job_id"] for item in claimed] == [job["job_id"]]
+    assert claimed[0]["lease_token"]
+    assert "lease_token" not in store.list_schedules("tenant-a")[0]
     assert store.claim_due_schedules("tenant-a", now=start) == []
-    released = store.release_schedule("tenant-a", job["job_id"], retry_after_seconds=60)
+    released = store.release_schedule(
+        "tenant-a", job["job_id"], lease_token=claimed[0]["lease_token"], retry_after_seconds=60
+    )
     assert released["lease_until"] is None
     retry_time = datetime.fromisoformat(released["next_run_at"])
     claimed_again = store.claim_due_schedules("tenant-a", now=retry_time)
     assert len(claimed_again) == 1
-    completed = store.complete_schedule("tenant-a", job["job_id"], completed_at=retry_time)
+    completed = store.complete_schedule(
+        "tenant-a",
+        job["job_id"],
+        lease_token=claimed_again[0]["lease_token"],
+        completed_at=retry_time,
+    )
     assert completed["last_run_at"] == retry_time.isoformat()
     assert store.claim_due_schedules("tenant-a", now=retry_time) == []
+
+
+def test_expired_scheduler_worker_cannot_complete_or_release_new_lease(
+    store: OperationalStore,
+) -> None:
+    create_warehouse(store)
+    start = datetime(2026, 5, 2, tzinfo=UTC)
+    job = store.create_schedule(
+        "tenant-a",
+        job_type="forecast_refresh",
+        payload={"warehouse_id": "WH-1", "sku_id": "SKU-1"},
+        interval_seconds=300,
+        first_run_at=start,
+    )
+    first = store.claim_due_schedules("tenant-a", now=start, lease_seconds=30)[0]
+    second = store.claim_due_schedules(
+        "tenant-a", now=start + timedelta(seconds=31), lease_seconds=30
+    )[0]
+    assert first["lease_token"] != second["lease_token"]
+
+    with pytest.raises(ValueError, match="owned by this worker"):
+        store.complete_schedule(
+            "tenant-a", job["job_id"], lease_token=first["lease_token"]
+        )
+    with pytest.raises(ValueError, match="owned by this worker"):
+        store.release_schedule(
+            "tenant-a", job["job_id"], lease_token=first["lease_token"]
+        )
+    current = store.list_schedules("tenant-a")[0]
+    assert current["lease_until"] == second["lease_until"]
+    completed = store.complete_schedule(
+        "tenant-a", job["job_id"], lease_token=second["lease_token"]
+    )
+    assert completed["last_run_at"] is not None
 
 
 def test_schedule_rejects_short_intervals_and_unknown_types(store: OperationalStore) -> None:
