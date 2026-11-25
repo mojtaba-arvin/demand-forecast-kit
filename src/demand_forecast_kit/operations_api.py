@@ -153,6 +153,10 @@ def build_operations_router(service: Any) -> Any:
         baseline_mae: float = Field(ge=0)
         sample_count: int = Field(ge=1)
 
+    class RetrainingFinishInput(StrictModel):
+        success: bool
+        claim_token: str = Field(min_length=1)
+
     class HealthInput(StrictModel):
         warehouse_id: str = Field(min_length=1)
         sku_id: str = Field(min_length=1)
@@ -350,8 +354,7 @@ def build_operations_router(service: Any) -> Any:
     @router.post("/retraining-requests/{request_id}/finish")
     def finish_retraining(
         request_id: str,
-        success: bool,
-        claim_token: str,
+        request: RetrainingFinishInput,
         user: dict[str, Any] = Depends(principal),
     ) -> dict[str, Any]:
         tenant = authorize(user, "ops:admin")
@@ -359,8 +362,8 @@ def build_operations_router(service: Any) -> Any:
             store.finish_retraining,
             tenant,
             request_id,
-            success=success,
-            claim_token=claim_token,
+            success=request.success,
+            claim_token=request.claim_token,
         )
 
     class PolicyOutcomeInput(StrictModel):
