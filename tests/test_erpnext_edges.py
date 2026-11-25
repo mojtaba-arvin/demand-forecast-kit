@@ -270,3 +270,13 @@ def test_erpnext_paginates_warehouse_and_bin_resources() -> None:
         "SKU-1",
         "SKU-2",
     ]
+
+
+def test_erpnext_full_snapshot_rejects_duplicate_resource_keys() -> None:
+    client = ERPNextClient("https://erp.example", "key", "secret")
+    with pytest.raises(RuntimeError, match="duplicate keys"):
+        client._assert_unique_snapshot_keys(
+            [{"item_code": "SKU-1"}, {"item_code": "SKU-1"}],
+            "item_code",
+            "Bin",
+        )

@@ -140,6 +140,60 @@ documents that no longer appear in modified-time queries; an operator-led full
 reconciliation outside this incremental path is required after source-system
 hard deletes.
 
+### Operator-triggered full reconciliation
+
+Incremental sync deliberately does not interpret an empty delta as a deletion.
+After ERPNext hard deletes or a suspected source/local divergence, run the
+explicit full-snapshot command from the host that owns the SQLite database:
+
+```bash
+export DEMAND_FORECAST_ERPNEXT_URL="https://erp.example.com"
+export DEMAND_FORECAST_ERPNEXT_API_KEY="..."
+export DEMAND_FORECAST_ERPNEXT_API_SECRET="..."
+
+demand-forecast-erpnext-reconcile \
+  --database ./state/operations.sqlite \
+  --tenant-id acme \
+  --warehouse-id WH-01 \
+  --confirm-full-snapshot
+```
+
+The ERPNext integration user must have complete list/read access to Bin,
+Sales Invoice, Sales Invoice Item, Purchase Order, and Purchase Order Item for
+the intended site. If a resource returns empty while local imports exist, the
+command aborts rather than interpreting a permission-filtered result as mass
+deletion. Only after independently verifying permissions and confirming that
+the resource is genuinely empty should an operator add
+`--allow-empty-snapshot`.
+
+The command reads Bin, Sales Invoice, and Purchase Order resources twice,
+including all pages. It aborts before local writes if the two snapshots differ
+or a remote request fails. Run it during a quiet ERPNext window: Frappe offset
+pagination is not a transactionally consistent database snapshot, and a
+two-pass match is a practical consistency check rather than a source lock.
+
+After a verified snapshot:
+- Missing invoice IDs, cancelled invoices, and invoices with no remaining lines
+  for this warehouse have their per-invoice demand contributions removed,
+  affected SKU/day totals recomputed, and a source-time tombstone recorded just
+  beyond the last observed Modified timestamp. Stale incremental events cannot
+  resurrect those contributions.
+- Missing imported purchase orders are cancelled, removing their remaining
+  confirmed inbound quantity and fencing stale updates.
+- Missing Bin records receive zero-quantity deletion snapshots only when the latest
+  local inventory source is still `erpnext:Bin`. A newer manual inventory
+  snapshot is preserved. Incremental and full imports also leave a latest
+  manual/other-source inventory snapshot untouched rather than silently
+  replacing its source-of-truth value.
+- Per-resource watermarks advance only after the corresponding reconciliation
+  work completes.
+
+The operation changes only local SQLite state; the ERPNext connector remains
+read-only. It is idempotent and can be rerun after an interrupted local apply.
+The command is intentionally explicit because a full snapshot can remove local
+records that no longer exist upstream. Do not use it while the source is being
+bulk-edited or while another sync is running for the same tenant/warehouse.
+
 The connector is read-only: it does not create purchase orders, alter stock
 ledgers, or submit ERPNext documents. It uses the Frappe token header and does
 not log credentials. Resource pages use stable ordering. Transient connection

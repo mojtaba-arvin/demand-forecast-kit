@@ -14,7 +14,7 @@ A feature is not considered production-ready merely because its unit tests pass.
 | Lead-time calibration and inventory evaluation | Implemented, empirical limits remain | Same-series/model residual-path calibration, prequential diagnostics, inventory cost/fill-rate evaluation, and UCI real-data plus purged temporal holdout experiments. Latest retail rerun (20 slices, 10 SKUs/cohort, 16 origins/series) has mean P80 coverage 64.81% (46.88%–81.88%); dense/intermittent cohorts remain under-covered. Cross-domain electricity evidence is being expanded separately and cannot substitute for retail calibration. No global correction is enabled. |
 | Model selection and version routing | Implemented | Per-SKU out-of-sample ranking, minimum evidence, strict forecast-origin checks, exact (model_id, model_version) adapter resolution, and explicit fallback. |
 | Operational API and local persistence | Alpha / single-host | Tenant-scoped API, SQLite operational store, durable scheduler, lease fencing, model-health monitoring, and retraining queue. SQLite is not a multi-host database or SaaS control plane. |
-| ERPNext integration | Implemented, read-only incremental sync | Independent tenant/warehouse/resource watermarks, bounded overlap, idempotent Bin/Invoice/Purchase Order replay, invoice edit/cancellation reconciliation, PO cancellation, and stale-source fencing. Hard-deleted source documents still require operator-led full reconciliation; source conflicts fail closed. |
+| ERPNext integration | Implemented, read-only incremental + explicit full reconciliation | Independent tenant/warehouse/resource watermarks, bounded overlap, idempotent Bin/Invoice/Purchase Order replay, invoice edit/cancellation reconciliation, stale-source fencing, and operator-triggered double-snapshot reconciliation for hard deletes. Full reconciliation preserves newer manual stock and tombstones deleted invoice/PO state; live ERPNext validation remains deployment-specific. |
 | Model lifecycle and artifact persistence | Partial | Monitoring, retraining queue, stale-claim fencing, atomic baseline completion, and a content-addressed persistent ModelArtifactRegistry with explicit activation/rollback are implemented. OperationalWorker supports opt-in exact-active-version resolution through explicitly registered media-type loaders; the CLI does not dynamically import plugins. No built-in model-specific trainer is assumed. |
 | Replenishment policy lifecycle | Implemented, opt-in single-host control plane | Tenant-scoped immutable Newsvendor definitions, SHA-256 identity, CAS activation, explicit rollback, append-only history, and worker enforcement/audit are implemented. Policy ranking remains advisory; no automatic promotion. SQLite is single-host. |
 | Performance regression calibration | Deferred | Issue #31 remains open. The fixed Linux x64 self-hosted runner is not a prerequisite for feature development or empirical forecast evaluation; defer the hardware-specific variance study and regression gate until a suitable external host is available. Do not infer performance targets from GitHub-hosted runner timings. |
@@ -33,7 +33,7 @@ A feature is not considered production-ready merely because its unit tests pass.
 ## Next engineering priorities
 
 1. **Extend independent empirical evidence.** Run the complete UCI Electricity 370-series benchmark with immutable data/runtime provenance; inspect per-series dispersion and failure modes rather than only a macro score. Keep the retail-specific calibration gate disabled until larger retail cohorts or another independent retail dataset replicate the result.
-2. **Implement safe ERPNext hard-delete reconciliation.** Use an explicit operator-triggered full snapshot, staging and validation before applying changes; never infer deletion from absence in a partial/failed page or mutate ERPNext.
+2. **Validate ERPNext full reconciliation in a representative deployment.** The explicit double-snapshot operator command is implemented; exercise it against a real ERPNext test site, confirm pagination/permissions, and retain the read-only boundary.
 3. **Advance operational readiness.** Define backup/restore, retention, tenant isolation tests, scheduler recovery, health/readiness semantics, and a supported database boundary before claiming production deployment.
 4. **Resume Issue #31 after external host provisioning.** Collect 10 independent full-profile artifacts on one fixed Linux x64 runner, characterize variance, and enable only an environment-matched threshold justified by the measured distribution.
 
@@ -49,6 +49,8 @@ See [versioned replenishment policies](policy-lifecycle.md) for validation, acti
 - PR #54: persistent model artifacts, evaluation digests, explicit activation/rollback, and immutable activation history.
 - PR #62: active model artifact resolution in the operational worker and tenant-scoped versioned replenishment policy lifecycle.
 - PR #67: incremental ERPNext sync with per-resource watermarks, overlap replay, invoice correction/cancellation reconciliation, and purchase-order cancellation.
+- PR #70: independent UCI Electricity benchmark provenance and Issue #31 deferral decision.
+- Current work: operator-triggered ERPNext full reconciliation for hard-deleted Bin, Sales Invoice, and Purchase Order records (ADR 0013).
 
 ## Issue #31 deferral decision
 
