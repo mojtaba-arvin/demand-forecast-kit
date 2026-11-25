@@ -1,10 +1,13 @@
-"""Run an opt-in independent benchmark on UCI Electricity Load Diagrams."""
+""""Run an opt-in independent benchmark on UCI Electricity Load Diagrams."""
 
 from __future__ import annotations
 
 import argparse
 import hashlib
 import json
+import platform
+import sys
+from importlib.metadata import version
 from pathlib import Path
 
 import polars as pl
@@ -87,9 +90,18 @@ def run_benchmark(
                 "source DST semantics and leading zeroes."
             ),
         },
+        "runtime": {
+            "python": sys.version.split()[0],
+            "implementation": platform.python_implementation(),
+            "platform": platform.platform(),
+            "polars": version("polars"),
+            "statsforecast": version("statsforecast"),
+        },
         "preparation": preparation,
         "configuration": {
             "series_count": len(selected_ids),
+            "selected_series_ids": selected_ids,
+            "adapters": ["seasonal_naive", "auto_ets", "theta"],
             "initial_train_size_days": config.initial_train_size,
             "horizon_days": config.horizon,
             "step_days": config.step,
@@ -114,7 +126,7 @@ def run_benchmark(
             separators=(",", ":"),
             allow_nan=False,
         )
-        + "\n",
+        + "\\n",
         encoding="utf-8",
     )
     daily_path.unlink(missing_ok=True)
