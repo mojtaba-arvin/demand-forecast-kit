@@ -487,9 +487,7 @@ def test_erpnext_full_reconciliation_removes_hard_deleted_source_records(tmp_pat
     assert store.get_purchase_order("tenant-a", "erpnext:PO-1")["status"] == "submitted"
     assert store.inventory_position("tenant-a", "WH-1", "SKU-2")["on_hand"] == 8
 
-    result = client.reconcile_warehouse(
-        store, "tenant-a", "WH-1", allow_empty_snapshot=True
-    )
+    result = client.reconcile_warehouse(store, "tenant-a", "WH-1", allow_empty_snapshot=True)
 
     assert result == {
         "inventory_items": 0,
@@ -665,7 +663,9 @@ def test_erpnext_full_reconciliation_rejects_unexpected_empty_snapshot(tmp_path)
     assert store.demand_history("tenant-a", "WH-1", "SKU-1")[0]["demand"] == 5
     assert store.inventory_position("tenant-a", "WH-1", "SKU-1")["on_hand"] == 20
 
-def test_erpnext_full_reconciliation_aborts_if_snapshot_changes_between_reads(tmp_path) -> None:
+def test_erpnext_full_reconciliation_aborts_if_snapshot_changes_between_reads(
+    tmp_path,
+) -> None:
     resources = {
         "Bin": [
             {
