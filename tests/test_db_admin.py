@@ -71,7 +71,7 @@ def test_restore_requires_stopped_services_confirmation(tmp_path) -> None:
     _create_database(database)
     backup_database(database, backup)
 
-    with pytest.raises(ValueError, match="services are stopped"):
+    with pytest.raises(ValueError, match="API and worker processes are stopped"):
         restore_database(backup, database, confirm_services_stopped=False)
 
 
