@@ -605,9 +605,7 @@ class OperationalStore:
             )
         return self.get_purchase_order(tenant, order_id)
 
-    def get_erpnext_watermark(
-        self, tenant_id: str, warehouse_id: str, resource: str
-    ) -> str | None:
+    def get_erpnext_watermark(self, tenant_id: str, warehouse_id: str, resource: str) -> str | None:
         tenant = self._tenant(tenant_id)
         if not warehouse_id.strip() or not resource.strip():
             raise ValueError("warehouse_id and resource must not be blank")
@@ -758,9 +756,7 @@ class OperationalStore:
             )
         return {sku for sku, _day in affected}
 
-    def fill_erpnext_demand_gaps(
-        self, tenant_id: str, warehouse_id: str, sku_ids: set[str]
-    ) -> int:
+    def fill_erpnext_demand_gaps(self, tenant_id: str, warehouse_id: str, sku_ids: set[str]) -> int:
         """Fill zero-demand days between imported invoice dates for changed SKUs."""
         tenant = self._tenant(tenant_id)
         if not warehouse_id.strip():
