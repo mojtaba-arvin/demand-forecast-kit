@@ -173,9 +173,11 @@ pagination is not a transactionally consistent database snapshot, and a
 two-pass match is a practical consistency check rather than a source lock.
 
 After a verified snapshot:
-- Missing invoice IDs have their per-invoice demand contributions removed,
-  affected SKU/day totals recomputed, and a source-time tombstone is recorded just beyond the last observed Modified
-  timestamp. Stale incremental events cannot resurrect those contributions.
+- Missing invoice IDs, cancelled invoices, and invoices with no remaining lines
+  for this warehouse have their per-invoice demand contributions removed,
+  affected SKU/day totals recomputed, and a source-time tombstone recorded just
+  beyond the last observed Modified timestamp. Stale incremental events cannot
+  resurrect those contributions.
 - Missing imported purchase orders are cancelled, removing their remaining
   confirmed inbound quantity and fencing stale updates.
 - Missing Bin records receive zero-quantity deletion snapshots only when the latest
