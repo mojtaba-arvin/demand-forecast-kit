@@ -143,7 +143,7 @@ def create_app(run_service: RunService | None = None) -> Any:
         """Check writable artifact storage and both SQLite stores before serving traffic."""
         from fastapi import HTTPException
 
-        def check_sqlite(database: str) -> bool:
+        def check_sqlite(database: str, expected_table: str) -> bool:
             path = Path(database).expanduser().resolve()
             if not path.is_file():
                 return False
@@ -153,8 +153,11 @@ def create_app(run_service: RunService | None = None) -> Any:
                 timeout=1.0,
             )
             try:
-                result = connection.execute("PRAGMA quick_check(1)").fetchone()
-                return result == ("ok",)
+                row = connection.execute(
+                    "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
+                    (expected_table,),
+                ).fetchone()
+                return row == (1,)
             finally:
                 connection.close()
 
@@ -164,9 +167,11 @@ def create_app(run_service: RunService | None = None) -> Any:
             "artifact_store": False,
         }
         try:
-            dependencies["run_registry"] = check_sqlite(service.registry.database)
+            dependencies["run_registry"] = check_sqlite(
+                service.registry.database, "forecast_runs"
+            )
             dependencies["operational_store"] = check_sqlite(
-                str(service.state_dir / "operations.sqlite")
+                str(service.state_dir / "operations.sqlite"), "warehouses"
             )
             artifact_root = service.artifacts.root
             dependencies["artifact_store"] = artifact_root.is_dir() and os.access(
