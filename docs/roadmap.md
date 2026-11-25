@@ -11,7 +11,7 @@ A feature is not considered production-ready merely because its unit tests pass.
 | Area | Status | Verified scope and remaining boundary |
 | --- | --- | --- |
 | Forecasting and rolling-origin evaluation | Implemented | Quantile contracts, baseline/statistical/optional ML adapters, chronological evaluation, leakage-aware model routing, deterministic evaluation artifacts. No universal accuracy claim. |
-| Lead-time calibration and inventory evaluation | Implemented, empirical limits remain | Same-series/model residual-path calibration, prequential diagnostics, inventory cost/fill-rate evaluation, and public UCI transaction benchmarks. No generalized accuracy or inventory-savings claim is made, and no calibration correction is enabled by default. |
+| Lead-time calibration and inventory evaluation | Implemented, empirical limits remain | Same-series/model residual-path calibration, prequential diagnostics, inventory cost/fill-rate evaluation, and UCI real-data plus purged temporal holdout experiments. Width/bias adjustments expose a coverage–sharpness trade-off; no global correction is enabled. Intermittent-specific results remain too small to promote. |
 | Model selection and version routing | Implemented | Per-SKU out-of-sample ranking, minimum evidence, strict forecast-origin checks, exact (model_id, model_version) adapter resolution, and explicit fallback. |
 | Operational API and local persistence | Alpha / single-host | Tenant-scoped API, SQLite operational store, durable scheduler, lease fencing, model-health monitoring, and retraining queue. SQLite is not a multi-host database or SaaS control plane. |
 | ERPNext integration | Partial | Read-only Frappe connector with pagination and bounded retries for transient failures. Sync is still a full scan; per-resource watermarks, incremental import, cancellation/correction reconciliation, and deletion handling are not implemented. |
@@ -35,7 +35,9 @@ A feature is not considered production-ready merely because its unit tests pass.
 2. **Version replenishment policies.** Persist immutable policy definitions and versions, validate cost/pack constraints, require compare-and-swap activation, and provide explicit rollback. Keep automatic policy tuning/activation disabled until independent outcome evidence supports it.
 3. **Implement ERPNext incremental synchronization.** Use per-tenant/warehouse/resource watermarks with an overlap window; replay changed invoices and purchase orders idempotently; recompute affected SKU/day demand when old documents are edited or cancelled; advance watermarks only after successful application. Preserve read-only credentials and behavior.
 4. **Close Issue #31 with real reference hardware.** Collect 10 independent full-profile workflow artifacts on the same fixed runner, characterize variance, then enable only a justified environment-matched regression gate. Do not substitute GitHub-hosted runners or one multi-repeat workflow for the required independent runs.
-5. **Continue empirical calibration research.** Use purged chronological holdouts and report per-SKU coverage/bias. Do not enable a global correction based on the current UCI sample.
+5. **Extend empirical calibration evidence.** The UCI purged holdout already exists; next use a larger cohort or independent dataset and more non-overlapping origins, report per-SKU coverage/bias and inventory cost, and keep corrections disabled until the result replicates.
+
+See the [UCI benchmark and purged holdout report](benchmarks/uci-online-retail.md) for cohort-level coverage, SKU dispersion, baseline bias, and the width/bias adjustment trade-off.
 
 ## Recent verified delivery
 
