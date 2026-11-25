@@ -169,9 +169,8 @@ def create_app(run_service: RunService | None = None) -> Any:
                 str(service.state_dir / "operations.sqlite")
             )
             artifact_root = service.artifacts.root
-            dependencies["artifact_store"] = (
-                artifact_root.is_dir()
-                and os.access(artifact_root, os.R_OK | os.W_OK | os.X_OK)
+            dependencies["artifact_store"] = artifact_root.is_dir() and os.access(
+                artifact_root, os.R_OK | os.W_OK | os.X_OK
             )
         except (OSError, sqlite3.Error):
             pass
