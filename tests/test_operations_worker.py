@@ -425,11 +425,13 @@ def test_worker_uses_active_versioned_policy_instead_of_schedule_costs(tmp_path)
     report = OperationalWorker(service, store, policy_registry=policies).run_once("tenant-a")
 
     assert report["failed"] == []
-    decision = report["completed"][0]["result"]["decision"]
+    stored = report["completed"][0]["result"]["decision"]
+    run = service.registry.get_run(stored["run_id"])
+    decisions = service.registry.list_inventory_decisions(run.run_id)
+    decision = decisions[0].decision
     assert decision["quantity"] == 36
     assert decision["policy"] == "service-level-90"
     assert decision["policy_version"] == "v2"
     assert decision["policy_definition_sha256"]
-    run = service.registry.get_run(report["completed"][0]["result"]["run"]["run_id"])
     assert run.model_id == "replenishment-policy:service-level-90"
     assert run.model_version == "v2"

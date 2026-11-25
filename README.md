@@ -242,6 +242,7 @@ python -m pip install ".[dev]"
 - [Operational planning API, ERPNext connector, scheduler, and model lifecycle](docs/operations.md)
 - [Persistent model artifacts, explicit activation, and rollback](docs/model-artifacts.md)
 - [Versioned replenishment policies, activation, and rollback](docs/policy-lifecycle.md)
+- [Worker registry and model-loader setup](docs/worker-registry-setup.md)
 - [Project roadmap and verified milestone status](docs/roadmap.md)
 - [Expanded UCI Online Retail II benchmark](docs/benchmarks/uci-online-retail-ii.md)
 
