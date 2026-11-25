@@ -580,6 +580,9 @@ class ERPNextClient:
 
         reconciled_at = datetime.now(UTC)
         reconciled_at_iso = reconciled_at.isoformat()
+        known_invoice_ids = store.list_erpnext_sales_invoice_ids(tenant_id, warehouse_id)
+        present_invoice_ids = {str(invoice["invoice_id"]) for invoice in invoices}
+        deleted_invoice_count = len(known_invoice_ids - present_invoice_ids)
         imported_stock = 0
         imported_orders = 0
         affected_skus: set[str] = set()
@@ -683,15 +686,7 @@ class ERPNextClient:
             "daily_demand_rows": imported_demand,
             "purchase_orders": imported_orders,
             "deleted_inventory_items": deleted_bins,
-            "deleted_sales_invoices": len(
-                [
-                    invoice
-                    for invoice in store.list_erpnext_sales_invoice_ids(
-                        tenant_id, warehouse_id
-                    )
-                    if invoice not in {str(item["invoice_id"]) for item in invoices}
-                ]
-            ),
+            "deleted_sales_invoices": deleted_invoice_count,
             "deleted_purchase_orders": deleted_orders,
             "snapshot_verified": True,
         }
