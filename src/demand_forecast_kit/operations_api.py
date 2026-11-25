@@ -349,10 +349,19 @@ def build_operations_router(service: Any) -> Any:
 
     @router.post("/retraining-requests/{request_id}/finish")
     def finish_retraining(
-        request_id: str, success: bool, user: dict[str, Any] = Depends(principal)
+        request_id: str,
+        success: bool,
+        claim_token: str,
+        user: dict[str, Any] = Depends(principal),
     ) -> dict[str, Any]:
         tenant = authorize(user, "ops:admin")
-        return call(store.finish_retraining, tenant, request_id, success=success)
+        return call(
+            store.finish_retraining,
+            tenant,
+            request_id,
+            success=success,
+            claim_token=claim_token,
+        )
 
     class PolicyOutcomeInput(StrictModel):
         warehouse_id: str = Field(min_length=1)
