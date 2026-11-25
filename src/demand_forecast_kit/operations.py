@@ -1000,6 +1000,28 @@ class OperationalStore:
             ranked, key=lambda item: (item["mae"], item["model_id"], item["model_version"])
         )
 
+    def recover_stale_retraining(
+        self,
+        tenant_id: str,
+        *,
+        stale_after_seconds: int = 3600,
+        now: datetime | None = None,
+    ) -> int:
+        """Requeue claims abandoned by a crashed worker after a bounded lease."""
+        if type(stale_after_seconds) is not int or stale_after_seconds < 1:
+            raise ValueError("stale_after_seconds must be a positive integer")
+        current = now or _now()
+        if current.tzinfo is None:
+            raise ValueError("now must include timezone information")
+        cutoff = (current.astimezone(UTC) - timedelta(seconds=stale_after_seconds)).isoformat()
+        with self._connect() as db:
+            cursor = db.execute(
+                """UPDATE retraining_requests SET status='queued', updated_at=?
+                   WHERE tenant_id=? AND status='claimed' AND updated_at<=?""",
+                (current.astimezone(UTC).isoformat(), self._tenant(tenant_id), cutoff),
+            )
+        return cursor.rowcount
+
     def claim_retraining(self, tenant_id: str, request_id: str) -> dict[str, Any]:
         now = _now().isoformat()
         with self._connect() as db:
