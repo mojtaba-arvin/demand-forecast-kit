@@ -76,7 +76,13 @@ def backup_database(
             source_connection.close()
         integrity = _integrity_report(temporary)
         digest = _sha256_file(temporary)
-        os.replace(temporary, destination)
+        if overwrite:
+            os.replace(temporary, destination)
+        else:
+            # Hard-link publication is atomic and refuses to replace a destination
+            # created by another backup process after the initial existence check.
+            os.link(temporary, destination)
+            temporary.unlink()
         return {
             "backup": str(destination),
             "sha256": digest,
