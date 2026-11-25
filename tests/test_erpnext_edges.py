@@ -161,3 +161,36 @@ def test_erpnext_paginates_invoice_and_purchase_order_headers() -> None:
     client = ERPNextClient("https://erp.example", "key", "secret", transport=transport, page_size=1)
     assert len(client.fetch_sales_demand("WH-1")) == 2
     assert len(client.fetch_purchase_orders("WH-1")) == 2
+
+
+def test_erpnext_paginates_warehouse_and_bin_resources() -> None:
+    from urllib.parse import parse_qs, urlsplit
+
+    resources = {
+        "Warehouse": [
+            {"name": "WH-1", "warehouse_name": "Main"},
+            {"name": "WH-2", "warehouse_name": "Secondary"},
+        ],
+        "Bin": [
+            {"item_code": "SKU-1", "warehouse": "WH-1", "actual_qty": 10, "reserved_qty": 1},
+            {"item_code": "SKU-2", "warehouse": "WH-1", "actual_qty": 20, "reserved_qty": 2},
+        ],
+    }
+
+    def transport(url, method, headers, body, timeout):
+        parsed = urlsplit(url)
+        doctype = parsed.path.rsplit("/", 1)[-1]
+        query = parse_qs(parsed.query)
+        offset = int(query["limit_start"][0])
+        page_size = int(query["limit_page_length"][0])
+        assert query["order_by"] == ["modified asc, name asc"]
+        return json.dumps({"data": resources[doctype][offset : offset + page_size]}).encode()
+
+    client = ERPNextClient(
+        "https://erp.example", "key", "secret", transport=transport, page_size=1
+    )
+    assert [item["name"] for item in client.list_warehouses()] == ["WH-1", "WH-2"]
+    assert [item["item_code"] for item in client.fetch_bin_balances("WH-1")] == [
+        "SKU-1",
+        "SKU-2",
+    ]
