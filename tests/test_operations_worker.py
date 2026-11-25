@@ -395,3 +395,39 @@ def test_worker_falls_back_when_selected_artifact_is_not_active(tmp_path) -> Non
     assert report["failed"] == []
     assert forecast["model_id"] == "seasonal-naive"
     assert forecast["model_selection"]["adapter_fallback_reason"] == "no_active_model_artifact"
+
+
+def test_worker_uses_active_versioned_policy_instead_of_schedule_costs(tmp_path) -> None:
+    from demand_forecast_kit.policy_registry import ReplenishmentPolicyRegistry
+
+    service = RunService(tmp_path / "state")
+    store = OperationalStore(service.state_dir / "operations.sqlite")
+    store.create_warehouse("tenant-a", "WH-1", "Main", "main")
+    store.record_inventory("tenant-a", "WH-1", "SKU-1", 10, reserved=2)
+    policies = ReplenishmentPolicyRegistry(service.state_dir / "policies.sqlite")
+    policies.register_policy(
+        "tenant-a", "service-level-90", "v2",
+        {"policy_type": "newsvendor", "underage_cost": 9, "overage_cost": 1, "pack_size": 6},
+    )
+    policies.activate("tenant-a", "service-level-90", "v2", expected_active_version=None)
+    store.create_schedule(
+        "tenant-a", job_type="replenishment_review",
+        payload={
+            "warehouse_id": "WH-1", "sku_id": "SKU-1", "policy_id": "service-level-90",
+            "lead_time_demand_quantiles": {"0.1": 10, "0.5": 20, "0.9": 40},
+            "underage_cost": 1, "overage_cost": 99, "pack_size": 1,
+        },
+        interval_seconds=300, first_run_at=datetime.now(UTC) - timedelta(seconds=1),
+    )
+
+    report = OperationalWorker(service, store, policy_registry=policies).run_once("tenant-a")
+
+    assert report["failed"] == []
+    decision = report["completed"][0]["result"]["decision"]
+    assert decision["quantity"] == 36
+    assert decision["policy"] == "service-level-90"
+    assert decision["policy_version"] == "v2"
+    assert decision["policy_definition_sha256"]
+    run = service.registry.get_run(report["completed"][0]["result"]["run"]["run_id"])
+    assert run.model_id == "replenishment-policy:service-level-90"
+    assert run.model_version == "v2"

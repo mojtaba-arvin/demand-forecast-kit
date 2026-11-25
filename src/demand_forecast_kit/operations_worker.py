@@ -15,6 +15,10 @@ from demand_forecast_kit.lifecycle import ModelLifecycle
 from demand_forecast_kit.model_registry import ModelArtifactRecord, ModelArtifactRegistry
 from demand_forecast_kit.models.base import ForecastAdapter
 from demand_forecast_kit.models.seasonal_naive import SeasonalNaiveAdapter
+from demand_forecast_kit.policy_registry import (
+    ReplenishmentPolicyRecord,
+    ReplenishmentPolicyRegistry,
+)
 from demand_forecast_kit.operations import OperationalStore
 from demand_forecast_kit.run_service import RunService
 
@@ -30,6 +34,7 @@ class OperationalWorker:
         *,
         retraining_stale_after_seconds: int = 3600,
         model_artifact_registry: ModelArtifactRegistry | None = None,
+        policy_registry: ReplenishmentPolicyRegistry | None = None,
     ) -> None:
         if type(retraining_stale_after_seconds) is not int or retraining_stale_after_seconds < 1:
             raise ValueError("retraining_stale_after_seconds must be a positive integer")
@@ -38,6 +43,7 @@ class OperationalWorker:
         self.lifecycle = lifecycle or ModelLifecycle(store)
         self.retraining_stale_after_seconds = retraining_stale_after_seconds
         self.model_artifact_registry = model_artifact_registry
+        self.policy_registry = policy_registry
         self.artifact_loaders: dict[str, Callable[[bytes, ModelArtifactRecord], ForecastAdapter]] = {}
         self._artifact_adapter_cache: dict[tuple[str, str, str], ForecastAdapter] = {}
         fallback = SeasonalNaiveAdapter()
@@ -255,15 +261,29 @@ class OperationalWorker:
         warehouse_id = str(payload["warehouse_id"])
         sku_id = str(payload["sku_id"])
         position = self.store.inventory_position(tenant_id, warehouse_id, sku_id)
+        active_policy: ReplenishmentPolicyRecord | None = None
+        policy_id = str(payload.get("policy_id", "newsvendor-default"))
+        if self.policy_registry is not None:
+            active_policy = self.policy_registry.get_active(tenant_id, policy_id)
+            if active_policy is None:
+                raise ValueError(f"no active replenishment policy for {policy_id!r}")
+            definition = active_policy.definition
+            underage_cost = float(definition["underage_cost"])
+            overage_cost = float(definition["overage_cost"])
+            pack_size = int(definition["pack_size"])
+        else:
+            underage_cost = float(payload["underage_cost"])
+            overage_cost = float(payload["overage_cost"])
+            pack_size = int(payload.get("pack_size", 1))
         recommendation = newsvendor_order(
             {
                 float(level): float(value)
                 for level, value in payload["lead_time_demand_quantiles"].items()
             },
-            underage_cost=float(payload["underage_cost"]),
-            overage_cost=float(payload["overage_cost"]),
+            underage_cost=underage_cost,
+            overage_cost=overage_cost,
             inventory_position=float(position["inventory_position"]),
-            pack_size=int(payload.get("pack_size", 1)),
+            pack_size=pack_size,
         )
         decision = {
             "tenant_id": tenant_id,
@@ -273,18 +293,25 @@ class OperationalWorker:
             "quantity": recommendation.quantity,
             "target_stock_level": recommendation.target_stock_level,
             "target_service_level": recommendation.target_service_level,
-            "policy": "newsvendor",
+            "policy": policy_id,
         }
+        if active_policy is not None:
+            decision["policy_version"] = active_policy.policy_version
+            decision["policy_definition_sha256"] = active_policy.definition_sha256
         config = {
             "tenant_id": tenant_id,
             "warehouse_id": warehouse_id,
             "sku_id": sku_id,
             "lead_time_demand_quantiles": payload["lead_time_demand_quantiles"],
             "underage_cost": payload["underage_cost"],
-            "overage_cost": payload["overage_cost"],
-            "pack_size": payload.get("pack_size", 1),
+            "overage_cost": overage_cost,
+            "pack_size": pack_size,
             "inventory_position": position["inventory_position"],
         }
+        if active_policy is not None:
+            config["policy_id"] = active_policy.policy_id
+            config["policy_version"] = active_policy.policy_version
+            config["policy_definition_sha256"] = active_policy.definition_sha256
         encoded = json.dumps(
             config, sort_keys=True, separators=(",", ":"), allow_nan=False
         ).encode()
@@ -295,13 +322,19 @@ class OperationalWorker:
         run = self.service.record_run(
             idempotency_key=self.service.idempotency_key(
                 dataset_fingerprint=fingerprint,
-                model_id="newsvendor-policy",
-                model_version="1",
+                model_id=(
+                    f"replenishment-policy:{policy_id}"
+                    if active_policy is not None else "newsvendor-policy"
+                ),
+                model_version=(active_policy.policy_version if active_policy is not None else "1"),
                 config=config,
             ),
             dataset_fingerprint=fingerprint,
-            model_id="newsvendor-policy",
-            model_version="1",
+            model_id=(
+                f"replenishment-policy:{policy_id}"
+                if active_policy is not None else "newsvendor-policy"
+            ),
+            model_version=(active_policy.policy_version if active_policy is not None else "1"),
             config=config,
             result=decision,
             artifact_payload=result_bytes,

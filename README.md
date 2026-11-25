@@ -6,6 +6,8 @@ Demand Forecast Kit is an open-source library and API for turning sales and inve
 
 > **Project status: early development.** The package now includes forecasting, rolling-origin evaluation, adaptive interval calibration, inventory simulation, API/CLI entry points, a local run registry, content-addressed artifacts, and process-local observability. These are composable single-machine primitives, not a managed production service. Production-scale reliability and forecast-quality targets have not been established.
 
+
+[Versioned replenishment policies](docs/policy-lifecycle.md)
 ## Design principles
 
 - **Probabilistic by default:** forecasts expose ordered quantiles rather than only a point estimate.
