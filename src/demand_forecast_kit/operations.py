@@ -723,7 +723,7 @@ class OperationalStore:
             tombstones: dict[str, str] = {}
             for row in missing:
                 previous_modified = datetime.fromisoformat(str(row["modified_at"]))
-                deletion_time = (previous_modified + timedelta(microseconds=1)).astimezone(UTC).isoformat()
+                deletion_time = (\n                    previous_modified + timedelta(microseconds=1)\n                ).astimezone(UTC).isoformat()
                 tombstones[str(row["invoice_id"])] = deletion_time
             for sku, observed_day in affected:
                 total_row = db.execute(
@@ -809,7 +809,7 @@ class OperationalStore:
         warehouse_id: str,
         present_skus: set[str],
     ) -> int:
-        """Write zero-quantity tombstones for deleted ERPNext Bins without overriding manual stock."""
+        """Write zero-quantity tombstones for deleted ERPNext Bins.\n\n        A newer manual inventory source is preserved.\n        """
         tenant = self._tenant(tenant_id)
         if not warehouse_id.strip() or any(not item.strip() for item in present_skus):
             raise ValueError("warehouse_id and SKU identifiers must not be blank")
@@ -839,7 +839,7 @@ class OperationalStore:
                 if latest is None or str(latest["source"]) != "erpnext:Bin":
                     continue
                 previous_time = datetime.fromisoformat(str(latest["as_of"]))
-                deletion_time = (previous_time + timedelta(microseconds=1)).astimezone(UTC).isoformat()
+                deletion_time = (\n                    previous_time + timedelta(microseconds=1)\n                ).astimezone(UTC).isoformat()
                 db.execute(
                     """INSERT INTO inventory_snapshots
                        (tenant_id, warehouse_id, sku_id, quantity, reserved, backorders, as_of, source)
