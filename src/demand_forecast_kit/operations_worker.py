@@ -59,12 +59,16 @@ class OperationalWorker:
         for job in jobs:
             try:
                 result = self._execute(tenant_id, job)
-                self.store.complete_schedule(tenant_id, str(job["job_id"]))
+                self.store.complete_schedule(
+                    tenant_id, str(job["job_id"]), lease_token=str(job["lease_token"])
+                )
                 completed.append(
                     {"job_id": job["job_id"], "job_type": job["job_type"], "result": result}
                 )
             except Exception as exc:
-                self.store.release_schedule(tenant_id, str(job["job_id"]))
+                self.store.release_schedule(
+                    tenant_id, str(job["job_id"]), lease_token=str(job["lease_token"])
+                )
                 failed.append(
                     {
                         "job_id": str(job["job_id"]),
