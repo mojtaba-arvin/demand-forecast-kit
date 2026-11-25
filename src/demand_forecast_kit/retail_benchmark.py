@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import hashlib
+import math
+import re
 from datetime import date, timedelta
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 import polars as pl
 
@@ -149,3 +151,197 @@ def sha256_file(path: str | Path) -> str:
         for chunk in iter(lambda: source.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+M5_DATASET_URL = "https://www.kaggle.com/competitions/m5-forecasting-accuracy/data"
+M5_DATASET_LICENSE = "Kaggle competition rules; not a general redistribution license"
+
+
+def prepare_m5_daily_demand(
+    sales_path: str | Path,
+    calendar_path: str | Path,
+    *,
+    max_series_per_cohort: int = 20,
+    cohort_window_days: int = INITIAL_TRAIN_SIZE,
+) -> tuple[pl.DataFrame, dict[str, int], dict[str, Any]]:
+    """Read an authorized local M5 copy and select deterministic item/store histories.
+
+    The M5 sales file is wide (one column per day). Cohorts are frozen from the
+    first cohort_window_days only, then a deterministic SHA-256 sample is
+    unpivoted to positive daily demand rows; build_cohort_panel reconstructs
+    zero-sales dates on the complete calendar. The source files are never
+    downloaded or copied
+    by this function; callers must obtain them under the Kaggle competition
+    rules and keep the raw data outside source control.
+    """
+    sales_file = Path(sales_path)
+    calendar_file = Path(calendar_path)
+    if not sales_file.is_file():
+        raise FileNotFoundError(sales_file)
+    if not calendar_file.is_file():
+        raise FileNotFoundError(calendar_file)
+    if type(max_series_per_cohort) is not int or max_series_per_cohort < 1:
+        raise ValueError("max_series_per_cohort must be a positive integer")
+    if type(cohort_window_days) is not int or cohort_window_days < MIN_ACTIVE_DAYS:
+        raise ValueError(f"cohort_window_days must be at least {MIN_ACTIVE_DAYS}")
+
+    sales = pl.scan_csv(sales_file, infer_schema_length=1000)
+    names = sales.collect_schema().names()
+    required = {"id", "item_id", "store_id"}
+    missing = sorted(required - set(names))
+    if missing:
+        raise ValueError(f"M5 sales file is missing columns: {', '.join(missing)}")
+    day_columns = sorted(
+        (name for name in names if re.fullmatch(r"d_\d+", name)),
+        key=lambda name: int(name[2:]),
+    )
+    if not day_columns or day_columns != [f"d_{index}" for index in range(1, len(day_columns) + 1)]:
+        raise ValueError("M5 sales file must contain a contiguous d_1..d_N daily column range")
+    if len(day_columns) < cohort_window_days:
+        raise ValueError("M5 sales file is shorter than the requested cohort window")
+
+    calendar = (
+        pl.read_csv(calendar_file, columns=["d", "date"])
+        .select(
+            pl.col("d").cast(pl.String).alias("day_id"),
+            pl.col("date")
+            .cast(pl.String)
+            .str.strptime(pl.Date, format="%Y-%m-%d", strict=True)
+            .alias("day"),
+        )
+        .filter(pl.col("day_id").is_in(day_columns))
+        .with_columns(pl.col("day_id").str.extract(r"d_(\d+)", 1).cast(pl.Int64).alias("day_index"))
+        .sort("day_index")
+    )
+    calendar_day_count = calendar.get_column("day_id").n_unique()
+    if calendar.height != len(day_columns) or calendar_day_count != len(day_columns):
+        raise ValueError("M5 calendar must map every sales day column exactly once")
+    calendar_dates = calendar.get_column("day").to_list()
+    consecutive_days = all(
+        (right - left).days == 1
+        for left, right in zip(calendar_dates, calendar_dates[1:], strict=False)
+    )
+    if not consecutive_days:
+        raise ValueError("M5 calendar dates must be consecutive and daily")
+
+    series_id_expr = pl.concat_str(
+        [pl.col("item_id").cast(pl.String), pl.col("store_id").cast(pl.String)],
+        separator="::",
+    )
+    history_columns = day_columns[:cohort_window_days]
+    metadata_source = sales.select("item_id", "store_id", *history_columns).collect()
+    dense_threshold = (cohort_window_days + 1) // 2
+    intermittent_threshold = (cohort_window_days + 19) // 20
+    metadata_rows: list[tuple[str, str, int]] = []
+    for row in metadata_source.iter_rows(named=True):
+        item_id = str(row["item_id"])
+        store_id = str(row["store_id"])
+        if not item_id or item_id == "None" or not store_id or store_id == "None":
+            raise ValueError("M5 sales file contains a blank item_id or store_id")
+        active_days = 0
+        for column in history_columns:
+            raw_value = row[column]
+            value = 0.0 if raw_value is None else float(raw_value)
+            if not math.isfinite(value) or value < 0.0:
+                raise ValueError("M5 cohort window contains invalid daily sales values")
+            active_days += int(value > 0.0)
+        if active_days < MIN_ACTIVE_DAYS:
+            continue
+        if active_days >= dense_threshold:
+            cohort = "dense"
+        elif active_days >= intermittent_threshold:
+            cohort = "intermittent"
+        else:
+            cohort = "very-intermittent"
+        metadata_rows.append((f"{item_id}::{store_id}", cohort, active_days))
+    metadata = pl.DataFrame(
+        {
+            "series_id": [row[0] for row in metadata_rows],
+            "cohort": [row[1] for row in metadata_rows],
+            "active_days": [row[2] for row in metadata_rows],
+        },
+        schema={"series_id": pl.String, "cohort": pl.String, "active_days": pl.Int64},
+    )
+    if metadata.get_column("series_id").n_unique() != metadata.height:
+        raise ValueError("M5 sales file contains duplicate item/store series")
+    if metadata.is_empty():
+        raise ValueError("no M5 item/store series meet the minimum activity threshold")
+
+    selected_by_cohort: dict[str, list[str]] = {}
+    for cohort in COHORTS:
+        candidates = [
+            str(value)
+            for value in metadata.filter(pl.col("cohort") == cohort)
+            .get_column("series_id")
+            .to_list()
+        ]
+        selected_by_cohort[cohort] = sorted(
+            candidates,
+            key=lambda value: hashlib.sha256(value.encode("utf-8")).hexdigest(),
+        )[:max_series_per_cohort]
+    selected_ids = [value for cohort in COHORTS for value in selected_by_cohort[cohort]]
+    if not selected_ids:
+        raise ValueError("no M5 item/store series were selected")
+
+    selected = (
+        sales.filter(series_id_expr.is_in(selected_ids))
+        .select("item_id", "store_id", *day_columns)
+        .collect()
+    )
+    if selected.height != len(selected_ids):
+        raise ValueError("M5 selected item/store series could not be resolved uniquely")
+    long = (
+        selected.unpivot(
+            on=day_columns,
+            index=["item_id", "store_id"],
+            variable_name="day_id",
+            value_name="demand",
+        )
+        .with_columns(
+            series_id_expr.alias("series_id"),
+            pl.col("demand").cast(pl.Float64, strict=False),
+        )
+        .join(calendar.select("day_id", "day"), on="day_id", how="left")
+    )
+    invalid_count = (
+        long.filter(
+            pl.col("day").is_null()
+            | pl.col("demand").is_null()
+            | ~pl.col("demand").is_finite()
+            | (pl.col("demand") < 0.0)
+        )
+        .select(pl.len())
+        .item()
+    )
+    if invalid_count:
+        raise ValueError(f"M5 selected series contain {invalid_count} invalid daily sales values")
+    daily = (
+        long.filter(pl.col("demand") > 0.0)
+        .group_by(["series_id", "day"])
+        .agg(pl.col("demand").sum())
+        .sort(["series_id", "day"])
+    )
+    summary = {
+        "source": M5_DATASET_URL,
+        "license": M5_DATASET_LICENSE,
+        "sales_sha256": sha256_file(sales_file),
+        "calendar_sha256": sha256_file(calendar_file),
+        "series_count": len(selected_ids),
+        "day_count": len(day_columns),
+        "start_date": str(calendar_dates[0]),
+        "end_date": str(calendar_dates[-1]),
+        "selected_series_by_cohort": selected_by_cohort,
+        "cohort_candidate_counts": {
+            cohort: metadata.filter(pl.col("cohort") == cohort).height for cohort in COHORTS
+        },
+        "selected_active_days": {
+            cohort: {
+                str(row["series_id"]): int(row["active_days"])
+                for row in metadata.filter(pl.col("series_id").is_in(selected_by_cohort[cohort]))
+                .select("series_id", "active_days")
+                .to_dicts()
+            }
+            for cohort in COHORTS
+        },
+    }
+    return daily, {cohort: len(selected_by_cohort[cohort]) for cohort in COHORTS}, summary
