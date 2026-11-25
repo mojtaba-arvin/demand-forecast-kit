@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import json
 import math
+import time
 from collections.abc import Callable
 from datetime import UTC, date, datetime, timedelta
 from typing import Any, cast
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urljoin
 from urllib.request import Request, urlopen
-import time
 
 from demand_forecast_kit.operations import OperationalStore
 
