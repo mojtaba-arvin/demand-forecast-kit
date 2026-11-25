@@ -240,6 +240,7 @@ python -m pip install ".[dev]"
 - [Independent UCI Electricity benchmark](docs/benchmarks/uci-electricity-load.md)
 - [Operational planning API, ERPNext connector, scheduler, and model lifecycle](docs/operations.md)
 - [Persistent model artifacts, explicit activation, and rollback](docs/model-artifacts.md)
+- [Project roadmap and verified milestone status](docs/roadmap.md)
 - [Expanded UCI Online Retail II benchmark](docs/benchmarks/uci-online-retail-ii.md)
 
 ## Metric definitions
