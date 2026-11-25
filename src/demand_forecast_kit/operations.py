@@ -960,7 +960,9 @@ class OperationalStore:
             raise ValueError("limit must be between 1 and 1000")
         with self._connect() as db:
             rows = db.execute(
-                """SELECT * FROM retraining_requests WHERE tenant_id=?
+                """SELECT request_id, tenant_id, warehouse_id, sku_id, model_id,
+                          model_version, reason, status, created_at, updated_at
+                   FROM retraining_requests WHERE tenant_id=?
                    ORDER BY created_at DESC LIMIT ?""",
                 (self._tenant(tenant_id), limit),
             ).fetchall()
