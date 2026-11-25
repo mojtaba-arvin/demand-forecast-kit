@@ -44,9 +44,12 @@ another sync for the same tenant/warehouse.
   must not be overwritten by a missing ERPNext Bin.
 
 The command is exposed as demand-forecast-erpnext-reconcile and requires the
-explicit --confirm-full-snapshot flag. Credentials are read only from environment
+explicit --confirm-full-snapshot flag. It also refuses an empty resource snapshot
+when local records exist unless the operator explicitly opts in after verifying
+complete ERPNext list/read permissions. Credentials are read only from environment
 variables. The operation mutates local SQLite data only; it never writes to
-ERPNext.
+ERPNext. Incremental and full Bin imports preserve the latest manual/other-source
+inventory snapshot instead of silently replacing its source-of-truth value.
 
 ## Consequences
 
