@@ -32,9 +32,7 @@ def test_erpnext_reconcile_cli_uses_environment_credentials_and_reports_result(
         def __init__(self, base_url, api_key, api_secret, *, timeout, page_size):
             calls["client"] = (base_url, api_key, api_secret, timeout, page_size)
 
-        def reconcile_warehouse(
-            self, store, tenant_id, warehouse_id, *, allow_empty_snapshot
-        ):
+        def reconcile_warehouse(self, store, tenant_id, warehouse_id, *, allow_empty_snapshot):
             calls["reconcile"] = (store, tenant_id, warehouse_id, allow_empty_snapshot)
             return {"snapshot_verified": True, "deleted_sales_invoices": 2}
 
