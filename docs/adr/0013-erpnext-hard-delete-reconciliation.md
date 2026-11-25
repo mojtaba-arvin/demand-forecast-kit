@@ -35,7 +35,7 @@ another sync for the same tenant/warehouse.
 
 - Sales Invoice: remove contributions for deleted/cancelled invoices and for
   invoices with no remaining lines in this warehouse, recompute affected SKU/day
-  totals, and retain a source-deleted tombstone just beyond the last observed
+  totals, and retain a source-inactive tombstone just beyond the last observed
   source Modified timestamp. Incremental events at or before that fence cannot
   resurrect the contribution.
   A later verified full snapshot can restore it if the ID is present again.
