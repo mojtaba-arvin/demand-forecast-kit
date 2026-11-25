@@ -9,6 +9,26 @@ a local installation or a single-host service with durable storage. It is not
 a distributed database, multi-host lock service, or high-availability SaaS
 control plane.
 
+## Health and readiness probes
+
+Use `/health` or `/health/live` for process liveness. These endpoints return
+success while the API process is running; they do not prove that persistence or
+artifact storage is usable.
+
+Use `/health/ready` for load-balancer readiness. It checks the run-registry
+SQLite database, operational SQLite database, and artifact directory. It returns
+HTTP 200 only when all three dependencies pass their local checks; otherwise it
+returns HTTP 503 with a dependency-level status. Keep readiness probes enabled
+for traffic routing and use liveness only to detect a stuck or terminated API
+process.
+
+These checks are intentionally local. They do not prove that the worker is
+running, scheduled jobs are progressing, ERPNext is reachable, backups are
+current, or another host can access the SQLite state. Monitor worker heartbeat,
+backup age, and external ERPNext connectivity separately. Health endpoints are
+unauthenticated for orchestrator probes and must not expose credentials or
+tenant data.
+
 ## Start the API
 
 Install the API extra and run the existing FastAPI factory:
@@ -202,6 +222,47 @@ exponential backoff; a numeric `Retry-After` header is honored. Client errors
 such as HTTP 400/401 are not retried. Configure `max_retries`,
 `retry_backoff_seconds`, and `sync_overlap_seconds` on `ERPNextClient`
 when embedding the connector.
+
+## SQLite backup and restore
+
+SQLite is a single-host operational store. Back it up with the online backup API;
+do not copy only the main database file while the API or worker is writing, because
+committed data may still reside in the WAL.
+
+Create and verify an atomic backup:
+
+```bash
+demand-forecast-db backup \
+  ./state/operations.sqlite \
+  ./backups/operations-$(date -u +%Y%m%dT%H%M%SZ).sqlite
+
+demand-forecast-db verify ./backups/operations-YYYYMMDDTHHMMSSZ.sqlite
+```
+
+The command reports a SHA-256 digest, SQLite integrity result, and foreign-key
+check. Store backups encrypted, off-host, and under a documented retention
+policy. A backup on the same host is not disaster recovery.
+
+Restore only in a maintenance window after stopping every API and worker process
+that can open the target database:
+
+```bash
+demand-forecast-db verify ./backups/operations-YYYYMMDDTHHMMSSZ.sqlite
+
+demand-forecast-db restore \
+  ./backups/operations-YYYYMMDDTHHMMSSZ.sqlite \
+  ./state/operations.sqlite \
+  --confirm-services-stopped
+
+demand-forecast-db verify ./state/operations.sqlite
+```
+
+Restore verifies the backup, stages a temporary database, checks its integrity
+and foreign keys, then atomically replaces the target and removes stale WAL/SHM/journal
+sidecars. The explicit confirmation is required because replacing an open SQLite
+database is unsafe. Keep the old database and backup until the restored API/worker
+pass a smoke check. This tool does not schedule backups or upload them to remote
+storage; configure those controls in the deployment environment.
 
 ## Scheduled work
 
