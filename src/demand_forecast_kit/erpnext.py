@@ -106,9 +106,7 @@ class ERPNextClient:
         records: list[dict[str, Any]] = []
         offset = 0
         while True:
-            page = self._resource(
-                doctype, fields=fields, filters=filters, limit_start=offset
-            )
+            page = self._resource(doctype, fields=fields, filters=filters, limit_start=offset)
             records.extend(page)
             if len(page) < self.page_size:
                 return records
