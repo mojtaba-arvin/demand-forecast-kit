@@ -413,9 +413,7 @@ class ERPNextClient:
                         aggregate["unit_cost"] = (
                             cost
                             if previous_cost is None
-                            else (
-                                float(previous_cost) * previous_quantity + cost * quantity
-                            )
+                            else (float(previous_cost) * previous_quantity + cost * quantity)
                             / (previous_quantity + quantity)
                         )
         result: list[dict[str, Any]] = []
@@ -425,9 +423,7 @@ class ERPNextClient:
             expected_at = None
             if schedule_date:
                 date_text = str(schedule_date)
-                expected_at = (
-                    f"{date_text}T00:00:00+00:00" if len(date_text) == 10 else date_text
-                )
+                expected_at = f"{date_text}T00:00:00+00:00" if len(date_text) == 10 else date_text
             result.append(
                 {
                     "order_id": order_id,
@@ -436,8 +432,7 @@ class ERPNextClient:
                     "docstatus": int(header.get("docstatus", 0)),
                     "modified": self._modified_timestamp(header["modified"]),
                     "lines": [
-                        grouped.get(order_id, {})[sku]
-                        for sku in sorted(grouped.get(order_id, {}))
+                        grouped.get(order_id, {})[sku] for sku in sorted(grouped.get(order_id, {}))
                     ],
                 }
             )
@@ -570,9 +565,7 @@ class ERPNextClient:
         if latest_bin is not None:
             store.advance_erpnext_watermark(tenant_id, warehouse_id, "Bin", latest_bin)
 
-        invoice_watermark = store.get_erpnext_watermark(
-            tenant_id, warehouse_id, "Sales Invoice"
-        )
+        invoice_watermark = store.get_erpnext_watermark(tenant_id, warehouse_id, "Sales Invoice")
         invoices = self.fetch_sales_invoice_changes(
             warehouse_id, modified_since=self._overlap_start(invoice_watermark)
         )
@@ -590,18 +583,14 @@ class ERPNextClient:
                 )
             )
         if affected_skus:
-            imported_demand = store.fill_erpnext_demand_gaps(
-                tenant_id, warehouse_id, affected_skus
-            )
+            imported_demand = store.fill_erpnext_demand_gaps(tenant_id, warehouse_id, affected_skus)
         latest_invoice = self._latest_modified(invoices)
         if latest_invoice is not None:
             store.advance_erpnext_watermark(
                 tenant_id, warehouse_id, "Sales Invoice", latest_invoice
             )
 
-        order_watermark = store.get_erpnext_watermark(
-            tenant_id, warehouse_id, "Purchase Order"
-        )
+        order_watermark = store.get_erpnext_watermark(tenant_id, warehouse_id, "Purchase Order")
         purchase_orders = self.fetch_purchase_order_changes(
             warehouse_id, modified_since=self._overlap_start(order_watermark)
         )
@@ -629,9 +618,7 @@ class ERPNextClient:
             imported_orders += 1
         latest_order = self._latest_modified(purchase_orders)
         if latest_order is not None:
-            store.advance_erpnext_watermark(
-                tenant_id, warehouse_id, "Purchase Order", latest_order
-            )
+            store.advance_erpnext_watermark(tenant_id, warehouse_id, "Purchase Order", latest_order)
 
         return {
             "inventory_items": imported_stock,
