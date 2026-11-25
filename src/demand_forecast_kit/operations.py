@@ -779,10 +779,14 @@ class OperationalStore:
                 (tenant, warehouse_id, sku_id, model_id, model_version),
             ).fetchone()
             if existing:
-                return dict(existing)
+                record = dict(existing)
+                record.pop("claim_token", None)
+                return record
             request_id = str(uuid4())
             db.execute(
                 """INSERT INTO retraining_requests
+                   (request_id, tenant_id, warehouse_id, sku_id, model_id, model_version,
+                    reason, status, created_at, updated_at)
                    VALUES (?, ?, ?, ?, ?, ?, ?, 'queued', ?, ?)""",
                 (
                     request_id,
@@ -800,7 +804,9 @@ class OperationalStore:
                 "SELECT * FROM retraining_requests WHERE request_id=?", (request_id,)
             ).fetchone()
         assert row is not None
-        return dict(row)
+        record = dict(row)
+        record.pop("claim_token", None)
+        return record
 
     def record_policy_outcome(
         self,
