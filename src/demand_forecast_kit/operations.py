@@ -1322,7 +1322,7 @@ class OperationalStore:
                 (retry_at, self._tenant(tenant_id), job_id, lease_token),
             )
             if cursor.rowcount != 1:
-                raise ValueError("scheduled job has no active lease")
+                raise ValueError("scheduled job has no active lease owned by this worker")
             row = db.execute(
                 "SELECT * FROM scheduled_jobs WHERE tenant_id=? AND job_id=?",
                 (self._tenant(tenant_id), job_id),
