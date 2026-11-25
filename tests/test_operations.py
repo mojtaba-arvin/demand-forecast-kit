@@ -246,7 +246,9 @@ def test_retraining_request_state_transitions_are_guarded(store: OperationalStor
     assert claimed["status"] == "claimed"
     with pytest.raises(ValueError, match="already claimed"):
         store.claim_retraining("tenant-a", request["request_id"])
-    finished = store.finish_retraining("tenant-a", request["request_id"], success=False)
+    finished = store.finish_retraining(
+        "tenant-a", request["request_id"], success=False, claim_token=claimed["claim_token"]
+    )
     assert finished["status"] == "failed"
 
 
@@ -275,6 +277,58 @@ def test_stale_retraining_claims_are_requeued_after_worker_crash(store: Operatio
     recovered = store.list_retraining_requests("tenant-a")[0]
     assert recovered["status"] == "queued"
     assert store.claim_retraining("tenant-a", request["request_id"])["status"] == "claimed"
+
+
+def test_reclaimed_worker_cannot_finish_or_persist_a_stale_baseline(
+    store: OperationalStore,
+) -> None:
+    create_warehouse(store)
+    request = store.queue_retraining(
+        "tenant-a",
+        warehouse_id="WH-1",
+        sku_id="SKU-1",
+        model_id="model-a",
+        model_version="v1",
+        reason="drift",
+    )
+    first_claim = store.claim_retraining("tenant-a", request["request_id"])
+    now = datetime.now(UTC) + timedelta(hours=2)
+    assert store.recover_stale_retraining("tenant-a", now=now) == 1
+    second_claim = store.claim_retraining("tenant-a", request["request_id"])
+    assert first_claim["claim_token"] != second_claim["claim_token"]
+
+    stale_baseline = {
+        "warehouse_id": "WH-1",
+        "sku_id": "SKU-1",
+        "model_id": "model-a",
+        "model_version": "stale-v2",
+        "baseline_mae": 0.1,
+        "sample_count": 20,
+    }
+    with pytest.raises(ValueError, match="stale or no longer owned"):
+        store.finish_retraining(
+            "tenant-a",
+            request["request_id"],
+            success=True,
+            claim_token=first_claim["claim_token"],
+            baseline=stale_baseline,
+        )
+    assert store.model_baselines(
+        "tenant-a", warehouse_id="WH-1", sku_id="SKU-1"
+    ) == []
+    assert store.list_retraining_requests("tenant-a")[0]["status"] == "claimed"
+
+    current_baseline = {**stale_baseline, "model_version": "current-v2", "baseline_mae": 0.8}
+    finished = store.finish_retraining(
+        "tenant-a",
+        request["request_id"],
+        success=True,
+        claim_token=second_claim["claim_token"],
+        baseline=current_baseline,
+    )
+    assert finished["status"] == "completed"
+    baselines = store.model_baselines("tenant-a", warehouse_id="WH-1", sku_id="SKU-1")
+    assert [item["model_version"] for item in baselines] == ["current-v2"]
 
 
 def test_stale_retraining_recovery_is_tenant_scoped(store: OperationalStore) -> None:
@@ -360,8 +414,10 @@ def test_retraining_can_be_queued_again_after_a_completed_cycle(store: Operation
         model_version="v1",
         reason="first-drift",
     )
-    store.claim_retraining("tenant-a", first["request_id"])
-    store.finish_retraining("tenant-a", first["request_id"], success=True)
+    first_claim = store.claim_retraining("tenant-a", first["request_id"])
+    store.finish_retraining(
+        "tenant-a", first["request_id"], success=True, claim_token=first_claim["claim_token"]
+    )
 
     second = store.queue_retraining(
         "tenant-a",
@@ -371,8 +427,10 @@ def test_retraining_can_be_queued_again_after_a_completed_cycle(store: Operation
         model_version="v1",
         reason="second-drift",
     )
-    store.claim_retraining("tenant-a", second["request_id"])
-    finished = store.finish_retraining("tenant-a", second["request_id"], success=True)
+    second_claim = store.claim_retraining("tenant-a", second["request_id"])
+    finished = store.finish_retraining(
+        "tenant-a", second["request_id"], success=True, claim_token=second_claim["claim_token"]
+    )
     assert finished["status"] == "completed"
     assert len(store.list_retraining_requests("tenant-a")) == 2
 
