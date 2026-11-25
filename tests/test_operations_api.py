@@ -20,21 +20,27 @@ def client(tmp_path, monkeypatch) -> TestClient:
 
 
 def test_retraining_api_requires_current_claim_token_to_finish(client: TestClient) -> None:
-    assert client.post(
-        "/v1/ops/warehouses",
-        json={"warehouse_id": "WH-1", "name": "Main", "location_code": "main"},
-    ).status_code == 201
-    assert client.post(
-        "/v1/ops/monitoring/baselines",
-        json={
-            "warehouse_id": "WH-1",
-            "sku_id": "SKU-1",
-            "model_id": "model-a",
-            "model_version": "v1",
-            "baseline_mae": 1,
-            "sample_count": 20,
-        },
-    ).status_code == 201
+    assert (
+        client.post(
+            "/v1/ops/warehouses",
+            json={"warehouse_id": "WH-1", "name": "Main", "location_code": "main"},
+        ).status_code
+        == 201
+    )
+    assert (
+        client.post(
+            "/v1/ops/monitoring/baselines",
+            json={
+                "warehouse_id": "WH-1",
+                "sku_id": "SKU-1",
+                "model_id": "model-a",
+                "model_version": "v1",
+                "baseline_mae": 1,
+                "sample_count": 20,
+            },
+        ).status_code
+        == 201
+    )
     origin = datetime(2026, 1, 1, tzinfo=UTC)
     for index in range(10):
         response = client.post(
@@ -82,6 +88,7 @@ def test_retraining_api_requires_current_claim_token_to_finish(client: TestClien
     )
     assert finished.status_code == 200
     assert finished.json()["status"] == "completed"
+
 
 def test_warehouse_inventory_and_purchase_order_api(client: TestClient) -> None:
     warehouse = client.post(
