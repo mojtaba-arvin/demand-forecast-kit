@@ -136,7 +136,7 @@ class ModelArtifactRegistry:
 
     @staticmethod
     def _required(value: str, name: str) -> str:
-        if not isinstance(value, str) or not value.strip():
+        if not value.strip():
             raise ValueError(f"{name} must not be blank")
         return value.strip()
 
@@ -160,9 +160,9 @@ class ModelArtifactRegistry:
         identifier = self._required(model_id, "model_id")
         version = self._required(model_version, "model_version")
         content_type = self._required(media_type, "media_type")
-        if not isinstance(payload, bytes) or not payload:
+        if not payload:
             raise ValueError("payload must contain non-empty bytes")
-        if not isinstance(evaluation_report, bytes) or not evaluation_report:
+        if not evaluation_report:
             raise ValueError("evaluation_report must contain non-empty bytes")
         if (
             isinstance(validation_mae, bool)
@@ -359,8 +359,11 @@ class ModelArtifactRegistry:
                 """,
                 (identifier, action, current_version, version, activated_at),
             )
+            event_id = cursor.lastrowid
+            if event_id is None:
+                raise RuntimeError("activation event was not persisted")
             return ModelActivation(
-                event_id=int(cursor.lastrowid),
+                event_id=event_id,
                 action=action,
                 model_id=identifier,
                 previous_model_version=current_version,
