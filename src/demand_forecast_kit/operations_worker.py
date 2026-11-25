@@ -15,11 +15,11 @@ from demand_forecast_kit.lifecycle import ModelLifecycle
 from demand_forecast_kit.model_registry import ModelArtifactRecord, ModelArtifactRegistry
 from demand_forecast_kit.models.base import ForecastAdapter
 from demand_forecast_kit.models.seasonal_naive import SeasonalNaiveAdapter
+from demand_forecast_kit.operations import OperationalStore
 from demand_forecast_kit.policy_registry import (
     ReplenishmentPolicyRecord,
     ReplenishmentPolicyRegistry,
 )
-from demand_forecast_kit.operations import OperationalStore
 from demand_forecast_kit.run_service import RunService
 
 
