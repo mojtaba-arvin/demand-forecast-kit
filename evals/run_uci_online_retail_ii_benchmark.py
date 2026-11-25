@@ -309,7 +309,17 @@ def main() -> None:
         max_skus_per_cohort=args.max_skus_per_cohort,
         output=args.output,
     )
-    print(json.dumps(result["macro_summary"], indent=2))
+    print(
+        json.dumps(
+            {
+                "rolling_origin_macro_summary": result["macro_summary"],
+                "lead_time_calibration_macro_summary": result["lead_time_calibration"][
+                    "macro_summary"
+                ],
+            },
+            indent=2,
+        )
+    )
 
 
 if __name__ == "__main__":
