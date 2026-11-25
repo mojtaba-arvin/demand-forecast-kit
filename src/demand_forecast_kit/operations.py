@@ -149,8 +149,8 @@ class OperationalStore:
                     job_type TEXT NOT NULL, payload_json TEXT NOT NULL,
                     interval_seconds INTEGER NOT NULL CHECK(interval_seconds > 0),
                     next_run_at TEXT NOT NULL, last_run_at TEXT,
-                    lease_until TEXT, enabled INTEGER NOT NULL DEFAULT 1,
-                    created_at TEXT NOT NULL,
+                    lease_until TEXT, lease_token TEXT,
+                    enabled INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL,
                     PRIMARY KEY(tenant_id, job_id)
                 );
                 """
@@ -167,6 +167,11 @@ class OperationalStore:
             }
             if "claim_token" not in retraining_columns:
                 db.execute("ALTER TABLE retraining_requests ADD COLUMN claim_token TEXT")
+            schedule_columns = {
+                str(row["name"]) for row in db.execute("PRAGMA table_info(scheduled_jobs)")
+            }
+            if "lease_token" not in schedule_columns:
+                db.execute("ALTER TABLE scheduled_jobs ADD COLUMN lease_token TEXT")
 
     @contextmanager
     def _connect(self) -> Generator[sqlite3.Connection]:
