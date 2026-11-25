@@ -34,7 +34,7 @@ another sync for the same tenant/warehouse.
 ### Deletion behavior
 
 - Sales Invoice: remove the deleted invoice's contribution, recompute affected
-  SKU/day totals, and retain a source-deleted tombstone just beyond the last observed source
+  SKU/day totals, and retain a source-inactive tombstone just beyond the last observed source
   Modified timestamp. Incremental events at or before that fence cannot resurrect the invoice.
   A later verified full snapshot can restore it if the ID is present again.
 - Purchase Order: cancel the missing imported order and advance its source
