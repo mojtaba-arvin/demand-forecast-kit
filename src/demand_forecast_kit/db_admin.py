@@ -51,7 +51,9 @@ def _temporary_database(parent: Path, prefix: str) -> Path:
     return Path(name)
 
 
-def backup_database(source: Path, destination: Path, *, overwrite: bool = False) -> dict[str, int | str]:
+def backup_database(
+    source: Path, destination: Path, *, overwrite: bool = False
+) -> dict[str, int | str]:
     """Create and verify a transactionally consistent SQLite online backup."""
     source = source.resolve()
     destination = destination.resolve()
@@ -104,7 +106,9 @@ def restore_database(
     backup = backup.resolve()
     destination = destination.resolve()
     if not confirm_services_stopped:
-        raise ValueError("restore requires explicit confirmation that API and worker processes are stopped")
+        raise ValueError(
+            "restore requires explicit confirmation that API and worker processes are stopped"
+        )
     if backup == destination:
         raise ValueError("backup and restore destination must be different files")
     _integrity_report(backup)
@@ -161,7 +165,7 @@ def main() -> None:
     verify = commands.add_parser("verify", help="verify a database or backup")
     verify.add_argument("database", type=Path)
 
-    restore = commands.add_parser("restore", help="restore a backup while services are stopped")
+    restore = commands.add_parser(\n        "restore", help="restore a backup while services are stopped"\n    )
     restore.add_argument("backup", type=Path)
     restore.add_argument("database", type=Path)
     restore.add_argument("--confirm-services-stopped", action="store_true")
@@ -169,7 +173,7 @@ def main() -> None:
     args = parser.parse_args()
     try:
         if args.command == "backup":
-            result = backup_database(args.database, args.destination, overwrite=args.overwrite)
+            result = backup_database(\n                args.database, args.destination, overwrite=args.overwrite\n            )
         elif args.command == "verify":
             result = verify_database(args.database)
         else:
@@ -178,7 +182,7 @@ def main() -> None:
                 args.database,
                 confirm_services_stopped=args.confirm_services_stopped,
             )
-    except (FileNotFoundError, FileExistsError, OSError, sqlite3.Error, RuntimeError, ValueError) as exc:
+    except (\n        FileNotFoundError,\n        FileExistsError,\n        OSError,\n        sqlite3.Error,\n        RuntimeError,\n        ValueError,\n    ) as exc:
         parser.error(str(exc))
     print(json.dumps(result, sort_keys=True))
 
