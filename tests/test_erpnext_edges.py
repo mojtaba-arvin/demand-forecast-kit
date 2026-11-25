@@ -186,9 +186,7 @@ def test_erpnext_paginates_warehouse_and_bin_resources() -> None:
         assert query["order_by"] == ["modified asc, name asc"]
         return json.dumps({"data": resources[doctype][offset : offset + page_size]}).encode()
 
-    client = ERPNextClient(
-        "https://erp.example", "key", "secret", transport=transport, page_size=1
-    )
+    client = ERPNextClient("https://erp.example", "key", "secret", transport=transport, page_size=1)
     assert [item["name"] for item in client.list_warehouses()] == ["WH-1", "WH-2"]
     assert [item["item_code"] for item in client.fetch_bin_balances("WH-1")] == [
         "SKU-1",
