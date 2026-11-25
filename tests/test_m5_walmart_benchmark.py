@@ -5,7 +5,6 @@ from datetime import date, timedelta
 from pathlib import Path
 
 from demand_forecast_kit.models.seasonal_naive import SeasonalNaiveAdapter
-
 from evals.run_m5_walmart_benchmark import run_m5_walmart_benchmark
 
 

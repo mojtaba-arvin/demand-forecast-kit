@@ -21,7 +21,6 @@ from demand_forecast_kit.lead_time import (
 )
 from demand_forecast_kit.models.base import ForecastAdapter
 from demand_forecast_kit.models.seasonal_naive import SeasonalNaiveAdapter
-from demand_forecast_kit.models.statistical import CrostonAdapter, TSBAdapter
 from demand_forecast_kit.policy_comparison import InventoryPolicy, compare_inventory_policies
 from demand_forecast_kit.retail_benchmark import (
     COHORTS,
@@ -118,11 +117,16 @@ def run_m5_walmart_benchmark(
     if train_panel.get_column("timestamp").max() != training_end:
         raise ValueError("M5 training history does not end immediately before the holdout")
 
-    selected_adapters = list(adapters) if adapters is not None else [
-        SeasonalNaiveAdapter(season_length=7),
-        CrostonAdapter(variant="sba", conformal_windows=2),
-        TSBAdapter(conformal_windows=2),
-    ]
+    if adapters is None:
+        from demand_forecast_kit.models.statistical import CrostonAdapter, TSBAdapter
+
+        selected_adapters: list[ForecastAdapter] = [
+            SeasonalNaiveAdapter(season_length=7),
+            CrostonAdapter(variant="sba", conformal_windows=2),
+            TSBAdapter(conformal_windows=2),
+        ]
+    else:
+        selected_adapters = list(adapters)
     if not selected_adapters:
         raise ValueError("at least one forecasting adapter is required")
     config = BacktestConfig(
