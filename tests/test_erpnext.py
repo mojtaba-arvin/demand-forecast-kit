@@ -30,8 +30,18 @@ def test_erpnext_sync_imports_bin_stock_and_daily_sales(tmp_path) -> None:
             ]
         elif doctype == "Sales Invoice":
             data = [
-                {"name": "SINV-1", "posting_date": "2026-11-23", "docstatus": 1, "modified": "2026-11-25 10:00:00"},
-                {"name": "SINV-2", "posting_date": "2026-11-25", "docstatus": 1, "modified": "2026-11-25 11:00:00"},
+                {
+                    "name": "SINV-1",
+                    "posting_date": "2026-11-23",
+                    "docstatus": 1,
+                    "modified": "2026-11-25 10:00:00",
+                },
+                {
+                    "name": "SINV-2",
+                    "posting_date": "2026-11-25",
+                    "docstatus": 1,
+                    "modified": "2026-11-25 11:00:00",
+                },
             ]
         elif doctype == "Sales Invoice Item":
             data = [
