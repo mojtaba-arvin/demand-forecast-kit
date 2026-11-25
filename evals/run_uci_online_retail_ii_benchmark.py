@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from collections import defaultdict
 from collections.abc import Mapping
 from pathlib import Path
 from typing import cast
@@ -11,6 +12,7 @@ from typing import cast
 import polars as pl
 
 from demand_forecast_kit.backtesting import BacktestConfig, run_backtest
+from demand_forecast_kit.lead_time import backtest_lead_time_calibration
 from demand_forecast_kit.models.seasonal_naive import SeasonalNaiveAdapter
 from demand_forecast_kit.models.statistical import CrostonAdapter, TSBAdapter
 from demand_forecast_kit.retail_benchmark import (
@@ -26,6 +28,42 @@ DATASET_URL = "https://archive.ics.uci.edu/dataset/502/online+retail+ii"
 
 def _stringify_levels(values: Mapping[float, float]) -> dict[str, float]:
     return {str(level): value for level, value in values.items()}
+
+
+def _summarize_lead_time_calibration(
+    results: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    """Summarize prequential lead-time coverage without treating folds as independent."""
+    grouped: dict[tuple[str, str, int], list[dict[str, object]]] = defaultdict(list)
+    for item in results:
+        grouped[(str(item["cohort"]), str(item["model_id"]), int(item["lead_time"]))].append(item)
+
+    summaries: list[dict[str, object]] = []
+    for (cohort, model_id, lead_time), items in sorted(grouped.items()):
+        p80_values = [
+            float(cast(dict[str, float], item["interval_coverage"])["0.8"]) for item in items
+        ]
+        quantile_values = [cast(dict[str, float], item["quantile_coverage"]) for item in items]
+        summaries.append(
+            {
+                "cohort": cohort,
+                "model_id": model_id,
+                "lead_time": lead_time,
+                "series_count": len(items),
+                "mean_origin_count": (
+                    sum(int(item["origin_count"]) for item in items) / len(items)
+                ),
+                "macro_quantile_coverage": {
+                    level: (sum(item[level] for item in quantile_values) / len(quantile_values))
+                    for level in ("0.1", "0.5", "0.9")
+                },
+                "macro_p80_interval_coverage": sum(p80_values) / len(p80_values),
+                "min_series_p80_coverage": min(p80_values),
+                "max_series_p80_coverage": max(p80_values),
+                "series_below_nominal_p80": sum(value < 0.8 for value in p80_values),
+            }
+        )
+    return summaries
 
 
 def _read_workbook(path: Path) -> tuple[pl.DataFrame, list[str]]:
@@ -74,6 +112,8 @@ def run_benchmark(
     macro_summary: list[dict[str, object]] = []
     per_series_summary: list[dict[str, object]] = []
     skipped: list[dict[str, object]] = []
+    calibration_per_series: list[dict[str, object]] = []
+    calibration_skipped: list[dict[str, str]] = []
     fingerprints: dict[str, str] = {}
     for cohort in COHORTS:
         cohort_panel = panel.filter(pl.col("cohort") == cohort).drop("cohort")
@@ -113,6 +153,43 @@ def run_benchmark(
                         },
                     }
                 )
+            for series_id in cohort_panel.get_column("series_id").unique().sort().to_list():
+                for lead_time in (7, 14):
+                    try:
+                        diagnostic = backtest_lead_time_calibration(
+                            report,
+                            series_id=series_id,
+                            model_id=adapter.model_id,
+                            lead_time=lead_time,
+                            quantile_levels=config.quantile_levels,
+                            bootstrap_samples=250,
+                            min_calibration_paths=5,
+                            seed=42,
+                        )
+                    except ValueError as exc:
+                        calibration_skipped.append(
+                            {
+                                "cohort": cohort,
+                                "series_id": series_id,
+                                "model_id": adapter.model_id,
+                                "lead_time": str(lead_time),
+                                "reason": str(exc),
+                            }
+                        )
+                        continue
+                    calibration_per_series.append(
+                        {
+                            "cohort": cohort,
+                            "series_id": series_id,
+                            "model_id": adapter.model_id,
+                            "model_version": report.model_summaries[0].model_version,
+                            "lead_time": lead_time,
+                            "origin_count": diagnostic.origin_count,
+                            "quantile_coverage": _stringify_levels(diagnostic.quantile_coverage),
+                            "mean_pinball_loss": _stringify_levels(diagnostic.mean_pinball_loss),
+                            "interval_coverage": _stringify_levels(diagnostic.interval_coverage),
+                        }
+                    )
             skipped.extend(
                 {
                     "cohort": cohort,
@@ -127,8 +204,8 @@ def run_benchmark(
     if not macro_summary:
         raise RuntimeError("no model evaluations were produced for Online Retail II")
     payload: dict[str, object] = {
-        "schema_version": 1,
-        "benchmark": "uci-online-retail-ii-rolling-origin",
+        "schema_version": 2,
+        "benchmark": "uci-online-retail-ii-rolling-origin-and-lead-time-calibration",
         "provenance": {
             "dataset": "UCI Online Retail II",
             "creator": "Daqing Chen",
@@ -155,6 +232,15 @@ def run_benchmark(
             "max_skus_per_cohort": max_skus_per_cohort,
             "cohort_assignment_window_days": 180,
             "cohort_counts": cohort_counts,
+            "lead_time_calibration": {
+                "lead_times_days": [7, 14],
+                "bootstrap_samples": 250,
+                "minimum_calibration_paths": 5,
+                "method": (
+                    "prequential residual-path calibration using strictly earlier "
+                    "non-overlapping paths"
+                ),
+            },
         },
         "panel": {
             "start_date": str(panel.get_column("timestamp").min()),
@@ -166,6 +252,17 @@ def run_benchmark(
         "macro_summary": macro_summary,
         "per_series_fold_summary": per_series_summary,
         "skipped_series": skipped,
+        "lead_time_calibration": {
+            "macro_summary": _summarize_lead_time_calibration(calibration_per_series),
+            "per_series": calibration_per_series,
+            "skipped": calibration_skipped,
+            "interpretation": (
+                "Each lead-time target is calibrated only from strictly earlier completed, "
+                "non-overlapping residual paths. Forecast origins overlap across the full "
+                "prequential sequence and are not independent statistical observations. "
+                "No calibration parameter is tuned on these outcomes."
+            ),
+        },
         "interpretation": (
             "Online Retail II is a second UCI release from the same retailer and creator, "
             "with an expanded two-year period. It is useful for larger and intermittent-SKU "
@@ -204,7 +301,17 @@ def main() -> None:
         max_skus_per_cohort=args.max_skus_per_cohort,
         output=args.output,
     )
-    print(json.dumps(result["macro_summary"], indent=2))
+    print(
+        json.dumps(
+            {
+                "rolling_origin_macro_summary": result["macro_summary"],
+                "lead_time_calibration_macro_summary": result["lead_time_calibration"][
+                    "macro_summary"
+                ],
+            },
+            indent=2,
+        )
+    )
 
 
 if __name__ == "__main__":

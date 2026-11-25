@@ -35,6 +35,32 @@ Seasonal Naive, Croston SBA, and TSB on identical rolling-origin folds and
 reports MASE, WQL, per-quantile pinball loss, central interval coverage, model
 versions, dataset fingerprints, and per-series fold summaries.
 
+## Prequential cumulative lead-time calibration
+
+The benchmark report now includes a separate `lead_time_calibration` section.
+It evaluates 7- and 14-day cumulative demand quantiles using the same
+prequential residual-path calibrator as the original Online Retail experiment:
+
+- 180-day initial training window, 14-day forecast horizon, and 7-day origin step.
+- 250 bootstrap draws per eligible forecast origin.
+- At least five strictly earlier, non-overlapping residual paths before a
+  target origin can be calibrated.
+- P10/P50/P90 cumulative lead-time quantile coverage, P80 interval coverage,
+  pinball loss, per-SKU results, and cohort/model/lead-time macro summaries.
+- Failed eligibility is recorded in `lead_time_calibration.skipped`; it is
+  never silently counted as a successful evaluation.
+
+This is a prequential evaluation, not a tuned correction experiment. No global
+scale or bias parameter is fitted from these outcomes. Forecast origins overlap
+in calendar time and must not be treated as independent samples for confidence
+intervals or significance tests. The 2010–2011 Online Retail II data comes from
+the same retailer as the original UCI Online Retail release; it expands the SKU
+and time sample but does not establish cross-retailer generalization.
+
+Never sum marginal daily forecast quantiles to create cumulative lead-time
+demand quantiles. The report uses the dedicated residual-path calibration
+method for cumulative demand.
+
 ## Reproduce
 
 Download the official UCI workbook and run:
