@@ -23,6 +23,11 @@ def main() -> None:
         action="store_true",
         help="confirm that this operation may reconcile records absent from the full ERPNext snapshot",
     )
+    parser.add_argument(
+        "--allow-empty-snapshot",
+        action="store_true",
+        help="allow empty ERPNext resources after independently verifying API permissions and source state",
+    )
     args = parser.parse_args()
     if not args.confirm_full_snapshot:
         parser.error("--confirm-full-snapshot is required for destructive local reconciliation")
@@ -44,7 +49,7 @@ def main() -> None:
         page_size=args.page_size,
     )
     store = OperationalStore(args.database)
-    result = client.reconcile_warehouse(store, args.tenant_id, args.warehouse_id)
+    result = client.reconcile_warehouse(\n        store,\n        args.tenant_id,\n        args.warehouse_id,\n        allow_empty_snapshot=args.allow_empty_snapshot,\n    )
     print(json.dumps(result, sort_keys=True))
 
 
