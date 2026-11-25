@@ -18,6 +18,71 @@ def client(tmp_path, monkeypatch) -> TestClient:
     return TestClient(create_app(RunService(tmp_path / "ops-api-state")))
 
 
+
+def test_retraining_api_requires_current_claim_token_to_finish(client: TestClient) -> None:
+    assert client.post(
+        "/v1/ops/warehouses",
+        json={"warehouse_id": "WH-1", "name": "Main", "location_code": "main"},
+    ).status_code == 201
+    assert client.post(
+        "/v1/ops/monitoring/baselines",
+        json={
+            "warehouse_id": "WH-1",
+            "sku_id": "SKU-1",
+            "model_id": "model-a",
+            "model_version": "v1",
+            "baseline_mae": 1,
+            "sample_count": 20,
+        },
+    ).status_code == 201
+    origin = datetime(2026, 1, 1, tzinfo=UTC)
+    for index in range(10):
+        response = client.post(
+            "/v1/ops/monitoring/outcomes",
+            json={
+                "warehouse_id": "WH-1",
+                "sku_id": "SKU-1",
+                "model_id": "model-a",
+                "model_version": "v1",
+                "forecast_origin": (origin + timedelta(days=index)).isoformat(),
+                "target_at": (origin + timedelta(days=index + 1)).isoformat(),
+                "predicted": 20,
+                "actual": 10,
+            },
+        )
+        assert response.status_code == 201
+
+    health = client.post(
+        "/v1/ops/monitoring/health",
+        json={
+            "warehouse_id": "WH-1",
+            "sku_id": "SKU-1",
+            "model_id": "model-a",
+            "model_version": "v1",
+            "window": 10,
+            "min_samples": 10,
+        },
+    )
+    assert health.json()["alert"] is True
+    request_id = health.json()["retraining_request"]["request_id"]
+
+    claim = client.post(f"/v1/ops/retraining-requests/{request_id}/claim")
+    assert claim.status_code == 200
+    token = claim.json()["claim_token"]
+
+    missing_token = client.post(
+        f"/v1/ops/retraining-requests/{request_id}/finish",
+        json={"success": True},
+    )
+    assert missing_token.status_code == 422
+
+    finished = client.post(
+        f"/v1/ops/retraining-requests/{request_id}/finish",
+        json={"success": True, "claim_token": token},
+    )
+    assert finished.status_code == 200
+    assert finished.json()["status"] == "completed"
+
 def test_warehouse_inventory_and_purchase_order_api(client: TestClient) -> None:
     warehouse = client.post(
         "/v1/ops/warehouses",
