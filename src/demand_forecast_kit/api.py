@@ -1,8 +1,11 @@
 """Optional FastAPI surface for forecast, backtest, and replenishment contracts."""
 
 import json
+import os
+import sqlite3
 from datetime import date
 from math import isfinite
+from pathlib import Path
 from typing import Any
 
 import polars as pl
@@ -127,7 +130,59 @@ def create_app(run_service: RunService | None = None) -> Any:
 
     @app.get("/health")
     def health() -> dict[str, str]:
+        """Backward-compatible process liveness endpoint."""
         return {"status": "ok", "version": "0.1.0"}
+
+    @app.get("/health/live")
+    def liveness() -> dict[str, str]:
+        """Report that the API process is alive; do not imply dependencies are ready."""
+        return {"status": "alive"}
+
+    @app.get("/health/ready")
+    def readiness() -> Any:
+        """Check writable artifact storage and both SQLite stores before serving traffic."""
+        from fastapi import HTTPException
+
+        def check_sqlite(database: str, expected_table: str) -> bool:
+            path = Path(database).expanduser().resolve()
+            if not path.is_file():
+                return False
+            connection = sqlite3.connect(
+                f"{path.as_uri()}?mode=rw",
+                uri=True,
+                timeout=1.0,
+            )
+            try:
+                row = connection.execute(
+                    "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
+                    (expected_table,),
+                ).fetchone()
+                return row == (1,)
+            finally:
+                connection.close()
+
+        dependencies = {
+            "run_registry": False,
+            "operational_store": False,
+            "artifact_store": False,
+        }
+        try:
+            dependencies["run_registry"] = check_sqlite(service.registry.database, "forecast_runs")
+            dependencies["operational_store"] = check_sqlite(
+                str(service.state_dir / "operations.sqlite"), "warehouses"
+            )
+            artifact_root = service.artifacts.root
+            dependencies["artifact_store"] = artifact_root.is_dir() and os.access(
+                artifact_root, os.R_OK | os.W_OK | os.X_OK
+            )
+        except (OSError, sqlite3.Error):
+            pass
+        if not all(dependencies.values()):
+            raise HTTPException(
+                status_code=503,
+                detail={"status": "not_ready", "dependencies": dependencies},
+            )
+        return {"status": "ready", "dependencies": dependencies}
 
     @app.get("/v1/runs/{run_id}")
     def get_run(run_id: int) -> dict[str, object]:

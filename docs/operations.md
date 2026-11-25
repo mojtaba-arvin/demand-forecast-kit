@@ -9,6 +9,26 @@ a local installation or a single-host service with durable storage. It is not
 a distributed database, multi-host lock service, or high-availability SaaS
 control plane.
 
+## Health and readiness probes
+
+Use `/health` or `/health/live` for process liveness. These endpoints return
+success while the API process is running; they do not prove that persistence or
+artifact storage is usable.
+
+Use `/health/ready` for load-balancer readiness. It checks the run-registry
+SQLite database, operational SQLite database, and artifact directory. It returns
+HTTP 200 only when all three dependencies pass their local checks; otherwise it
+returns HTTP 503 with a dependency-level status. Keep readiness probes enabled
+for traffic routing and use liveness only to detect a stuck or terminated API
+process.
+
+These checks are intentionally local. They do not prove that the worker is
+running, scheduled jobs are progressing, ERPNext is reachable, backups are
+current, or another host can access the SQLite state. Monitor worker heartbeat,
+backup age, and external ERPNext connectivity separately. Health endpoints are
+unauthenticated for orchestrator probes and must not expose credentials or
+tenant data.
+
 ## Start the API
 
 Install the API extra and run the existing FastAPI factory:
