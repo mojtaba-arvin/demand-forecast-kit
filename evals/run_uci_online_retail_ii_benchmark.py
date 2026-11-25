@@ -41,12 +41,9 @@ def _summarize_lead_time_calibration(
     summaries: list[dict[str, object]] = []
     for (cohort, model_id, lead_time), items in sorted(grouped.items()):
         p80_values = [
-            float(cast(dict[str, float], item["interval_coverage"])["0.8"])
-            for item in items
+            float(cast(dict[str, float], item["interval_coverage"])["0.8"]) for item in items
         ]
-        quantile_values = [
-            cast(dict[str, float], item["quantile_coverage"]) for item in items
-        ]
+        quantile_values = [cast(dict[str, float], item["quantile_coverage"]) for item in items]
         summaries.append(
             {
                 "cohort": cohort,
@@ -57,9 +54,7 @@ def _summarize_lead_time_calibration(
                     sum(int(item["origin_count"]) for item in items) / len(items)
                 ),
                 "macro_quantile_coverage": {
-                    level: (
-                        sum(item[level] for item in quantile_values) / len(quantile_values)
-                    )
+                    level: (sum(item[level] for item in quantile_values) / len(quantile_values))
                     for level in ("0.1", "0.5", "0.9")
                 },
                 "macro_p80_interval_coverage": sum(p80_values) / len(p80_values),
@@ -190,15 +185,9 @@ def run_benchmark(
                             "model_version": report.model_summaries[0].model_version,
                             "lead_time": lead_time,
                             "origin_count": diagnostic.origin_count,
-                            "quantile_coverage": _stringify_levels(
-                                diagnostic.quantile_coverage
-                            ),
-                            "mean_pinball_loss": _stringify_levels(
-                                diagnostic.mean_pinball_loss
-                            ),
-                            "interval_coverage": _stringify_levels(
-                                diagnostic.interval_coverage
-                            ),
+                            "quantile_coverage": _stringify_levels(diagnostic.quantile_coverage),
+                            "mean_pinball_loss": _stringify_levels(diagnostic.mean_pinball_loss),
+                            "interval_coverage": _stringify_levels(diagnostic.interval_coverage),
                         }
                     )
             skipped.extend(
