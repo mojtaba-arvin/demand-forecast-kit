@@ -387,7 +387,9 @@ def test_worker_falls_back_when_selected_artifact_is_not_active(tmp_path) -> Non
     )
     worker = OperationalWorker(service, store, model_artifact_registry=artifacts)
     worker.register_adapter(CandidateAdapter())
-    worker.register_artifact_loader("application/vnd.test.forecast", lambda payload, record: CandidateAdapter())
+    worker.register_artifact_loader(
+        "application/vnd.test.forecast", lambda _payload, _record: CandidateAdapter()
+    )
 
     report = worker.run_once("tenant-a")
 

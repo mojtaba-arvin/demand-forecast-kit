@@ -44,7 +44,9 @@ class OperationalWorker:
         self.retraining_stale_after_seconds = retraining_stale_after_seconds
         self.model_artifact_registry = model_artifact_registry
         self.policy_registry = policy_registry
-        self.artifact_loaders: dict[str, Callable[[bytes, ModelArtifactRecord], ForecastAdapter]] = {}
+        self.artifact_loaders: dict[
+            str, Callable[[bytes, ModelArtifactRecord], ForecastAdapter]
+        ] = {}
         self._artifact_adapter_cache: dict[tuple[str, str, str], ForecastAdapter] = {}
         fallback = SeasonalNaiveAdapter()
         self.fallback_adapter = fallback
