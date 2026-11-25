@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Any
@@ -132,19 +133,30 @@ class ModelLifecycle:
                 raise ValueError("retraining must return a new model version")
             if result.sample_count < 1:
                 raise ValueError("trainer must provide at least one validation sample")
-            self.store.set_model_baseline(
-                tenant_id,
-                warehouse_id=str(request["warehouse_id"]),
-                sku_id=str(request["sku_id"]),
-                model_id=str(request["model_id"]),
-                model_version=result.model_version,
-                baseline_mae=result.baseline_mae,
-                sample_count=result.sample_count,
-            )
+            if not math.isfinite(result.baseline_mae) or result.baseline_mae < 0:
+                raise ValueError("baseline_mae must be finite and non-negative")
         except Exception:
-            self.store.finish_retraining(tenant_id, request_id, success=False)
+            self.store.finish_retraining(
+                tenant_id,
+                request_id,
+                success=False,
+                claim_token=str(claimed["claim_token"]),
+            )
             raise
-        finished = self.store.finish_retraining(tenant_id, request_id, success=True)
+        finished = self.store.finish_retraining(
+            tenant_id,
+            request_id,
+            success=True,
+            claim_token=str(claimed["claim_token"]),
+            baseline={
+                "warehouse_id": str(request["warehouse_id"]),
+                "sku_id": str(request["sku_id"]),
+                "model_id": str(request["model_id"]),
+                "model_version": result.model_version,
+                "baseline_mae": result.baseline_mae,
+                "sample_count": result.sample_count,
+            },
+        )
         return {
             "status": finished["status"],
             "request_id": request_id,
