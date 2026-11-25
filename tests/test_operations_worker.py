@@ -207,7 +207,9 @@ def test_worker_automatically_routes_to_best_registered_model(tmp_path) -> None:
     assert forecast["model_selection"]["used_fallback"] is False
 
 
-def test_worker_routes_to_exact_selected_model_version_when_multiple_are_registered(tmp_path) -> None:
+def test_worker_routes_to_exact_selected_model_version_when_multiple_are_registered(
+    tmp_path,
+) -> None:
     from demand_forecast_kit.contracts import QuantileForecast
 
     class VersionedAdapter:
