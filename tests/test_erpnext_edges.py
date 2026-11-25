@@ -3,7 +3,7 @@ from urllib.error import HTTPError, URLError
 
 import pytest
 
-from demand_forecast_kit.erpnext import ERPNextClient
+from demand_forecast_kit.erpnext import ERPNextClient, ERPNextRequestError
 from demand_forecast_kit.operations import OperationalStore
 
 
@@ -44,6 +44,84 @@ def test_erpnext_configuration_and_empty_resource_paths() -> None:
         client.fetch_bin_balances(" ")
     with pytest.raises(ValueError, match="warehouse"):
         client.fetch_purchase_orders(" ")
+
+
+def test_erpnext_retries_transient_server_errors_with_bounded_backoff() -> None:
+    attempts = 0
+    delays: list[float] = []
+
+    def transport(url, method, headers, body, timeout):
+        nonlocal attempts
+        attempts += 1
+        if attempts < 3:
+            raise ERPNextRequestError("ERPNext returned HTTP 503", status_code=503)
+        return json.dumps({"data": [{"name": "WH-1"}]}).encode()
+
+    client = ERPNextClient(
+        "https://erp.example",
+        "key",
+        "secret",
+        transport=transport,
+        max_retries=2,
+        retry_backoff_seconds=0.1,
+        sleep=delays.append,
+    )
+
+    assert client.list_warehouses() == [{"name": "WH-1"}]
+    assert attempts == 3
+    assert delays == [0.1, 0.2]
+
+
+def test_erpnext_honors_retry_after_and_does_not_retry_client_errors() -> None:
+    attempts = 0
+    delays: list[float] = []
+
+    def rate_limited(url, method, headers, body, timeout):
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise ERPNextRequestError(
+                "ERPNext returned HTTP 429",
+                status_code=429,
+                retry_after_seconds=2.5,
+            )
+        return json.dumps({"data": []}).encode()
+
+    client = ERPNextClient(
+        "https://erp.example",
+        "key",
+        "secret",
+        transport=rate_limited,
+        sleep=delays.append,
+    )
+    assert client.list_warehouses() == []
+    assert attempts == 2
+    assert delays == [2.5]
+
+    client_error_attempts = 0
+
+    def bad_request(url, method, headers, body, timeout):
+        nonlocal client_error_attempts
+        client_error_attempts += 1
+        raise ERPNextRequestError("ERPNext returned HTTP 400", status_code=400)
+
+    client = ERPNextClient(
+        "https://erp.example",
+        "key",
+        "secret",
+        transport=bad_request,
+        sleep=lambda _delay: None,
+    )
+    with pytest.raises(ERPNextRequestError, match="HTTP 400"):
+        client.list_warehouses()
+    assert client_error_attempts == 1
+
+
+def test_erpnext_retry_configuration_is_bounded() -> None:
+    with pytest.raises(ValueError, match="retry configuration"):
+        ERPNextClient("https://erp.example", "key", "secret", max_retries=11)
+    with pytest.raises(ValueError, match="retry configuration"):
+        ERPNextClient("https://erp.example", "key", "secret", retry_backoff_seconds=-1)
 
 
 def test_erpnext_empty_sync_is_safe_and_does_not_create_fake_rows(tmp_path) -> None:

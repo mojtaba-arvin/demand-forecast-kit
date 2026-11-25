@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import math
+import time
 from collections.abc import Callable
 from datetime import UTC, date, datetime, timedelta
 from typing import Any, cast
@@ -15,6 +17,21 @@ from demand_forecast_kit.operations import OperationalStore
 Transport = Callable[[str, str, dict[str, str], bytes | None, float], bytes]
 
 
+class ERPNextRequestError(RuntimeError):
+    """Sanitized transport failure with retry metadata."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        status_code: int | None = None,
+        retry_after_seconds: float | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.status_code = status_code
+        self.retry_after_seconds = retry_after_seconds
+
+
 def _http_transport(
     url: str, method: str, headers: dict[str, str], body: bytes | None, timeout: float
 ) -> bytes:
@@ -24,9 +41,23 @@ def _http_transport(
             return response.read()
     except HTTPError as exc:
         # Do not include request headers or credentials in raised messages.
-        raise RuntimeError(f"ERPNext returned HTTP {exc.code}") from exc
+        retry_after = None
+        try:
+            raw_retry_after = exc.headers.get("Retry-After")
+        except AttributeError:
+            raw_retry_after = None
+        if raw_retry_after is not None:
+            try:
+                retry_after = float(raw_retry_after)
+            except ValueError:
+                retry_after = None
+        raise ERPNextRequestError(
+            f"ERPNext returned HTTP {exc.code}",
+            status_code=exc.code,
+            retry_after_seconds=retry_after,
+        ) from exc
     except URLError as exc:
-        raise RuntimeError("ERPNext connection failed") from exc
+        raise ERPNextRequestError("ERPNext connection failed") from exc
 
 
 class ERPNextClient:
@@ -45,18 +76,46 @@ class ERPNextClient:
         timeout: float = 20.0,
         transport: Transport = _http_transport,
         page_size: int = 500,
+        max_retries: int = 3,
+        retry_backoff_seconds: float = 0.25,
+        sleep: Callable[[float], None] = time.sleep,
     ) -> None:
         if not base_url.startswith(("https://", "http://")):
             raise ValueError("base_url must be an HTTP(S) URL")
         if not api_key.strip() or not api_secret.strip():
             raise ValueError("ERPNext API key and secret are required")
-        if timeout <= 0 or not 1 <= page_size <= 5000:
-            raise ValueError("timeout and page_size are out of range")
+        if (
+            timeout <= 0
+            or not 1 <= page_size <= 5000
+            or type(max_retries) is not int
+            or not 0 <= max_retries <= 10
+            or not math.isfinite(retry_backoff_seconds)
+            or retry_backoff_seconds < 0
+        ):
+            raise ValueError("timeout, page_size, or retry configuration is out of range")
         self.base_url = base_url.rstrip("/") + "/"
         self._authorization = f"token {api_key}:{api_secret}"
         self.timeout = timeout
         self.transport = transport
         self.page_size = page_size
+        self.max_retries = max_retries
+        self.retry_backoff_seconds = retry_backoff_seconds
+        self._sleep = sleep
+
+    def _request(self, url: str, headers: dict[str, str]) -> bytes:
+        retryable_statuses = {429, 500, 502, 503, 504}
+        for attempt in range(self.max_retries + 1):
+            try:
+                return self.transport(url, "GET", headers, None, self.timeout)
+            except ERPNextRequestError as exc:
+                retryable = exc.status_code is None or exc.status_code in retryable_statuses
+                if not retryable or attempt >= self.max_retries:
+                    raise
+                delay = exc.retry_after_seconds
+                if delay is None or delay <= 0:
+                    delay = self.retry_backoff_seconds * (2**attempt)
+                self._sleep(min(delay, 30.0))
+        raise RuntimeError("ERPNext retry loop exhausted unexpectedly")
 
     def _resource(
         self,
@@ -79,7 +138,7 @@ class ERPNextClient:
             "Accept": "application/json",
             "User-Agent": "demand-forecast-kit/0.2",
         }
-        raw = self.transport(url, "GET", headers, None, self.timeout)
+        raw = self._request(url, headers)
         try:
             payload_raw: Any = json.loads(raw)
         except (UnicodeDecodeError, json.JSONDecodeError) as exc:
