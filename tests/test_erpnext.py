@@ -191,11 +191,7 @@ def test_erpnext_incremental_sync_reconciles_invoice_edits_and_cancellations(tmp
         elif doctype == "Sales Invoice":
             data = invoices
         elif doctype == "Sales Invoice Item":
-            data = [
-                item
-                for invoice_lines in invoice_items.values()
-                for item in invoice_lines
-            ]
+            data = [item for invoice_lines in invoice_items.values() for item in invoice_lines]
         elif doctype == "Purchase Order":
             data = orders
         elif doctype == "Purchase Order Item":
@@ -204,9 +200,7 @@ def test_erpnext_incremental_sync_reconciles_invoice_edits_and_cancellations(tmp
             raise AssertionError(doctype)
         return json.dumps({"data": data}).encode()
 
-    client = ERPNextClient(
-        "https://erp.example", "key", "secret", transport=transport
-    )
+    client = ERPNextClient("https://erp.example", "key", "secret", transport=transport)
     store = OperationalStore(tmp_path / "incremental.sqlite")
     store.create_warehouse("tenant-a", "WH-1", "Main", "main")
 
@@ -352,9 +346,7 @@ def test_erpnext_sync_does_not_overwrite_manual_demand_or_advance_watermark(tmp_
                 }
             ]
         elif doctype == "Sales Invoice Item":
-            data = [
-                {"item_code": "SKU-1", "qty": 5, "parent": "SINV-1", "warehouse": "WH-1"}
-            ]
+            data = [{"item_code": "SKU-1", "qty": 5, "parent": "SINV-1", "warehouse": "WH-1"}]
         else:
             data = []
         return json.dumps({"data": data}).encode()
@@ -401,13 +393,19 @@ def test_erpnext_purchase_order_source_timestamps_fence_stale_updates(tmp_path) 
     )
 
     assert stale["lines"][0]["ordered"] == 10
-    assert store.cancel_purchase_order(
-        "tenant-a", "erpnext:PO-1", source_modified_at="2026-11-25T11:00:00+00:00"
-    ) is False
+    assert (
+        store.cancel_purchase_order(
+            "tenant-a", "erpnext:PO-1", source_modified_at="2026-11-25T11:00:00+00:00"
+        )
+        is False
+    )
     assert store.get_purchase_order("tenant-a", "erpnext:PO-1")["status"] == "submitted"
-    assert store.cancel_purchase_order(
-        "tenant-a", "erpnext:PO-1", source_modified_at="2026-11-27T10:00:00+00:00"
-    ) is True
+    assert (
+        store.cancel_purchase_order(
+            "tenant-a", "erpnext:PO-1", source_modified_at="2026-11-27T10:00:00+00:00"
+        )
+        is True
+    )
     stale_replay = store.sync_purchase_order(
         "tenant-a",
         order_id="erpnext:PO-1",
