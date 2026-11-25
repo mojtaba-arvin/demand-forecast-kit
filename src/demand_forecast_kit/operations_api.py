@@ -491,11 +491,7 @@ def install_api_auth(app: Any) -> None:
     tokens: list[tuple[str, set[str]]] = []
     for record in records:
         digest, scopes_raw = record.get("token_sha256"), record.get("scopes")
-        if (
-            not isinstance(digest, str)
-            or len(digest) != 64
-            or not isinstance(scopes_raw, list)
-        ):
+        if not isinstance(digest, str) or len(digest) != 64 or not isinstance(scopes_raw, list):
             raise RuntimeError("API key records require token_sha256 and scopes")
         scope_items = cast(list[Any], scopes_raw)
         if not all(isinstance(scope, str) for scope in scope_items):
