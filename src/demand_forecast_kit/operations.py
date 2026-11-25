@@ -133,7 +133,7 @@ class OperationalStore:
                     posting_date TEXT NOT NULL,
                     docstatus INTEGER NOT NULL CHECK(docstatus IN (1, 2)),
                     modified_at TEXT NOT NULL,
-                    source_deleted INTEGER NOT NULL DEFAULT 0 CHECK(source_deleted IN (0, 1)),
+                    source_inactive INTEGER NOT NULL DEFAULT 0 CHECK(source_inactive IN (0, 1)),
                     PRIMARY KEY (tenant_id, warehouse_id, invoice_id),
                     FOREIGN KEY (tenant_id, warehouse_id)
                       REFERENCES warehouses(tenant_id, warehouse_id)
@@ -218,10 +218,10 @@ class OperationalStore:
                 str(row["name"])
                 for row in db.execute("PRAGMA table_info(erpnext_sales_invoice_state)")
             }
-            if "source_deleted" not in invoice_state_columns:
+            if "source_inactive" not in invoice_state_columns:
                 db.execute(
                     "ALTER TABLE erpnext_sales_invoice_state "
-                    "ADD COLUMN source_deleted INTEGER NOT NULL DEFAULT 0"
+                    "ADD COLUMN source_inactive INTEGER NOT NULL DEFAULT 0"
                 )
 
     @contextmanager
@@ -697,7 +697,7 @@ class OperationalStore:
                 raise KeyError("warehouse not found")
             states = db.execute(
                 """SELECT invoice_id, modified_at FROM erpnext_sales_invoice_state
-                   WHERE tenant_id=? AND warehouse_id=? AND source_deleted=0""",
+                   WHERE tenant_id=? AND warehouse_id=? AND source_inactive=0""",
                 (tenant, warehouse_id),
             ).fetchall()
             missing = [
@@ -759,7 +759,7 @@ class OperationalStore:
             for invoice_id, deleted_at in tombstones.items():
                 db.execute(
                     """UPDATE erpnext_sales_invoice_state
-                       SET docstatus=2, modified_at=?, source_deleted=1
+                       SET docstatus=2, modified_at=?, source_inactive=1
                        WHERE tenant_id=? AND warehouse_id=? AND invoice_id=?""",
                     (deleted_at, tenant, warehouse_id, invoice_id),
                 )
@@ -883,7 +883,7 @@ class OperationalStore:
             ).fetchone()
             invoices = db.execute(
                 """SELECT COUNT(*) AS count FROM erpnext_sales_invoice_state
-                   WHERE tenant_id=? AND warehouse_id=? AND source_deleted=0""",
+                   WHERE tenant_id=? AND warehouse_id=? AND source_inactive=0""",
                 (tenant, warehouse_id),
             ).fetchone()
             orders = db.execute(
@@ -906,7 +906,7 @@ class OperationalStore:
         with self._connect() as db:
             rows = db.execute(
                 """SELECT invoice_id FROM erpnext_sales_invoice_state
-                   WHERE tenant_id=? AND warehouse_id=? AND source_deleted=0""",
+                   WHERE tenant_id=? AND warehouse_id=? AND source_inactive=0""",
                 (tenant, warehouse_id),
             ).fetchall()
         return {str(row["invoice_id"]) for row in rows}
@@ -997,7 +997,7 @@ class OperationalStore:
             if warehouse is None:
                 raise KeyError("warehouse not found")
             previous_state = db.execute(
-                """SELECT modified_at, source_deleted FROM erpnext_sales_invoice_state
+                """SELECT modified_at, source_inactive FROM erpnext_sales_invoice_state
                    WHERE tenant_id=? AND warehouse_id=? AND invoice_id=?""",
                 (tenant, warehouse_id, invoice_id),
             ).fetchone()
@@ -1006,7 +1006,7 @@ class OperationalStore:
             if previous_state is not None:
                 previous_modified = str(previous_state["modified_at"])
                 if modified < previous_modified or (
-                    bool(previous_state["source_deleted"]) and modified <= previous_modified
+                    bool(previous_state["source_inactive"]) and modified <= previous_modified
                 ):
                     return set()
                 if inactive and modified == previous_modified:
@@ -1064,12 +1064,12 @@ class OperationalStore:
             db.execute(
                 """INSERT INTO erpnext_sales_invoice_state
                    (tenant_id, warehouse_id, invoice_id, posting_date, docstatus,
-                    modified_at, source_deleted)
+                    modified_at, source_inactive)
                    VALUES (?, ?, ?, ?, ?, ?, ?)
                    ON CONFLICT(tenant_id, warehouse_id, invoice_id)
                    DO UPDATE SET posting_date=excluded.posting_date,
                      docstatus=excluded.docstatus, modified_at=excluded.modified_at,
-                     source_deleted=excluded.source_deleted""",
+                     source_inactive=excluded.source_inactive""",
                 (
                     tenant,
                     warehouse_id,
