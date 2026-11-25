@@ -98,7 +98,10 @@ only operations.sqlite: run registry, model/policy registries, and immutable
 artifact files are also part of the state.
 
 For daily scheduling, install the supplied systemd service and timer. Configure
-the Restic environment file first, then:
+the Restic environment file first with RESTIC_REPOSITORY, RESTIC_PASSWORD_FILE,
+and any provider-specific credentials. The unit assumes the repository is
+installed at /opt/demand-forecast-kit; edit WorkingDirectory and ExecStart if
+it lives elsewhere, then:
 
 ```bash
 sudo install -m 0644 deploy/systemd/demand-forecast-backup.service /etc/systemd/system/

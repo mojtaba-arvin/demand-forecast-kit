@@ -19,13 +19,15 @@ for service in api worker; do
   fi
 done
 
-mkdir -p backups
+umask 077
 timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
-archive="backups/demand-forecast-kit-state-${timestamp}.tar.gz"
-restart_services() {
-  docker compose start api worker >/dev/null
+temporary="$(mktemp -d "${TMPDIR:-/var/tmp}/demand-forecast-kit-backup.XXXXXX")"
+archive="$temporary/demand-forecast-kit-state-${timestamp}.tar.gz"
+cleanup() {
+  rm -rf "$temporary"
+  docker compose start api worker >/dev/null || true
 }
-trap restart_services EXIT
+trap cleanup EXIT
 
 docker compose stop api worker
 tar -czf "$archive" -C state .
@@ -34,6 +36,7 @@ restic forget --tag demand-forecast-kit \
   --keep-daily 7 --keep-weekly 5 --keep-monthly 12 --prune
 rm -f "$archive"
 
-restart_services
+docker compose start api worker
 trap - EXIT
+rm -rf "$temporary"
 printf 'Encrypted off-host backup completed: %s\n' "$archive"

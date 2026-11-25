@@ -72,5 +72,9 @@ then
   exit 1
 fi
 
-printf 'Restore verified. Previous state preserved at %s. Services remain stopped.\n' "$previous_state"
-printf 'Start services and perform API/worker smoke checks before deleting the preserved state.\n'
+if [[ -d "$previous_state" ]]; then
+  printf 'Previous state preserved at %s.\n' "$previous_state"
+else
+  printf 'No previous state directory existed.\n'
+fi
+printf 'Services remain stopped. Start them and perform API/worker smoke checks before deleting any preserved state.\n'
