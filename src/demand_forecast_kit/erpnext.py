@@ -78,6 +78,7 @@ class ERPNextClient:
         page_size: int = 500,
         max_retries: int = 3,
         retry_backoff_seconds: float = 0.25,
+        sync_overlap_seconds: int = 300,
         sleep: Callable[[float], None] = time.sleep,
     ) -> None:
         if not base_url.startswith(("https://", "http://")):
@@ -91,6 +92,8 @@ class ERPNextClient:
             or not 0 <= max_retries <= 10
             or not math.isfinite(retry_backoff_seconds)
             or retry_backoff_seconds < 0
+            or type(sync_overlap_seconds) is not int
+            or not 0 <= sync_overlap_seconds <= 86_400
         ):
             raise ValueError("timeout, page_size, or retry configuration is out of range")
         self.base_url = base_url.rstrip("/") + "/"
@@ -100,6 +103,7 @@ class ERPNextClient:
         self.page_size = page_size
         self.max_retries = max_retries
         self.retry_backoff_seconds = retry_backoff_seconds
+        self.sync_overlap_seconds = sync_overlap_seconds
         self._sleep = sleep
 
     def _request(self, url: str, headers: dict[str, str]) -> bytes:
@@ -252,6 +256,188 @@ class ERPNextClient:
                 current += timedelta(days=1)
         return dense_rows
 
+    @staticmethod
+    def _modified_timestamp(value: Any) -> str:
+        try:
+            parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00").replace(" ", "T"))
+        except ValueError as exc:
+            raise RuntimeError("ERPNext returned an invalid modified timestamp") from exc
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=UTC)
+        return parsed.astimezone(UTC).isoformat()
+
+    def _overlap_start(self, watermark: str | None) -> str | None:
+        if watermark is None:
+            return None
+        parsed = datetime.fromisoformat(watermark.replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=UTC)
+        start = parsed.astimezone(UTC) - timedelta(seconds=self.sync_overlap_seconds)
+        return start.strftime("%Y-%m-%d %H:%M:%S")
+
+    def _latest_modified(self, records: list[dict[str, Any]]) -> str | None:
+        values = [
+            self._modified_timestamp(record["modified"])
+            for record in records
+            if record.get("modified")
+        ]
+        return max(values) if values else None
+
+    def fetch_bin_changes(
+        self, warehouse: str, *, modified_since: str | None = None
+    ) -> list[dict[str, Any]]:
+        """Fetch only Bin records changed since an optional overlap boundary."""
+        if not warehouse.strip():
+            raise ValueError("warehouse must not be blank")
+        filters: list[list[Any]] = [["warehouse", "=", warehouse]]
+        if modified_since is not None:
+            filters.append(["modified", ">=", modified_since])
+        return self._all_resources(
+            "Bin",
+            fields=["item_code", "warehouse", "actual_qty", "reserved_qty", "modified"],
+            filters=filters,
+        )
+
+    def fetch_sales_invoice_changes(
+        self, warehouse: str, *, modified_since: str | None = None
+    ) -> list[dict[str, Any]]:
+        """Fetch changed submitted/cancelled invoices with their current warehouse lines."""
+        if not warehouse.strip():
+            raise ValueError("warehouse must not be blank")
+        filters: list[list[Any]] = [["docstatus", "in", [1, 2]]]
+        if modified_since is not None:
+            filters.append(["modified", ">=", modified_since])
+        headers = self._all_resources(
+            "Sales Invoice",
+            fields=["name", "posting_date", "docstatus", "modified"],
+            filters=filters,
+        )
+        for header in headers:
+            if (
+                not header.get("name")
+                or not header.get("posting_date")
+                or not header.get("modified")
+            ):
+                raise RuntimeError(
+                    "ERPNext invoice header is missing name, posting_date, or modified"
+                )
+        submitted = [
+            str(header["name"]) for header in headers if int(header.get("docstatus", 0)) == 1
+        ]
+        grouped: dict[str, dict[str, float]] = {}
+        for start in range(0, len(submitted), 100):
+            batch = submitted[start : start + 100]
+            items = self._all_resources(
+                "Sales Invoice Item",
+                fields=["item_code", "qty", "parent", "warehouse"],
+                filters=[["parent", "in", batch], ["warehouse", "=", warehouse]],
+            )
+            for item in items:
+                invoice_id = str(item.get("parent", ""))
+                sku = str(item.get("item_code", "")).strip()
+                quantity = float(item.get("qty", 0))
+                if invoice_id in batch and sku and math.isfinite(quantity) and quantity > 0:
+                    invoice_lines = grouped.setdefault(invoice_id, {})
+                    invoice_lines[sku] = invoice_lines.get(sku, 0.0) + quantity
+        return [
+            {
+                "invoice_id": str(header["name"]),
+                "posting_date": str(header["posting_date"]),
+                "docstatus": int(header.get("docstatus", 0)),
+                "modified": self._modified_timestamp(header["modified"]),
+                "lines": [
+                    {"sku_id": sku, "quantity": quantity}
+                    for sku, quantity in sorted(grouped.get(str(header["name"]), {}).items())
+                ],
+            }
+            for header in headers
+        ]
+
+    def fetch_purchase_order_changes(
+        self, warehouse: str, *, modified_since: str | None = None
+    ) -> list[dict[str, Any]]:
+        """Fetch changed submitted/cancelled purchase orders and current warehouse lines."""
+        if not warehouse.strip():
+            raise ValueError("warehouse must not be blank")
+        filters: list[list[Any]] = [["docstatus", "in", [1, 2]]]
+        if modified_since is not None:
+            filters.append(["modified", ">=", modified_since])
+        headers = self._all_resources(
+            "Purchase Order",
+            fields=["name", "supplier", "schedule_date", "docstatus", "modified"],
+            filters=filters,
+        )
+        for header in headers:
+            if not header.get("name") or not header.get("modified"):
+                raise RuntimeError("ERPNext purchase order is missing name or modified")
+            if not header.get("supplier"):
+                raise RuntimeError("ERPNext purchase order is missing supplier")
+        submitted = [
+            str(header["name"]) for header in headers if int(header.get("docstatus", 0)) == 1
+        ]
+        grouped: dict[str, dict[str, dict[str, Any]]] = {}
+        for start in range(0, len(submitted), 100):
+            batch = submitted[start : start + 100]
+            items = self._all_resources(
+                "Purchase Order Item",
+                fields=["item_code", "qty", "received_qty", "rate", "parent", "warehouse"],
+                filters=[["parent", "in", batch], ["warehouse", "=", warehouse]],
+            )
+            for item in items:
+                order_id = str(item.get("parent", ""))
+                sku = str(item.get("item_code", "")).strip()
+                quantity = float(item.get("qty", 0))
+                received = float(item.get("received_qty", 0))
+                if order_id not in batch or not sku or quantity <= 0:
+                    continue
+                if not math.isfinite(quantity) or not math.isfinite(received):
+                    raise RuntimeError("ERPNext purchase order line contains a non-finite quantity")
+                cost = None if item.get("rate") is None else float(item["rate"])
+                order_lines = grouped.setdefault(order_id, {})
+                aggregate = order_lines.get(sku)
+                if aggregate is None:
+                    order_lines[sku] = {
+                        "sku_id": sku,
+                        "quantity": quantity,
+                        "received_quantity": received,
+                        "unit_cost": cost,
+                    }
+                else:
+                    previous_quantity = float(aggregate["quantity"])
+                    previous_cost = aggregate["unit_cost"]
+                    aggregate["quantity"] = previous_quantity + quantity
+                    aggregate["received_quantity"] = (
+                        float(aggregate["received_quantity"]) + received
+                    )
+                    if cost is not None:
+                        aggregate["unit_cost"] = (
+                            cost
+                            if previous_cost is None
+                            else (float(previous_cost) * previous_quantity + cost * quantity)
+                            / (previous_quantity + quantity)
+                        )
+        result: list[dict[str, Any]] = []
+        for header in headers:
+            order_id = str(header["name"])
+            schedule_date = header.get("schedule_date")
+            expected_at = None
+            if schedule_date:
+                date_text = str(schedule_date)
+                expected_at = f"{date_text}T00:00:00+00:00" if len(date_text) == 10 else date_text
+            result.append(
+                {
+                    "order_id": order_id,
+                    "supplier_id": str(header.get("supplier") or ""),
+                    "expected_at": expected_at,
+                    "docstatus": int(header.get("docstatus", 0)),
+                    "modified": self._modified_timestamp(header["modified"]),
+                    "lines": [
+                        grouped.get(order_id, {})[sku] for sku in sorted(grouped.get(order_id, {}))
+                    ],
+                }
+            )
+        return result
+
     def fetch_purchase_orders(self, warehouse: str) -> list[dict[str, Any]]:
         """Read submitted purchase-order lines for one warehouse, including receipts."""
         if not warehouse.strip():
@@ -351,51 +537,89 @@ class ERPNextClient:
         *,
         warehouse_name: str | None = None,
     ) -> dict[str, int]:
-        """Import current stock and daily invoiced demand into a local tenant."""
-        balances = self.fetch_bin_balances(warehouse_id)
-        sales = self.fetch_sales_demand(warehouse_id)
-        purchase_orders = self.fetch_purchase_orders(warehouse_id)
+        """Incrementally import ERPNext changes using per-resource overlap watermarks."""
         imported_stock = 0
         imported_demand = 0
         imported_orders = 0
-        timestamp = datetime.now(UTC)
+
+        bin_watermark = store.get_erpnext_watermark(tenant_id, warehouse_id, "Bin")
+        balances = self.fetch_bin_changes(
+            warehouse_id, modified_since=self._overlap_start(bin_watermark)
+        )
         for item in balances:
             sku = str(item.get("item_code", "")).strip()
             if not sku:
                 continue
-            modified = item.get("modified") or timestamp.isoformat()
+            modified = self._modified_timestamp(item.get("modified"))
             store.record_inventory(
                 tenant_id,
                 warehouse_id,
                 sku,
                 float(item.get("actual_qty", 0)),
                 reserved=float(item.get("reserved_qty", 0)),
-                as_of=str(modified).replace(" ", "T")
-                + ("+00:00" if "Z" not in str(modified) and "+" not in str(modified) else ""),
+                as_of=modified,
                 source="erpnext:Bin",
             )
             imported_stock += 1
-        for item in sales:
-            day = date.fromisoformat(str(item["observed_at"])).isoformat()
-            store.record_demand(
-                tenant_id,
-                warehouse_id,
-                str(item["sku_id"]),
-                float(item["demand"]),
-                observed_at=f"{day}T00:00:00+00:00",
-                source="erpnext:Sales Invoice Item",
+        latest_bin = self._latest_modified(balances)
+        if latest_bin is not None:
+            store.advance_erpnext_watermark(tenant_id, warehouse_id, "Bin", latest_bin)
+
+        invoice_watermark = store.get_erpnext_watermark(tenant_id, warehouse_id, "Sales Invoice")
+        invoices = self.fetch_sales_invoice_changes(
+            warehouse_id, modified_since=self._overlap_start(invoice_watermark)
+        )
+        affected_skus: set[str] = set()
+        for invoice in invoices:
+            affected_skus.update(
+                store.apply_erpnext_sales_invoice(
+                    tenant_id,
+                    warehouse_id,
+                    invoice["invoice_id"],
+                    posting_date=invoice["posting_date"],
+                    docstatus=invoice["docstatus"],
+                    modified_at=invoice["modified"],
+                    lines=invoice["lines"],
+                )
             )
-            imported_demand += 1
+        if affected_skus:
+            imported_demand = store.fill_erpnext_demand_gaps(tenant_id, warehouse_id, affected_skus)
+        latest_invoice = self._latest_modified(invoices)
+        if latest_invoice is not None:
+            store.advance_erpnext_watermark(
+                tenant_id, warehouse_id, "Sales Invoice", latest_invoice
+            )
+
+        order_watermark = store.get_erpnext_watermark(tenant_id, warehouse_id, "Purchase Order")
+        purchase_orders = self.fetch_purchase_order_changes(
+            warehouse_id, modified_since=self._overlap_start(order_watermark)
+        )
         for order in purchase_orders:
-            store.sync_purchase_order(
-                tenant_id,
-                order_id=f"erpnext:{order['order_id']}",
-                supplier_id=order["supplier_id"],
-                warehouse_id=warehouse_id,
-                expected_at=order["expected_at"],
-                lines=order["lines"],
-            )
+            order_id = f"erpnext:{order['order_id']}"
+            if order["docstatus"] == 2 or not order["lines"]:
+                store.cancel_purchase_order(
+                    tenant_id,
+                    order_id,
+                    supplier_id=order["supplier_id"],
+                    warehouse_id=warehouse_id,
+                    expected_at=order["expected_at"],
+                    source_modified_at=order["modified"],
+                )
+            else:
+                store.sync_purchase_order(
+                    tenant_id,
+                    order_id=order_id,
+                    supplier_id=order["supplier_id"],
+                    warehouse_id=warehouse_id,
+                    expected_at=order["expected_at"],
+                    lines=order["lines"],
+                    source_modified_at=order["modified"],
+                )
             imported_orders += 1
+        latest_order = self._latest_modified(purchase_orders)
+        if latest_order is not None:
+            store.advance_erpnext_watermark(tenant_id, warehouse_id, "Purchase Order", latest_order)
+
         return {
             "inventory_items": imported_stock,
             "daily_demand_rows": imported_demand,

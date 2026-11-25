@@ -11,7 +11,7 @@ import secrets
 import sqlite3
 from collections.abc import Generator
 from contextlib import contextmanager
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from math import isfinite
 from pathlib import Path
 from typing import Any
@@ -101,6 +101,42 @@ class OperationalStore:
                 );
                 CREATE INDEX IF NOT EXISTS demand_history
                   ON demand_observations(tenant_id, warehouse_id, sku_id, observed_at);
+                CREATE TABLE IF NOT EXISTS erpnext_sync_watermarks (
+                    tenant_id TEXT NOT NULL,
+                    warehouse_id TEXT NOT NULL,
+                    resource TEXT NOT NULL,
+                    modified_at TEXT NOT NULL,
+                    PRIMARY KEY (tenant_id, warehouse_id, resource),
+                    FOREIGN KEY (tenant_id, warehouse_id)
+                      REFERENCES warehouses(tenant_id, warehouse_id)
+                );
+                CREATE TABLE IF NOT EXISTS erpnext_sales_invoice_items (
+                    tenant_id TEXT NOT NULL,
+                    warehouse_id TEXT NOT NULL,
+                    invoice_id TEXT NOT NULL,
+                    sku_id TEXT NOT NULL,
+                    posting_date TEXT NOT NULL,
+                    quantity REAL NOT NULL CHECK(quantity > 0),
+                    modified_at TEXT NOT NULL,
+                    PRIMARY KEY (tenant_id, warehouse_id, invoice_id, sku_id),
+                    FOREIGN KEY (tenant_id, warehouse_id)
+                      REFERENCES warehouses(tenant_id, warehouse_id)
+                );
+                CREATE INDEX IF NOT EXISTS erpnext_invoice_daily_demand
+                  ON erpnext_sales_invoice_items(
+                    tenant_id, warehouse_id, sku_id, posting_date
+                  );
+                CREATE TABLE IF NOT EXISTS erpnext_sales_invoice_state (
+                    tenant_id TEXT NOT NULL,
+                    warehouse_id TEXT NOT NULL,
+                    invoice_id TEXT NOT NULL,
+                    posting_date TEXT NOT NULL,
+                    docstatus INTEGER NOT NULL CHECK(docstatus IN (1, 2)),
+                    modified_at TEXT NOT NULL,
+                    PRIMARY KEY (tenant_id, warehouse_id, invoice_id),
+                    FOREIGN KEY (tenant_id, warehouse_id)
+                      REFERENCES warehouses(tenant_id, warehouse_id)
+                );
                 CREATE TABLE IF NOT EXISTS forecast_outcomes (
                     outcome_id INTEGER PRIMARY KEY AUTOINCREMENT,
                     tenant_id TEXT NOT NULL, warehouse_id TEXT NOT NULL, sku_id TEXT NOT NULL,
@@ -172,6 +208,11 @@ class OperationalStore:
             }
             if "lease_token" not in schedule_columns:
                 db.execute("ALTER TABLE scheduled_jobs ADD COLUMN lease_token TEXT")
+            purchase_order_columns = {
+                str(row["name"]) for row in db.execute("PRAGMA table_info(purchase_orders)")
+            }
+            if "source_modified_at" not in purchase_order_columns:
+                db.execute("ALTER TABLE purchase_orders ADD COLUMN source_modified_at TEXT")
 
     @contextmanager
     def _connect(self) -> Generator[sqlite3.Connection]:
@@ -382,6 +423,7 @@ class OperationalStore:
         warehouse_id: str,
         lines: list[dict[str, Any]],
         expected_at: datetime | str | None = None,
+        source_modified_at: datetime | str | None = None,
     ) -> dict[str, Any]:
         """Idempotently import an ERP purchase order without double-counting received stock."""
         tenant = self._tenant(tenant_id)
@@ -402,6 +444,7 @@ class OperationalStore:
             cost = None if raw_cost is None else _positive(raw_cost, "unit_cost")
             normalized.append((sku, ordered, received, cost))
         expected = None if expected_at is None else _iso(expected_at)
+        source_modified = None if source_modified_at is None else _iso(source_modified_at)
         if all(received >= ordered for _sku, ordered, received, _cost in normalized):
             status = "received"
         elif any(received > 0 for _sku, _ordered, received, _cost in normalized):
@@ -424,16 +467,43 @@ class OperationalStore:
                 db.execute(
                     """INSERT INTO purchase_orders
                        (tenant_id, order_id, supplier_id, warehouse_id, status, expected_at,
-                        created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-                    (tenant, order_id, supplier_id, warehouse_id, status, expected, now, now),
+                        created_at, updated_at, source_modified_at)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (
+                        tenant,
+                        order_id,
+                        supplier_id,
+                        warehouse_id,
+                        status,
+                        expected,
+                        now,
+                        now,
+                        source_modified,
+                    ),
                 )
             else:
                 if str(existing["warehouse_id"]) != warehouse_id:
                     raise ValueError("an imported purchase order cannot move between warehouses")
+                current_source_modified = existing["source_modified_at"]
+                if (
+                    source_modified is not None
+                    and current_source_modified is not None
+                    and source_modified < str(current_source_modified)
+                ):
+                    return self.get_purchase_order(tenant, order_id)
                 db.execute(
                     """UPDATE purchase_orders SET supplier_id=?, status=?, expected_at=?,
-                       updated_at=? WHERE tenant_id=? AND order_id=?""",
-                    (supplier_id, status, expected, now, tenant, order_id),
+                       updated_at=?, source_modified_at=COALESCE(?, source_modified_at)
+                       WHERE tenant_id=? AND order_id=?""",
+                    (
+                        supplier_id,
+                        status,
+                        expected,
+                        now,
+                        source_modified,
+                        tenant,
+                        order_id,
+                    ),
                 )
             sku_placeholders = ", ".join("?" for _ in normalized)
             db.execute(
@@ -534,6 +604,283 @@ class OperationalStore:
                 (status, now, tenant, order_id),
             )
         return self.get_purchase_order(tenant, order_id)
+
+    def get_erpnext_watermark(self, tenant_id: str, warehouse_id: str, resource: str) -> str | None:
+        tenant = self._tenant(tenant_id)
+        if not warehouse_id.strip() or not resource.strip():
+            raise ValueError("warehouse_id and resource must not be blank")
+        with self._connect() as db:
+            row = db.execute(
+                """SELECT modified_at FROM erpnext_sync_watermarks
+                   WHERE tenant_id=? AND warehouse_id=? AND resource=?""",
+                (tenant, warehouse_id, resource),
+            ).fetchone()
+        return None if row is None else str(row["modified_at"])
+
+    def advance_erpnext_watermark(
+        self, tenant_id: str, warehouse_id: str, resource: str, modified_at: datetime | str
+    ) -> str:
+        tenant = self._tenant(tenant_id)
+        if not warehouse_id.strip() or not resource.strip():
+            raise ValueError("warehouse_id and resource must not be blank")
+        timestamp = _iso(modified_at)
+        with self._connect() as db:
+            exists = db.execute(
+                "SELECT 1 FROM warehouses WHERE tenant_id=? AND warehouse_id=?",
+                (tenant, warehouse_id),
+            ).fetchone()
+            if exists is None:
+                raise KeyError("warehouse not found")
+            current = db.execute(
+                """SELECT modified_at FROM erpnext_sync_watermarks
+                   WHERE tenant_id=? AND warehouse_id=? AND resource=?""",
+                (tenant, warehouse_id, resource),
+            ).fetchone()
+            if current is not None and timestamp <= str(current["modified_at"]):
+                return str(current["modified_at"])
+            db.execute(
+                """INSERT INTO erpnext_sync_watermarks
+                   (tenant_id, warehouse_id, resource, modified_at) VALUES (?, ?, ?, ?)
+                   ON CONFLICT(tenant_id, warehouse_id, resource)
+                   DO UPDATE SET modified_at=excluded.modified_at""",
+                (tenant, warehouse_id, resource, timestamp),
+            )
+        return timestamp
+
+    def apply_erpnext_sales_invoice(
+        self,
+        tenant_id: str,
+        warehouse_id: str,
+        invoice_id: str,
+        *,
+        posting_date: str,
+        docstatus: int,
+        modified_at: datetime | str,
+        lines: list[dict[str, Any]],
+    ) -> set[str]:
+        """Replace one invoice's contribution and recompute affected daily demand."""
+        tenant = self._tenant(tenant_id)
+        if not invoice_id.strip() or docstatus not in (1, 2):
+            raise ValueError("invoice_id and a submitted/cancelled docstatus are required")
+        day = date.fromisoformat(posting_date).isoformat()
+        modified = _iso(modified_at)
+        quantities: dict[str, float] = {}
+        if docstatus == 1:
+            for line in lines:
+                sku = str(line.get("sku_id", "")).strip()
+                raw_quantity = line.get("quantity", 0)
+                if isinstance(raw_quantity, bool):
+                    raise ValueError("invoice line quantity must be finite")
+                quantity = float(raw_quantity)
+                if not isfinite(quantity):
+                    raise ValueError("invoice line quantity must be finite")
+                if quantity <= 0:
+                    continue
+                if not sku:
+                    raise ValueError("invoice line SKU must not be blank")
+                quantities[sku] = quantities.get(sku, 0.0) + _positive(
+                    quantity, "invoice line quantity", allow_zero=False
+                )
+
+        affected: set[tuple[str, str]] = set()
+        with self._connect() as db:
+            warehouse = db.execute(
+                "SELECT 1 FROM warehouses WHERE tenant_id=? AND warehouse_id=?",
+                (tenant, warehouse_id),
+            ).fetchone()
+            if warehouse is None:
+                raise KeyError("warehouse not found")
+            previous_state = db.execute(
+                """SELECT modified_at FROM erpnext_sales_invoice_state
+                   WHERE tenant_id=? AND warehouse_id=? AND invoice_id=?""",
+                (tenant, warehouse_id, invoice_id),
+            ).fetchone()
+            if previous_state is not None and modified < str(previous_state["modified_at"]):
+                return set()
+            previous = db.execute(
+                """SELECT sku_id, posting_date FROM erpnext_sales_invoice_items
+                   WHERE tenant_id=? AND warehouse_id=? AND invoice_id=?""",
+                (tenant, warehouse_id, invoice_id),
+            ).fetchall()
+            affected.update((str(row["sku_id"]), str(row["posting_date"])) for row in previous)
+            db.execute(
+                """DELETE FROM erpnext_sales_invoice_items
+                   WHERE tenant_id=? AND warehouse_id=? AND invoice_id=?""",
+                (tenant, warehouse_id, invoice_id),
+            )
+            for sku, quantity in quantities.items():
+                db.execute(
+                    """INSERT INTO erpnext_sales_invoice_items
+                       (tenant_id, warehouse_id, invoice_id, sku_id, posting_date,
+                        quantity, modified_at) VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                    (tenant, warehouse_id, invoice_id, sku, day, quantity, modified),
+                )
+                affected.add((sku, day))
+
+            for sku, observed_day in affected:
+                total_row = db.execute(
+                    """SELECT COALESCE(SUM(quantity), 0) AS total
+                       FROM erpnext_sales_invoice_items
+                       WHERE tenant_id=? AND warehouse_id=? AND sku_id=? AND posting_date=?""",
+                    (tenant, warehouse_id, sku, observed_day),
+                ).fetchone()
+                total = float(total_row["total"])
+                existing = db.execute(
+                    """SELECT source FROM demand_observations
+                       WHERE tenant_id=? AND warehouse_id=? AND sku_id=? AND observed_at=?""",
+                    (tenant, warehouse_id, sku, f"{observed_day}T00:00:00+00:00"),
+                ).fetchone()
+                if existing is not None and str(existing["source"]) != "erpnext:Sales Invoice Item":
+                    if total > 0:
+                        raise ValueError(
+                            "ERPNext demand conflicts with a non-ERPNext observation for "
+                            f"{sku} on {observed_day}"
+                        )
+                    continue
+                db.execute(
+                    """INSERT INTO demand_observations
+                       (tenant_id, warehouse_id, sku_id, observed_at, demand, source)
+                       VALUES (?, ?, ?, ?, ?, 'erpnext:Sales Invoice Item')
+                       ON CONFLICT(tenant_id, warehouse_id, sku_id, observed_at)
+                       DO UPDATE SET demand=excluded.demand, source=excluded.source""",
+                    (tenant, warehouse_id, sku, f"{observed_day}T00:00:00+00:00", total),
+                )
+            db.execute(
+                """INSERT INTO erpnext_sales_invoice_state
+                   (tenant_id, warehouse_id, invoice_id, posting_date, docstatus, modified_at)
+                   VALUES (?, ?, ?, ?, ?, ?)
+                   ON CONFLICT(tenant_id, warehouse_id, invoice_id)
+                   DO UPDATE SET posting_date=excluded.posting_date,
+                     docstatus=excluded.docstatus, modified_at=excluded.modified_at""",
+                (tenant, warehouse_id, invoice_id, day, docstatus, modified),
+            )
+        return {sku for sku, _day in affected}
+
+    def fill_erpnext_demand_gaps(self, tenant_id: str, warehouse_id: str, sku_ids: set[str]) -> int:
+        """Fill zero-demand days between imported invoice dates for changed SKUs."""
+        tenant = self._tenant(tenant_id)
+        if not warehouse_id.strip():
+            raise ValueError("warehouse_id must not be blank")
+        total_rows = 0
+        for sku in sorted(sku_ids):
+            with self._connect() as db:
+                bounds = db.execute(
+                    """SELECT MIN(posting_date) AS first_day, MAX(posting_date) AS last_day
+                       FROM erpnext_sales_invoice_items
+                       WHERE tenant_id=? AND warehouse_id=? AND sku_id=?""",
+                    (tenant, warehouse_id, sku),
+                ).fetchone()
+                if bounds is not None and bounds["first_day"] is not None:
+                    current = date.fromisoformat(str(bounds["first_day"]))
+                    last = date.fromisoformat(str(bounds["last_day"]))
+                    while current <= last:
+                        day = current.isoformat()
+                        observed_at = f"{day}T00:00:00+00:00"
+                        demand = db.execute(
+                            """SELECT COALESCE(SUM(quantity), 0) AS total
+                               FROM erpnext_sales_invoice_items
+                               WHERE tenant_id=? AND warehouse_id=? AND sku_id=?
+                                 AND posting_date=?""",
+                            (tenant, warehouse_id, sku, day),
+                        ).fetchone()
+                        value = float(demand["total"])
+                        existing = db.execute(
+                            """SELECT source FROM demand_observations
+                               WHERE tenant_id=? AND warehouse_id=? AND sku_id=?
+                                 AND observed_at=?""",
+                            (tenant, warehouse_id, sku, observed_at),
+                        ).fetchone()
+                        if (
+                            existing is not None
+                            and str(existing["source"]) != "erpnext:Sales Invoice Item"
+                        ):
+                            if value > 0:
+                                raise ValueError(
+                                    "ERPNext demand conflicts with a non-ERPNext observation "
+                                    f"for {sku} on {day}"
+                                )
+                        else:
+                            db.execute(
+                                """INSERT INTO demand_observations
+                                   (tenant_id, warehouse_id, sku_id, observed_at, demand, source)
+                                   VALUES (?, ?, ?, ?, ?, 'erpnext:Sales Invoice Item')
+                                   ON CONFLICT(tenant_id, warehouse_id, sku_id, observed_at)
+                                   DO UPDATE SET demand=excluded.demand, source=excluded.source""",
+                                (tenant, warehouse_id, sku, observed_at, value),
+                            )
+                        current += timedelta(days=1)
+                count = db.execute(
+                    """SELECT COUNT(*) AS count FROM demand_observations
+                       WHERE tenant_id=? AND warehouse_id=? AND sku_id=?
+                         AND source='erpnext:Sales Invoice Item'""",
+                    (tenant, warehouse_id, sku),
+                ).fetchone()
+                total_rows += int(count["count"])
+        return total_rows
+
+    def cancel_purchase_order(
+        self,
+        tenant_id: str,
+        order_id: str,
+        *,
+        supplier_id: str | None = None,
+        warehouse_id: str | None = None,
+        expected_at: datetime | str | None = None,
+        source_modified_at: datetime | str | None = None,
+    ) -> bool:
+        """Cancel an imported ERP order while fencing out stale source updates."""
+        tenant = self._tenant(tenant_id)
+        if not order_id.strip():
+            raise ValueError("order_id must not be blank")
+        source_modified = None if source_modified_at is None else _iso(source_modified_at)
+        now = _now().isoformat()
+        with self._connect() as db:
+            existing = db.execute(
+                "SELECT source_modified_at FROM purchase_orders WHERE tenant_id=? AND order_id=?",
+                (tenant, order_id),
+            ).fetchone()
+            if existing is None:
+                if supplier_id is None or warehouse_id is None:
+                    return False
+                if not supplier_id.strip() or not warehouse_id.strip():
+                    raise ValueError("supplier_id and warehouse_id must not be blank")
+                warehouse = db.execute(
+                    "SELECT 1 FROM warehouses WHERE tenant_id=? AND warehouse_id=?",
+                    (tenant, warehouse_id),
+                ).fetchone()
+                if warehouse is None:
+                    raise KeyError("warehouse not found")
+                db.execute(
+                    """INSERT INTO purchase_orders
+                       (tenant_id, order_id, supplier_id, warehouse_id, status, expected_at,
+                        created_at, updated_at, source_modified_at)
+                       VALUES (?, ?, ?, ?, 'cancelled', ?, ?, ?, ?)""",
+                    (
+                        tenant,
+                        order_id,
+                        supplier_id,
+                        warehouse_id,
+                        None if expected_at is None else _iso(expected_at),
+                        now,
+                        now,
+                        source_modified,
+                    ),
+                )
+                return True
+            current_source_modified = existing["source_modified_at"]
+            if (
+                source_modified is not None
+                and current_source_modified is not None
+                and source_modified < str(current_source_modified)
+            ):
+                return False
+            cursor = db.execute(
+                """UPDATE purchase_orders SET status='cancelled', updated_at=?,
+                   source_modified_at=COALESCE(?, source_modified_at)
+                   WHERE tenant_id=? AND order_id=?""",
+                (now, source_modified, tenant, order_id),
+            )
+        return cursor.rowcount == 1
 
     def record_demand(
         self,
