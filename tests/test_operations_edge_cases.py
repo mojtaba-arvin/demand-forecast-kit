@@ -309,8 +309,10 @@ def test_monitoring_and_retraining_validation_edges(tmp_path) -> None:
         store.list_retraining_requests("tenant-a", limit=0)
     with pytest.raises(ValueError, match="already claimed"):
         store.claim_retraining("tenant-a", "missing")
-    with pytest.raises(ValueError, match="only a claimed"):
-        store.finish_retraining("tenant-a", "missing", success=True)
+    with pytest.raises(ValueError, match="stale or no longer owned"):
+        store.finish_retraining(
+            "tenant-a", "missing", success=True, claim_token="not-a-valid-claim"
+        )
 
 
 def test_policy_feedback_validation_edges(tmp_path) -> None:
