@@ -16,9 +16,7 @@ from demand_forecast_kit.db_admin import (
 def _create_database(path, *, child_parent_id=1) -> None:
     with sqlite3.connect(path) as connection:
         connection.execute("PRAGMA foreign_keys=ON")
-        connection.execute(
-            "CREATE TABLE parent (id INTEGER PRIMARY KEY, value TEXT NOT NULL)"
-        )
+        connection.execute("CREATE TABLE parent (id INTEGER PRIMARY KEY, value TEXT NOT NULL)")
         connection.execute(
             "CREATE TABLE child (id INTEGER PRIMARY KEY, parent_id INTEGER NOT NULL "
             "REFERENCES parent(id))"
@@ -49,15 +47,9 @@ def test_online_backup_verify_and_restore_round_trip(tmp_path) -> None:
 
     restored = restore_database(backup, database, confirm_services_stopped=True)
     assert restored["integrity_check"] == "ok"
-    assert all(
-        not Path(f"{database}{suffix}").exists()
-        for suffix in ("-wal", "-shm", "-journal")
-    )
+    assert all(not Path(f"{database}{suffix}").exists() for suffix in ("-wal", "-shm", "-journal"))
     with sqlite3.connect(database) as connection:
-        assert (
-            connection.execute("SELECT value FROM parent WHERE id=1").fetchone()[0]
-            == "original"
-        )
+        assert connection.execute("SELECT value FROM parent WHERE id=1").fetchone()[0] == "original"
         assert connection.execute("SELECT COUNT(*) FROM parent").fetchone()[0] == 1
 
 
@@ -116,9 +108,7 @@ def test_online_backup_includes_committed_wal_content(tmp_path) -> None:
     connection = sqlite3.connect(database)
     try:
         connection.execute("PRAGMA journal_mode=WAL")
-        connection.execute(
-            "CREATE TABLE events (id INTEGER PRIMARY KEY, value TEXT NOT NULL)"
-        )
+        connection.execute("CREATE TABLE events (id INTEGER PRIMARY KEY, value TEXT NOT NULL)")
         connection.execute("INSERT INTO events (value) VALUES ('committed-in-wal')")
         connection.commit()
 
@@ -131,9 +121,7 @@ def test_online_backup_includes_committed_wal_content(tmp_path) -> None:
         connection.close()
 
 
-def test_restore_failure_restores_sidecars_and_preserves_database(
-    monkeypatch, tmp_path
-) -> None:
+def test_restore_failure_restores_sidecars_and_preserves_database(monkeypatch, tmp_path) -> None:
     database = tmp_path / "operations.sqlite"
     backup = tmp_path / "backup.sqlite"
     _create_database(database)
@@ -155,9 +143,8 @@ def test_restore_failure_restores_sidecars_and_preserves_database(
     def fail_database_replacement(source, destination) -> None:
         source_path = Path(source)
         destination_path = Path(destination)
-        if (
-            destination_path == database.resolve()
-            and source_path.name.startswith(f".{database.name}.restore.")
+        if destination_path == database.resolve() and source_path.name.startswith(
+            f".{database.name}.restore."
         ):
             raise OSError("simulated replacement failure")
         original_replace(source, destination)
