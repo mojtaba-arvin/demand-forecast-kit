@@ -147,10 +147,19 @@ Run the worker continuously on the same durable state directory:
 demand-forecast-worker --tenant-id acme --poll-seconds 15
 ```
 
-Use `--once` for a single poll. Jobs are claimed with expiring leases; failed
-jobs release their lease and are eligible for retry. The worker currently uses
-the deterministic Seasonal Naive adapter for scheduled forecast refreshes.
-Model-specific routing can be extended without changing the schedule store.
+Use `--once` for a single poll. Jobs are claimed with expiring leases and
+unique ownership tokens. Completion and retry release require the token returned
+by the claim, so a worker resuming after lease expiry cannot complete or release
+a newer worker's claim. The API's `POST /v1/ops/schedules/claim-due` response
+includes the token; pass it as JSON `{"lease_token":"..." }` to
+`POST /v1/ops/schedules/{job_id}/complete`. Schedule listings do not expose
+active lease tokens.
+
+Failed jobs release their lease and are eligible for retry. If a worker has
+already lost ownership, it records the stale-lease failure without releasing
+the current owner's lease. The worker currently uses the deterministic
+Seasonal Naive adapter for scheduled forecast refreshes. Model-specific routing
+can be extended without changing the schedule store.
 
 ## Model lifecycle
 
