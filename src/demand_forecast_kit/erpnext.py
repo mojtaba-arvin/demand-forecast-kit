@@ -546,6 +546,8 @@ class ERPNextClient:
         store: OperationalStore,
         tenant_id: str,
         warehouse_id: str,
+        *,
+        allow_empty_snapshot: bool = False,
     ) -> dict[str, int | bool]:
         """Operator-triggered full snapshot reconciliation, including hard deletes.
 
@@ -577,6 +579,24 @@ class ERPNextClient:
         self._assert_unique_snapshot_keys(bins, "item_code", "Bin")
         self._assert_unique_snapshot_keys(invoices, "invoice_id", "Sales Invoice")
         self._assert_unique_snapshot_keys(purchase_orders, "order_id", "Purchase Order")
+
+        local_counts = store.get_erpnext_snapshot_counts(tenant_id, warehouse_id)
+        remote_counts = {
+            "Bin": len(bins),
+            "Sales Invoice": len(invoices),
+            "Purchase Order": len(purchase_orders),
+        }
+        unexpectedly_empty = [
+            resource
+            for resource, remote_count in remote_counts.items()
+            if remote_count == 0 and local_counts[resource] > 0
+        ]
+        if unexpectedly_empty and not allow_empty_snapshot:
+            resources = ", ".join(unexpectedly_empty)
+            raise RuntimeError(
+                "ERPNext returned an empty full snapshot for locally populated resources "
+                f"({resources}); verify API read permissions or explicitly allow an empty snapshot"
+            )
 
         reconciled_at = datetime.now(UTC)
         reconciled_at_iso = reconciled_at.isoformat()
