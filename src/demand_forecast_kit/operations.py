@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from collections.abc import Iterator
+from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 from math import isfinite
@@ -162,7 +162,7 @@ class OperationalStore:
                 )
 
     @contextmanager
-    def _connect(self) -> Iterator[sqlite3.Connection]:
+    def _connect(self) -> Generator[sqlite3.Connection, None, None]:
         db = sqlite3.connect(self.database, timeout=15.0)
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA foreign_keys = ON")
@@ -931,7 +931,7 @@ class OperationalStore:
                     "cycle_service": 1.0 if shortage == 0 else 0.0,
                 }
             )
-        ranked = []
+        ranked: list[dict[str, Any]] = []
         for policy_id, observations in grouped.items():
             if len(observations) < min_samples:
                 continue

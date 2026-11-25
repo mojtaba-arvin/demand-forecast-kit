@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from collections.abc import Callable
 from datetime import UTC, date, datetime, timedelta
-from typing import Any
+from typing import Any, cast
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urljoin
 from urllib.request import Request, urlopen
@@ -84,10 +84,12 @@ class ERPNextClient:
             payload = json.loads(raw)
         except (UnicodeDecodeError, json.JSONDecodeError) as exc:
             raise RuntimeError("ERPNext returned invalid JSON") from exc
-        data = payload.get("data") if isinstance(payload, dict) else None
+        if not isinstance(payload, dict):
+            raise RuntimeError("ERPNext response must be a JSON object")
+        data = payload.get("data")
         if not isinstance(data, list) or any(not isinstance(item, dict) for item in data):
             raise RuntimeError("ERPNext response does not contain a valid data list")
-        return data
+        return cast(list[dict[str, Any]], data)
 
     def list_warehouses(self) -> list[dict[str, Any]]:
         return self._resource(

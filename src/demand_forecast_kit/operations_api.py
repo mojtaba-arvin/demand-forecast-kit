@@ -7,7 +7,7 @@ import hmac
 import json
 import os
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 
 from demand_forecast_kit.operations import OperationalStore
 
@@ -32,6 +32,7 @@ def build_operations_router(service: Any) -> Any:
         raise RuntimeError("DEMAND_FORECAST_API_KEYS must be valid JSON") from exc
     if not isinstance(key_records, list):
         raise RuntimeError("DEMAND_FORECAST_API_KEYS must be a JSON array")
+    key_records = cast(list[dict[str, Any]], key_records)
     keys: dict[str, dict[str, Any]] = {}
     for record in key_records:
         if not isinstance(record, dict):
@@ -55,7 +56,12 @@ def build_operations_router(service: Any) -> Any:
             )
         if key_id in keys:
             raise RuntimeError("API key identifiers must be unique")
-        keys[key_id] = {"digest": digest.lower(), "tenant_id": tenant, "scopes": set(scopes)}
+        typed_scopes = cast(list[str], scopes)
+        keys[key_id] = {
+            "digest": digest.lower(),
+            "tenant_id": tenant,
+            "scopes": set(typed_scopes),
+        }
 
     def principal(authorization: str | None = Header(default=None)) -> dict[str, Any]:
         if not keys:
@@ -473,6 +479,7 @@ def install_api_auth(app: Any) -> None:
         raise RuntimeError("DEMAND_FORECAST_API_KEYS must be valid JSON") from exc
     if not isinstance(records, list):
         raise RuntimeError("DEMAND_FORECAST_API_KEYS must be a JSON array")
+    records = cast(list[dict[str, Any]], records)
     tokens: list[tuple[str, set[str]]] = []
     for record in records:
         if not isinstance(record, dict):
@@ -485,7 +492,7 @@ def install_api_auth(app: Any) -> None:
             or not all(isinstance(scope, str) for scope in scopes)
         ):
             raise RuntimeError("API key records require token_sha256 and scopes")
-        tokens.append((digest.lower(), set(scopes)))
+        tokens.append((digest.lower(), set(cast(list[str], scopes))))
     if not tokens:
         raise RuntimeError("at least one API key must be configured in production")
 
