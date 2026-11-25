@@ -22,7 +22,7 @@ Provide a small dependency-free CLI, demand-forecast-db, with three operations:
   SHA-256 digest.
 - restore: require --confirm-services-stopped, verify the source backup, stage
   and verify a temporary copy, then atomically replace the destination and
-  remove stale WAL/SHM sidecars. If replacement fails, parked sidecars are
+  remove stale WAL/SHM/journal sidecars. If replacement fails, parked sidecars are
   restored.
 
 The CLI does not schedule backups, encrypt artifacts, or transfer them to
