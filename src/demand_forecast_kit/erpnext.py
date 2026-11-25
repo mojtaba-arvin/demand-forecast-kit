@@ -539,7 +539,7 @@ class ERPNextClient:
     ) -> None:
         values = [str(record.get(key, "")).strip() for record in records]
         if any(not value for value in values) or len(values) != len(set(values)):
-            raise RuntimeError(f"ERPNext {resource} full snapshot contains missing or duplicate keys")
+            raise RuntimeError(\n                f"ERPNext {resource} full snapshot contains missing or duplicate keys"\n            )
 
     def reconcile_warehouse(
         self,
@@ -573,7 +573,8 @@ class ERPNextClient:
         for first, second, resource in snapshots:
             if self._snapshot_signature(first) != self._snapshot_signature(second):
                 raise RuntimeError(
-                    f"ERPNext {resource} changed during full reconciliation; retry during a quiet window"
+                    f"ERPNext {resource} changed during full reconciliation; "
+                    "retry during a quiet window"
                 )
 
         self._assert_unique_snapshot_keys(bins, "item_code", "Bin")
