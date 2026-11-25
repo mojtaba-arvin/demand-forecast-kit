@@ -809,6 +809,19 @@ class OperationalStore:
                 reconciled += 1
         return reconciled
 
+    def list_erpnext_sales_invoice_ids(self, tenant_id: str, warehouse_id: str) -> set[str]:
+        """Return currently active invoice IDs imported for one tenant warehouse."""
+        tenant = self._tenant(tenant_id)
+        if not warehouse_id.strip():
+            raise ValueError("warehouse_id must not be blank")
+        with self._connect() as db:
+            rows = db.execute(
+                """SELECT invoice_id FROM erpnext_sales_invoice_state
+                   WHERE tenant_id=? AND warehouse_id=? AND source_deleted=0""",
+                (tenant, warehouse_id),
+            ).fetchall()
+        return {str(row["invoice_id"]) for row in rows}
+
     def get_erpnext_watermark(self, tenant_id: str, warehouse_id: str, resource: str) -> str | None:
         tenant = self._tenant(tenant_id)
         if not warehouse_id.strip() or not resource.strip():
