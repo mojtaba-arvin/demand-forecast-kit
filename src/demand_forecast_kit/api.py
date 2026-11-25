@@ -167,9 +167,7 @@ def create_app(run_service: RunService | None = None) -> Any:
             "artifact_store": False,
         }
         try:
-            dependencies["run_registry"] = check_sqlite(
-                service.registry.database, "forecast_runs"
-            )
+            dependencies["run_registry"] = check_sqlite(service.registry.database, "forecast_runs")
             dependencies["operational_store"] = check_sqlite(
                 str(service.state_dir / "operations.sqlite"), "warehouses"
             )
