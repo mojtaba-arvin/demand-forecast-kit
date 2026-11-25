@@ -851,10 +851,12 @@ class OperationalStore:
                 ).astimezone(UTC).isoformat()
                 db.execute(
                     """INSERT INTO inventory_snapshots
-                       (tenant_id, warehouse_id, sku_id, quantity, reserved, backorders, as_of, source)
+                       (tenant_id, warehouse_id, sku_id, quantity, reserved, backorders,
+                        as_of, source)
                        VALUES (?, ?, ?, 0, 0, 0, ?, 'erpnext:Bin:deleted')
                        ON CONFLICT(tenant_id, warehouse_id, sku_id, as_of)
-                       DO UPDATE SET quantity=0, reserved=0, backorders=0, source='erpnext:Bin:deleted'""",
+                       DO UPDATE SET quantity=0, reserved=0, backorders=0,
+                         source='erpnext:Bin:deleted'""",
                     (tenant, warehouse_id, sku, deletion_time),
                 )
                 reconciled += 1
@@ -1055,7 +1057,8 @@ class OperationalStore:
                 )
             db.execute(
                 """INSERT INTO erpnext_sales_invoice_state
-                   (tenant_id, warehouse_id, invoice_id, posting_date, docstatus, modified_at, source_deleted)
+                   (tenant_id, warehouse_id, invoice_id, posting_date, docstatus,
+                    modified_at, source_deleted)
                    VALUES (?, ?, ?, ?, ?, ?, 0)
                    ON CONFLICT(tenant_id, warehouse_id, invoice_id)
                    DO UPDATE SET posting_date=excluded.posting_date,
