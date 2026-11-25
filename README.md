@@ -40,6 +40,7 @@ Demand Forecast Kit is an open-source library and API for turning sales and inve
 - Simulate delayed replenishment receipts, stockouts, backorders, and lost sales; compare multiple policies on identical realized scenarios.
 - Expose forecast and rolling-origin evaluation through FastAPI, a Forecast CLI, and an independent Evaluation CLI.
 - Persist idempotent runs and immutable inventory decisions in SQLite; store binary artifacts by SHA-256.
+- Register immutable model versions with content-addressed model/evaluation artifacts, durable active-version state, compare-and-swap activation, and explicit rollback history.
 - Emit structured JSON logs and thread-safe process-local metrics snapshots.
 - Maintain tenant-scoped warehouse, stock, purchase-order, receipt, and demand-observation records in a local operational store.
 - Import warehouse stock and submitted sales history from ERPNext through a read-only Frappe REST connector.
@@ -238,6 +239,7 @@ python -m pip install ".[dev]"
 - [Statistical and operational limitations](docs/limitations.md)
 - [Independent UCI Electricity benchmark](docs/benchmarks/uci-electricity-load.md)
 - [Operational planning API, ERPNext connector, scheduler, and model lifecycle](docs/operations.md)
+- [Persistent model artifacts, explicit activation, and rollback](docs/model-artifacts.md)
 - [Expanded UCI Online Retail II benchmark](docs/benchmarks/uci-online-retail-ii.md)
 
 ## Metric definitions
