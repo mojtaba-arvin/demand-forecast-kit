@@ -759,7 +759,17 @@ class OperationalStore:
                        WHERE tenant_id=? AND warehouse_id=? AND invoice_id=?""",
                     (deleted_at, tenant, warehouse_id, invoice_id),
                 )
-        return {sku for sku, _day in affected}
+        if not affected:
+            return set()
+        affected_skus = sorted({sku for sku, _day in affected})
+        placeholders = ",".join("?" for _ in affected_skus)
+        with self._connect() as db:
+            remaining = db.execute(
+                f"""SELECT DISTINCT sku_id FROM erpnext_sales_invoice_items
+                    WHERE tenant_id=? AND warehouse_id=? AND sku_id IN ({placeholders})""",
+                (tenant, warehouse_id, *affected_skus),
+            ).fetchall()
+        return {str(row["sku_id"]) for row in remaining}
 
     def reconcile_erpnext_missing_purchase_orders(
         self,
@@ -792,8 +802,8 @@ class OperationalStore:
                     continue
                 previous_modified = datetime.fromisoformat(str(row["source_modified_at"]))
                 deletion_time = (
-                    previous_modified + timedelta(microseconds=1)
-                ).astimezone(UTC).isoformat()
+                    (previous_modified + timedelta(microseconds=1)).astimezone(UTC).isoformat()
+                )
                 db.execute(
                     """UPDATE purchase_orders
                        SET status='cancelled', updated_at=?, source_modified_at=?
