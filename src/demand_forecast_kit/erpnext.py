@@ -529,6 +529,173 @@ class ERPNextClient:
             )
         return result
 
+    @staticmethod
+    def _snapshot_signature(records: list[dict[str, Any]]) -> str:
+        return json.dumps(records, sort_keys=True, separators=(",", ":"), allow_nan=False)
+
+    @staticmethod
+    def _assert_unique_snapshot_keys(
+        records: list[dict[str, Any]], key: str, resource: str
+    ) -> None:
+        values = [str(record.get(key, "")).strip() for record in records]
+        if any(not value for value in values) or len(values) != len(set(values)):
+            raise RuntimeError(f"ERPNext {resource} full snapshot contains missing or duplicate keys")
+
+    def reconcile_warehouse(
+        self,
+        store: OperationalStore,
+        tenant_id: str,
+        warehouse_id: str,
+    ) -> dict[str, int | bool]:
+        """Operator-triggered full snapshot reconciliation, including hard deletes.
+
+        All three remote snapshots are fetched twice and must match before local
+        state is changed. Run this during a quiet source-system window; Frappe's
+        offset pagination does not provide a transactionally consistent snapshot.
+        """
+        if not warehouse_id.strip():
+            raise ValueError("warehouse_id must not be blank")
+
+        first_bins = self.fetch_bin_changes(warehouse_id)
+        first_invoices = self.fetch_sales_invoice_changes(warehouse_id)
+        first_orders = self.fetch_purchase_order_changes(warehouse_id)
+        bins = self.fetch_bin_changes(warehouse_id)
+        invoices = self.fetch_sales_invoice_changes(warehouse_id)
+        purchase_orders = self.fetch_purchase_order_changes(warehouse_id)
+
+        snapshots = (
+            (first_bins, bins, "Bin"),
+            (first_invoices, invoices, "Sales Invoice"),
+            (first_orders, purchase_orders, "Purchase Order"),
+        )
+        for first, second, resource in snapshots:
+            if self._snapshot_signature(first) != self._snapshot_signature(second):
+                raise RuntimeError(
+                    f"ERPNext {resource} changed during full reconciliation; retry during a quiet window"
+                )
+
+        self._assert_unique_snapshot_keys(bins, "item_code", "Bin")
+        self._assert_unique_snapshot_keys(invoices, "invoice_id", "Sales Invoice")
+        self._assert_unique_snapshot_keys(purchase_orders, "order_id", "Purchase Order")
+
+        reconciled_at = datetime.now(UTC)
+        reconciled_at_iso = reconciled_at.isoformat()
+        imported_stock = 0
+        imported_orders = 0
+        affected_skus: set[str] = set()
+
+        # Apply current records only after every remote resource has been fetched
+        # and the two complete snapshots agree.
+        for item in bins:
+            sku = str(item["item_code"]).strip()
+            if not sku:
+                raise RuntimeError("ERPNext Bin record is missing item_code")
+            source_modified = datetime.fromisoformat(self._modified_timestamp(item["modified"]))
+            effective_as_of = max(source_modified, reconciled_at).isoformat()
+            store.record_inventory(
+                tenant_id,
+                warehouse_id,
+                sku,
+                float(item.get("actual_qty", 0)),
+                reserved=float(item.get("reserved_qty", 0)),
+                as_of=effective_as_of,
+                source="erpnext:Bin",
+            )
+            imported_stock += 1
+
+        for invoice in invoices:
+            source_modified = datetime.fromisoformat(str(invoice["modified"]))
+            effective_modified = max(source_modified, reconciled_at).isoformat()
+            affected_skus.update(
+                store.apply_erpnext_sales_invoice(
+                    tenant_id,
+                    warehouse_id,
+                    str(invoice["invoice_id"]),
+                    posting_date=str(invoice["posting_date"]),
+                    docstatus=int(invoice["docstatus"]),
+                    modified_at=effective_modified,
+                    lines=invoice["lines"],
+                )
+            )
+        affected_skus.update(
+            store.reconcile_erpnext_missing_sales_invoices(
+                tenant_id,
+                warehouse_id,
+                {str(invoice["invoice_id"]) for invoice in invoices},
+                reconciled_at=reconciled_at_iso,
+            )
+        )
+        imported_demand = (
+            store.fill_erpnext_demand_gaps(tenant_id, warehouse_id, affected_skus)
+            if affected_skus
+            else 0
+        )
+
+        for order in purchase_orders:
+            order_id = f"erpnext:{order['order_id']}"
+            source_modified = datetime.fromisoformat(str(order["modified"]))
+            effective_modified = max(source_modified, reconciled_at).isoformat()
+            if int(order["docstatus"]) == 2 or not order["lines"]:
+                store.cancel_purchase_order(
+                    tenant_id,
+                    order_id,
+                    supplier_id=str(order["supplier_id"]),
+                    warehouse_id=warehouse_id,
+                    expected_at=order["expected_at"],
+                    source_modified_at=effective_modified,
+                )
+            else:
+                store.sync_purchase_order(
+                    tenant_id,
+                    order_id=order_id,
+                    supplier_id=str(order["supplier_id"]),
+                    warehouse_id=warehouse_id,
+                    expected_at=order["expected_at"],
+                    lines=order["lines"],
+                    source_modified_at=effective_modified,
+                )
+            imported_orders += 1
+
+        deleted_orders = store.reconcile_erpnext_missing_purchase_orders(
+            tenant_id,
+            warehouse_id,
+            {f"erpnext:{order['order_id']}" for order in purchase_orders},
+            reconciled_at=reconciled_at_iso,
+        )
+        deleted_bins = store.reconcile_erpnext_missing_bins(
+            tenant_id,
+            warehouse_id,
+            {str(item["item_code"]).strip() for item in bins},
+            reconciled_at=reconciled_at_iso,
+        )
+
+        for resource, records in (
+            ("Bin", bins),
+            ("Sales Invoice", invoices),
+            ("Purchase Order", purchase_orders),
+        ):
+            latest = self._latest_modified(records)
+            if latest is not None:
+                store.advance_erpnext_watermark(tenant_id, warehouse_id, resource, latest)
+
+        return {
+            "inventory_items": imported_stock,
+            "daily_demand_rows": imported_demand,
+            "purchase_orders": imported_orders,
+            "deleted_inventory_items": deleted_bins,
+            "deleted_sales_invoices": len(
+                [
+                    invoice
+                    for invoice in store.list_erpnext_sales_invoice_ids(
+                        tenant_id, warehouse_id
+                    )
+                    if invoice not in {str(item["invoice_id"]) for item in invoices}
+                ]
+            ),
+            "deleted_purchase_orders": deleted_orders,
+            "snapshot_verified": True,
+        }
+
     def sync_warehouse(
         self,
         store: OperationalStore,
