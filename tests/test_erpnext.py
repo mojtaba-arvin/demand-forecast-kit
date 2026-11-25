@@ -505,6 +505,21 @@ def test_erpnext_full_reconciliation_removes_hard_deleted_source_records(tmp_pat
     assert store.get_purchase_order("tenant-a", "erpnext:PO-1")["status"] == "cancelled"
     assert store.inventory_position("tenant-a", "WH-1", "SKU-1")["on_hand"] == 99
     assert store.inventory_position("tenant-a", "WH-1", "SKU-2")["on_hand"] == 0
+    assert not store.record_erpnext_inventory_snapshot(
+        "tenant-a",
+        "WH-1",
+        "SKU-2",
+        8,
+        as_of="2026-11-25T09:01:00+00:00",
+    )
+    assert store.record_erpnext_inventory_snapshot(
+        "tenant-a",
+        "WH-1",
+        "SKU-2",
+        6,
+        as_of="2026-11-25T09:02:00+00:00",
+    )
+    assert store.inventory_position("tenant-a", "WH-1", "SKU-2")["on_hand"] == 6
 
     # Delayed pre-delete events cannot resurrect invoice demand or purchase orders.
     assert (
