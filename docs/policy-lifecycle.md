@@ -4,7 +4,8 @@
 SQLite. Each version is validated, canonicalized, and assigned a SHA-256 digest.
 The active pointer is scoped by tenant and policy ID; activation uses
 compare-and-swap, rollback requires an explicit target and expected active
-version, and activation history is append-only.
+version, and activation history is append-only. Registered versions and event
+records cannot be updated or deleted.
 
 The initial supported contract is Newsvendor:
 
