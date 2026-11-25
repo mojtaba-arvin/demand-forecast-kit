@@ -595,16 +595,15 @@ class ERPNextClient:
                 raise RuntimeError("ERPNext Bin record is missing item_code")
             source_modified = datetime.fromisoformat(self._modified_timestamp(item["modified"]))
             effective_as_of = max(source_modified, reconciled_at).isoformat()
-            store.record_inventory(
+            if store.record_erpnext_inventory_snapshot(
                 tenant_id,
                 warehouse_id,
                 sku,
                 float(item.get("actual_qty", 0)),
                 reserved=float(item.get("reserved_qty", 0)),
                 as_of=effective_as_of,
-                source="erpnext:Bin",
-            )
-            imported_stock += 1
+            ):
+                imported_stock += 1
 
         for invoice in invoices:
             source_modified = datetime.fromisoformat(str(invoice["modified"]))
@@ -713,16 +712,15 @@ class ERPNextClient:
             if not sku:
                 continue
             modified = self._modified_timestamp(item.get("modified"))
-            store.record_inventory(
+            if store.record_erpnext_inventory_snapshot(
                 tenant_id,
                 warehouse_id,
                 sku,
                 float(item.get("actual_qty", 0)),
                 reserved=float(item.get("reserved_qty", 0)),
                 as_of=modified,
-                source="erpnext:Bin",
-            )
-            imported_stock += 1
+            ):
+                imported_stock += 1
         latest_bin = self._latest_modified(balances)
         if latest_bin is not None:
             store.advance_erpnext_watermark(tenant_id, warehouse_id, "Bin", latest_bin)
