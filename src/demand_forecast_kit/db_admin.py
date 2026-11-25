@@ -36,6 +36,19 @@ def _integrity_report(path: Path) -> dict[str, int | str]:
     }
 
 
+def _copy_database(source: Path, destination: Path) -> None:
+    source_connection = sqlite3.connect(_readonly_uri(source), uri=True)
+    try:
+        destination_connection = sqlite3.connect(destination)
+        try:
+            source_connection.backup(destination_connection)
+            destination_connection.commit()
+        finally:
+            destination_connection.close()
+    finally:
+        source_connection.close()
+
+
 def _sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as source:
@@ -66,14 +79,7 @@ def backup_database(
 
     temporary = _temporary_database(destination.parent, f".{destination.name}.")
     try:
-        source_connection = sqlite3.connect(_readonly_uri(source), uri=True)
-        destination_connection = sqlite3.connect(temporary)
-        try:
-            source_connection.backup(destination_connection)
-            destination_connection.commit()
-        finally:
-            destination_connection.close()
-            source_connection.close()
+        _copy_database(source, temporary)
         integrity = _integrity_report(temporary)
         digest = _sha256_file(temporary)
         if overwrite:
@@ -127,14 +133,7 @@ def restore_database(
     ]
     moved_sidecars: list[tuple[Path, Path]] = []
     try:
-        source_connection = sqlite3.connect(_readonly_uri(backup), uri=True)
-        destination_connection = sqlite3.connect(temporary)
-        try:
-            source_connection.backup(destination_connection)
-            destination_connection.commit()
-        finally:
-            destination_connection.close()
-            source_connection.close()
+        _copy_database(backup, temporary)
         integrity = _integrity_report(temporary)
 
         try:
