@@ -649,3 +649,63 @@ def test_erpnext_full_reconciliation_rejects_unexpected_empty_snapshot(tmp_path)
 
     assert store.demand_history("tenant-a", "WH-1", "SKU-1")[0]["demand"] == 5
     assert store.inventory_position("tenant-a", "WH-1", "SKU-1")["on_hand"] == 20
+
+def test_erpnext_full_reconciliation_aborts_if_snapshot_changes_between_reads(tmp_path) -> None:
+    resources = {
+        "Bin": [
+            {
+                "item_code": "SKU-1",
+                "warehouse": "WH-1",
+                "actual_qty": 20,
+                "reserved_qty": 0,
+                "modified": "2026-11-25 09:00:00",
+            }
+        ],
+        "Sales Invoice": [],
+        "Sales Invoice Item": [],
+        "Purchase Order": [],
+        "Purchase Order Item": [],
+    }
+    bin_calls = 0
+
+    def transport(url, method, headers, body, timeout):
+        nonlocal bin_calls
+        doctype = urlsplit(url).path.rsplit("/", 1)[-1]
+        if doctype == "Bin":
+            bin_calls += 1
+            if bin_calls == 3:
+                return json.dumps({"data": []}).encode()
+        return json.dumps({"data": resources[doctype]}).encode()
+
+    store = OperationalStore(tmp_path / "changing-snapshot.sqlite")
+    store.create_warehouse("tenant-a", "WH-1", "Main", "main")
+    client = ERPNextClient("https://erp.example", "key", "secret", transport=transport)
+    client.sync_warehouse(store, "tenant-a", "WH-1")
+
+    with pytest.raises(RuntimeError, match="changed during full reconciliation"):
+        client.reconcile_warehouse(store, "tenant-a", "WH-1")
+
+    assert store.inventory_position("tenant-a", "WH-1", "SKU-1")["on_hand"] == 20
+
+
+def test_erpnext_full_reconciliation_allows_empty_new_warehouse(tmp_path) -> None:
+    client = ERPNextClient(
+        "https://erp.example",
+        "key",
+        "secret",
+        transport=lambda *_args: json.dumps({"data": []}).encode(),
+    )
+    store = OperationalStore(tmp_path / "empty-new-warehouse.sqlite")
+    store.create_warehouse("tenant-a", "WH-1", "Main", "main")
+
+    result = client.reconcile_warehouse(store, "tenant-a", "WH-1")
+
+    assert result == {
+        "inventory_items": 0,
+        "daily_demand_rows": 0,
+        "purchase_orders": 0,
+        "deleted_inventory_items": 0,
+        "deleted_sales_invoices": 0,
+        "deleted_purchase_orders": 0,
+        "snapshot_verified": True,
+    }
