@@ -158,6 +158,14 @@ demand-forecast-erpnext-reconcile \
   --confirm-full-snapshot
 ```
 
+The ERPNext integration user must have complete list/read access to Bin,
+Sales Invoice, Sales Invoice Item, Purchase Order, and Purchase Order Item for
+the intended site. If a resource returns empty while local imports exist, the
+command aborts rather than interpreting a permission-filtered result as mass
+deletion. Only after independently verifying permissions and confirming that
+the resource is genuinely empty should an operator add
+`--allow-empty-snapshot`.
+
 The command reads Bin, Sales Invoice, and Purchase Order resources twice,
 including all pages. It aborts before local writes if the two snapshots differ
 or a remote request fails. Run it during a quiet ERPNext window: Frappe offset
@@ -172,7 +180,9 @@ After a verified snapshot:
   confirmed inbound quantity and fencing stale updates.
 - Missing Bin records receive zero-quantity snapshots only when the latest
   local inventory source is still `erpnext:Bin`. A newer manual inventory
-  snapshot is preserved.
+  snapshot is preserved. Incremental and full imports also leave a latest
+  manual/other-source inventory snapshot untouched rather than silently
+  replacing its source-of-truth value.
 - Per-resource watermarks advance only after the corresponding reconciliation
   work completes.
 
