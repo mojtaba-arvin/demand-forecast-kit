@@ -27,7 +27,6 @@ def test_legacy_inventory_schema_is_migrated_with_backorders(tmp_path) -> None:
     assert "backorders" in columns
 
 
-
 def test_legacy_retraining_schema_is_migrated_with_claim_tokens(tmp_path) -> None:
     database = tmp_path / "legacy-retraining.sqlite"
     with sqlite3.connect(database) as connection:
@@ -57,7 +56,6 @@ def test_legacy_retraining_schema_is_migrated_with_claim_tokens(tmp_path) -> Non
     )
     claimed = store.claim_retraining("tenant-a", request["request_id"])
     assert claimed["claim_token"]
-
 
 
 def test_tenant_warehouse_and_inventory_validation_edges(tmp_path) -> None:
