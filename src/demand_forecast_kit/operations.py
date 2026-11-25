@@ -700,9 +700,7 @@ class OperationalStore:
                    WHERE tenant_id=? AND warehouse_id=? AND source_inactive=0""",
                 (tenant, warehouse_id),
             ).fetchall()
-            missing = [
-                row for row in states if str(row["invoice_id"]) not in present_invoice_ids
-            ]
+            missing = [row for row in states if str(row["invoice_id"]) not in present_invoice_ids]
             if not missing:
                 return set()
             missing_ids = [str(row["invoice_id"]) for row in missing]
@@ -712,9 +710,7 @@ class OperationalStore:
                     WHERE tenant_id=? AND warehouse_id=? AND invoice_id IN ({placeholders})""",
                 (tenant, warehouse_id, *missing_ids),
             ).fetchall()
-            affected.update(
-                (str(row["sku_id"]), str(row["posting_date"])) for row in previous
-            )
+            affected.update((str(row["sku_id"]), str(row["posting_date"])) for row in previous)
             db.execute(
                 f"""DELETE FROM erpnext_sales_invoice_items
                     WHERE tenant_id=? AND warehouse_id=? AND invoice_id IN ({placeholders})""",
@@ -724,8 +720,8 @@ class OperationalStore:
             for row in missing:
                 previous_modified = datetime.fromisoformat(str(row["modified_at"]))
                 deletion_time = (
-                    previous_modified + timedelta(microseconds=1)
-                ).astimezone(UTC).isoformat()
+                    (previous_modified + timedelta(microseconds=1)).astimezone(UTC).isoformat()
+                )
                 tombstones[str(row["invoice_id"])] = deletion_time
             for sku, observed_day in affected:
                 total_row = db.execute(
@@ -847,8 +843,8 @@ class OperationalStore:
                     continue
                 previous_time = datetime.fromisoformat(str(latest["as_of"]))
                 deletion_time = (
-                    previous_time + timedelta(microseconds=1)
-                ).astimezone(UTC).isoformat()
+                    (previous_time + timedelta(microseconds=1)).astimezone(UTC).isoformat()
+                )
                 db.execute(
                     """INSERT INTO inventory_snapshots
                        (tenant_id, warehouse_id, sku_id, quantity, reserved, backorders,
@@ -1011,8 +1007,10 @@ class OperationalStore:
                     return set()
                 if inactive and modified == previous_modified:
                     effective_modified = (
-                        datetime.fromisoformat(previous_modified) + timedelta(microseconds=1)
-                    ).astimezone(UTC).isoformat()
+                        (datetime.fromisoformat(previous_modified) + timedelta(microseconds=1))
+                        .astimezone(UTC)
+                        .isoformat()
+                    )
             previous = db.execute(
                 """SELECT sku_id, posting_date FROM erpnext_sales_invoice_items
                    WHERE tenant_id=? AND warehouse_id=? AND invoice_id=?""",
