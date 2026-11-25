@@ -43,10 +43,13 @@ def test_register_is_idempotent_but_model_versions_are_immutable(tmp_path) -> No
 
     with pytest.raises(ValueError, match="different content or evidence"):
         registry.register_artifact(
-            "demand-model", "v1", b"different-model-bytes",
+            "demand-model",
+            "v1",
+            b"different-model-bytes",
             evaluation_report=b"out-of-sample-report:v1",
             media_type="application/vnd.example.model",
-            validation_mae=1.25, validation_sample_count=120,
+            validation_mae=1.25,
+            validation_sample_count=120,
             metadata={"dataset_fingerprint": "sha256:dataset", "seed": 7},
         )
 
@@ -66,13 +69,18 @@ def test_register_is_idempotent_but_model_versions_are_immutable(tmp_path) -> No
 def test_registration_rejects_invalid_artifact_evidence(tmp_path, kwargs, message) -> None:
     registry = ModelArtifactRegistry(tmp_path / "registry.sqlite", tmp_path / "artifacts")
     values = {
-        "payload": b"model", "evaluation_report": b"report",
-        "validation_mae": 1.0, "validation_sample_count": 10, "metadata": {},
+        "payload": b"model",
+        "evaluation_report": b"report",
+        "validation_mae": 1.0,
+        "validation_sample_count": 10,
+        "metadata": {},
     }
     values.update(kwargs)
     with pytest.raises(ValueError, match=message):
         registry.register_artifact(
-            "model", "v1", values["payload"],
+            "model",
+            "v1",
+            values["payload"],
             evaluation_report=values["evaluation_report"],
             media_type="application/octet-stream",
             validation_mae=values["validation_mae"],
@@ -106,7 +114,9 @@ def test_activation_requires_expected_version_and_supports_rollback(tmp_path) ->
     restarted = ModelArtifactRegistry(database, artifact_root)
     assert restarted.get_active("demand-model").model_version == "v1"
     assert [event.action for event in restarted.activation_history("demand-model")] == [
-        "activate", "activate", "rollback",
+        "activate",
+        "activate",
+        "rollback",
     ]
 
 
