@@ -9,6 +9,137 @@ a local installation or a single-host service with durable storage. It is not
 a distributed database, multi-host lock service, or high-availability SaaS
 control plane.
 
+## Supported single-host Docker Compose deployment
+
+The supported alpha deployment runs one API process and one worker process on
+one host, sharing one durable state directory. It is not a multi-host or HA
+profile. The worker is configured for one tenant; use a separate worker
+service instance per tenant rather than a multi-tenant worker process.
+
+Prepare the host:
+
+```bash
+cp .env.example .env
+mkdir -p state backups
+sudo chown -R 10001:10001 state
+```
+
+Generate a random bearer token and its SHA-256 digest. Keep the raw token in
+your password manager/client secret store and place only the digest in .env:
+
+```bash
+TOKEN="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+printf 'Client bearer token: %s\\n' "$TOKEN"
+TOKEN="$TOKEN" python -c 'import hashlib, os; print("SHA-256:", hashlib.sha256(os.environ["TOKEN"].encode()).hexdigest())'
+```
+
+Replace the all-zero digest in .env with the generated digest, then validate
+and start the services:
+
+```bash
+docker compose config
+docker compose up --build -d
+docker compose ps
+curl --fail http://127.0.0.1:8000/health/ready
+```
+
+The API port is published on loopback only. Put a separately managed TLS
+reverse proxy in front of it; do not expose the unauthenticated health probes
+as a public status page unless that is intentional. Containers run as UID
+10001 with read-only root filesystems, dropped Linux capabilities, and only
+the state directory writable. Keep state/ on a local filesystem with reliable
+POSIX locking. NFS, SMB, object-store mounts, and multi-host shared SQLite are
+unsupported. The worker process is responsible for one tenant; do not scale
+the worker service horizontally against the same SQLite file.
+
+Useful operator commands:
+
+```bash
+docker compose ps
+docker compose logs --tail=200 api worker
+docker compose restart worker
+docker compose stop api worker
+docker compose start api worker
+```
+
+API readiness does not prove worker liveness or scheduled-job throughput.
+Check the worker container state and logs separately. Worker restart recovery
+uses expiring scheduler leases; do not manually clear lease tokens.
+
+## Encrypted off-host backup and restore
+
+The backup scripts use Restic, which encrypts repository contents before
+upload. Configure a Restic repository and password file outside the repository
+(for example, in /etc/demand-forecast-kit/restic.env and a root-readable
+password file with mode 0600). For an S3-compatible repository, also provide
+the provider credentials through the host's protected environment. Initialize
+the repository once:
+
+```bash
+export RESTIC_REPOSITORY='your-restic-repository'
+export RESTIC_PASSWORD_FILE='/etc/demand-forecast-kit/restic-password'
+restic init
+```
+
+Run a backup manually:
+
+```bash
+sudo env RESTIC_REPOSITORY="$RESTIC_REPOSITORY" \
+  RESTIC_PASSWORD_FILE="$RESTIC_PASSWORD_FILE" \
+  ./scripts/backup-restic.sh
+```
+
+The script requires both Compose services to be running, stops them so every
+SQLite database and artifact file is captured consistently, archives the
+complete state/ directory, uploads the archive to Restic, applies retention
+(7 daily, 5 weekly, 12 monthly snapshots), and restarts the services even if
+the backup fails. This creates a short maintenance interruption. Never back up
+only operations.sqlite: run registry, model/policy registries, and immutable
+artifact files are also part of the state.
+
+For daily scheduling, install the supplied systemd service and timer. Configure
+the Restic environment file first with RESTIC_REPOSITORY, RESTIC_PASSWORD_FILE,
+and any provider-specific credentials. The unit assumes the repository is
+installed at /opt/demand-forecast-kit; edit WorkingDirectory and ExecStart if
+it lives elsewhere, then:
+
+```bash
+sudo install -m 0644 deploy/systemd/demand-forecast-backup.service /etc/systemd/system/
+sudo install -m 0644 deploy/systemd/demand-forecast-backup.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now demand-forecast-backup.timer
+systemctl list-timers demand-forecast-backup.timer
+```
+
+A restore is destructive and must be performed in a maintenance window. Stop
+both services, then run the restore script with its explicit confirmation
+argument:
+
+```bash
+docker compose stop api worker
+sudo env RESTIC_REPOSITORY="$RESTIC_REPOSITORY" \
+  RESTIC_PASSWORD_FILE="$RESTIC_PASSWORD_FILE" \
+  ./scripts/restore-restic.sh --confirm
+```
+
+The restore script preserves the previous state directory, verifies every
+restored SQLite database with integrity and foreign-key checks, and leaves
+services stopped. Start the services only after verification:
+
+```bash
+docker compose start api worker
+curl --fail http://127.0.0.1:8000/health/ready
+docker compose ps
+docker compose logs --tail=100 worker
+```
+
+A successful Restic upload and SQLite integrity check are not by themselves a
+completed disaster-recovery drill. Record the snapshot ID, recovery start/end
+times, restored database checks, API/worker smoke-check results, and any data
+loss window during a scheduled restore exercise. Keep the previous state
+directory until application smoke checks pass. Multi-host failover remains
+out of scope.
+
 ## Health and readiness probes
 
 Use `/health` or `/health/live` for process liveness. These endpoints return

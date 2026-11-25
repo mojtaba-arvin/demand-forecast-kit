@@ -1,0 +1,55 @@
+services:
+  api:
+    build:
+      context: .
+    init: true
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777,size=64m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      DEMAND_FORECAST_ENV: production
+      DEMAND_FORECAST_STATE_DIR: /var/lib/demand-forecast-kit
+      DEMAND_FORECAST_API_KEYS: ${DEMAND_FORECAST_API_KEYS:?set DEMAND_FORECAST_API_KEYS in .env}
+    volumes:
+      - ./state:/var/lib/demand-forecast-kit
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3)"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  worker:
+    build:
+      context: .
+    command:
+      - demand-forecast-worker
+      - --tenant-id
+      - ${DEMAND_FORECAST_TENANT_ID:?set DEMAND_FORECAST_TENANT_ID in .env}
+      - --poll-seconds
+      - "15"
+    init: true
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777,size=64m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    environment:
+      DEMAND_FORECAST_ENV: production
+      DEMAND_FORECAST_STATE_DIR: /var/lib/demand-forecast-kit
+    volumes:
+      - ./state:/var/lib/demand-forecast-kit
