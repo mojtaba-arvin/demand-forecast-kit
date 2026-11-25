@@ -162,3 +162,23 @@ def test_restore_failure_restores_sidecars_and_preserves_database(
     assert value == "current"
     for suffix, content in sidecars.items():
         assert Path(f"{database}{suffix}").read_bytes() == content
+
+
+def test_backup_does_not_overwrite_destination_created_during_publish(
+    monkeypatch, tmp_path
+) -> None:
+    database = tmp_path / "operations.sqlite"
+    backup = tmp_path / "backup.sqlite"
+    _create_database(database)
+    original_link = db_admin.os.link
+
+    def create_destination_then_link(source, destination) -> None:
+        Path(destination).write_text("created by concurrent process")
+        original_link(source, destination)
+
+    monkeypatch.setattr(db_admin.os, "link", create_destination_then_link)
+
+    with pytest.raises(FileExistsError):
+        backup_database(database, backup)
+
+    assert backup.read_text() == "created by concurrent process"
