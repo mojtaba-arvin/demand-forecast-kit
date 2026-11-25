@@ -205,3 +205,68 @@ def test_worker_automatically_routes_to_best_registered_model(tmp_path) -> None:
     forecast = report["completed"][0]["result"]["forecast"]
     assert forecast["model_id"] == "candidate-model"
     assert forecast["model_selection"]["used_fallback"] is False
+
+
+def test_worker_routes_to_exact_selected_model_version_when_multiple_are_registered(
+    tmp_path,
+) -> None:
+    from demand_forecast_kit.contracts import QuantileForecast
+
+    class VersionedAdapter:
+        model_id = "shared-model"
+
+        def __init__(self, model_version: str, value: float) -> None:
+            self.model_version = model_version
+            self.value = value
+
+        def predict(
+            self, series_id, history, *, horizon, quantile_levels, seed
+        ) -> QuantileForecast:
+            values = tuple(self.value for _ in range(horizon))
+            return QuantileForecast(
+                series_id=series_id,
+                quantiles={float(level): values for level in quantile_levels},
+            )
+
+    service = RunService(tmp_path / "state")
+    store = OperationalStore(service.state_dir / "operations.sqlite")
+    store.create_warehouse("tenant-a", "WH-1", "Main", "main")
+    start = datetime(2026, 4, 1, tzinfo=UTC)
+    for index in range(21):
+        store.record_demand(
+            "tenant-a",
+            "WH-1",
+            "SKU-1",
+            float(index % 7),
+            observed_at=start + timedelta(days=index),
+        )
+    for index in range(5):
+        for version, predicted in (("v1", 10.0), ("v2", 15.0)):
+            store.record_outcome(
+                "tenant-a",
+                warehouse_id="WH-1",
+                sku_id="SKU-1",
+                model_id="shared-model",
+                model_version=version,
+                forecast_origin=start + timedelta(days=index),
+                target_at=start + timedelta(days=index + 1),
+                predicted=predicted,
+                actual=10.0,
+            )
+    store.create_schedule(
+        "tenant-a",
+        job_type="forecast_refresh",
+        payload={"warehouse_id": "WH-1", "sku_id": "SKU-1", "horizon": 2},
+        interval_seconds=300,
+        first_run_at=datetime.now(UTC) - timedelta(seconds=1),
+    )
+    worker = OperationalWorker(service, store)
+    worker.register_adapter(VersionedAdapter("v1", 1.0))
+    worker.register_adapter(VersionedAdapter("v2", 2.0))
+
+    report = worker.run_once("tenant-a")
+
+    forecast = report["completed"][0]["result"]["forecast"]
+    assert forecast["model_id"] == "shared-model"
+    assert forecast["model_version"] == "v1"
+    assert forecast["quantiles"]["0.5"] == [1.0, 1.0]

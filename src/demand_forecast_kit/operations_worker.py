@@ -36,11 +36,13 @@ class OperationalWorker:
         self.retraining_stale_after_seconds = retraining_stale_after_seconds
         fallback = SeasonalNaiveAdapter()
         self.fallback_adapter = fallback
-        self.adapters: dict[str, ForecastAdapter] = {fallback.model_id: fallback}
+        self.adapters: dict[tuple[str, str], ForecastAdapter] = {
+            (fallback.model_id, fallback.model_version): fallback
+        }
 
     def register_adapter(self, adapter: ForecastAdapter) -> None:
         """Register an available adapter for automatic SKU-level model routing."""
-        self.adapters[adapter.model_id] = adapter
+        self.adapters[(adapter.model_id, adapter.model_version)] = adapter
 
     def register_trainer(self, model_id: str, trainer: Any) -> None:
         """Register the model-specific trainer used for queued automatic retraining."""
@@ -127,7 +129,7 @@ class OperationalWorker:
         adapter = (
             None
             if selection["used_fallback"] or selected["model_id"] == fallback.model_id
-            else self.adapters.get(str(selected["model_id"]))
+            else self.adapters.get((str(selected["model_id"]), str(selected["model_version"])))
         )
         if adapter is None or (
             selected["model_version"] is not None
