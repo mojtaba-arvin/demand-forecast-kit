@@ -132,7 +132,7 @@ class ReplenishmentPolicyRegistry:
             "description",
             "metadata",
         }
-        if not isinstance(definition, dict) or set(definition) - allowed:
+        if set(definition) - allowed:
             raise ValueError("policy definition must be an object with supported fields")
         if definition.get("policy_type") != "newsvendor":
             raise ValueError("policy_type must be 'newsvendor'")
