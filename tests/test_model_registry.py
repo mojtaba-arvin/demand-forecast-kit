@@ -58,6 +58,7 @@ def test_register_is_idempotent_but_model_versions_are_immutable(tmp_path) -> No
         ({"evaluation_report": b""}, "evaluation_report"),
         ({"validation_mae": float("nan")}, "validation_mae"),
         ({"validation_mae": -1.0}, "validation_mae"),
+        ({"validation_mae": True}, "validation_mae"),
         ({"validation_sample_count": 0}, "validation_sample_count"),
         ({"metadata": {"invalid": float("inf")}}, "finite JSON"),
     ],
