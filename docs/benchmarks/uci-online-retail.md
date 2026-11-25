@@ -336,3 +336,29 @@ remain identical across SKUs in the same cohort/model/lead-time slice. The
 per-SKU sample is only three holdout origins, so these metrics expose
 heterogeneity but are not reliable standalone estimates of SKU-level service
 levels or statistical significance. No adjustment is enabled by default.
+
+
+
+## Latest mainline rerun (2026-11-25)
+
+The post-PR #67 mainline run evaluated 20 model/cohort/lead-time slices across
+three cohorts (10 SKUs per cohort), with a mean of 16 rolling origins per
+series. LightGBM remains dense-only; Croston SBA, Seasonal Naive, and TSB cover
+all three cohorts.
+
+| Cohort | Slices | Mean P80 coverage | Observed range |
+|---|---:|---:|---:|
+| Dense | 8 | 60.23% | 46.88%–68.75% |
+| Intermittent | 6 | 59.17% | 54.38%–66.88% |
+| Very intermittent | 6 | 76.56% | 72.50%–81.88% |
+| All slices | 20 | 64.81% | 46.88%–81.88% |
+
+The nominal P80 target is 80%. Dense and intermittent cohorts remain materially
+under-covered, and most very-intermittent slices also fall below target. This
+successful workflow proves the benchmark pipeline runs; it does not establish
+calibrated inventory protection. Keep global calibration corrections disabled
+and do not use these intervals as service-level guarantees.
+
+- [Mainline benchmark workflow](https://github.com/mojtaba-arvin/demand-forecast-kit/actions/runs/45584074996)
+- [Downloadable benchmark artifact](https://github.com/mojtaba-arvin/demand-forecast-kit/actions/runs/45584074996/artifacts/15007033575)
+
