@@ -1,4 +1,4 @@
-""""Probabilistic demand forecasting and inventory decision primitives."""
+"""Probabilistic demand forecasting and inventory decision primitives."""
 
 from demand_forecast_kit.backtesting import (
     ArtifactMetadata,
@@ -98,4 +98,3 @@ __all__ = [
     "write_evaluation_artifact",
     "write_routing_artifact",
 ]
-"
