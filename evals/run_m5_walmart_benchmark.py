@@ -61,8 +61,7 @@ def _summarize_calibration(
                 "model_id": model_id,
                 "lead_time": lead_time,
                 "series_count": len(items),
-                "mean_origin_count": sum(int(item["origin_count"]) for item in items)
-                / len(items),
+                "mean_origin_count": sum(int(item["origin_count"]) for item in items) / len(items),
                 "macro_p80_interval_coverage": sum(p80) / len(p80),
                 "min_series_p80_coverage": min(p80),
                 "max_series_p80_coverage": max(p80),
@@ -251,8 +250,7 @@ def run_m5_walmart_benchmark(
                             continue
 
                         history = cohort_full.filter(
-                            (pl.col("series_id") == series_id)
-                            & (pl.col("timestamp") < origin)
+                            (pl.col("series_id") == series_id) & (pl.col("timestamp") < origin)
                         ).sort("timestamp")
                         history_values = [
                             float(value) for value in history.get_column("demand").to_list()
@@ -264,9 +262,7 @@ def run_m5_walmart_benchmark(
                             quantile_levels=QUANTILE_LEVELS,
                             seed=SEED,
                         )
-                        baseline_median = tuple(
-                            float(value) for value in forecast.quantiles[0.5]
-                        )
+                        baseline_median = tuple(float(value) for value in forecast.quantiles[0.5])
                         try:
                             distribution = calibrate_lead_time_demand(
                                 report,

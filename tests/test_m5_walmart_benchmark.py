@@ -14,12 +14,8 @@ def _write_m5_fixture(directory: Path, *, day_count: int = 360) -> tuple[Path, P
     rows: list[dict[str, object]] = []
 
     dense = [1 if index < 90 else 0 for index in range(180)] + [2] * (day_count - 180)
-    intermittent = [
-        1 if index % 10 == 0 else 0 for index in range(180)
-    ] + [1] * (day_count - 180)
-    very_intermittent = [1 if index < 8 else 0 for index in range(180)] + [
-        0
-    ] * (day_count - 180)
+    intermittent = [1 if index % 10 == 0 else 0 for index in range(180)] + [1] * (day_count - 180)
+    very_intermittent = [1 if index < 8 else 0 for index in range(180)] + [0] * (day_count - 180)
     for item_id, store_id, values in (
         ("ITEM_DENSE", "CA_1", dense),
         ("ITEM_INTERMITTENT", "TX_1", intermittent),
