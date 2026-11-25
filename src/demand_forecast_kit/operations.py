@@ -1001,12 +1001,18 @@ class OperationalStore:
                    WHERE tenant_id=? AND warehouse_id=? AND invoice_id=?""",
                 (tenant, warehouse_id, invoice_id),
             ).fetchone()
+            inactive = docstatus == 2 or not quantities
+            effective_modified = modified
             if previous_state is not None:
                 previous_modified = str(previous_state["modified_at"])
                 if modified < previous_modified or (
                     bool(previous_state["source_deleted"]) and modified <= previous_modified
                 ):
                     return set()
+                if inactive and modified == previous_modified:
+                    effective_modified = (
+                        datetime.fromisoformat(previous_modified) + timedelta(microseconds=1)
+                    ).astimezone(UTC).isoformat()
             previous = db.execute(
                 """SELECT sku_id, posting_date FROM erpnext_sales_invoice_items
                    WHERE tenant_id=? AND warehouse_id=? AND invoice_id=?""",
@@ -1023,7 +1029,7 @@ class OperationalStore:
                     """INSERT INTO erpnext_sales_invoice_items
                        (tenant_id, warehouse_id, invoice_id, sku_id, posting_date,
                         quantity, modified_at) VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                    (tenant, warehouse_id, invoice_id, sku, day, quantity, modified),
+                    (tenant, warehouse_id, invoice_id, sku, day, quantity, effective_modified),
                 )
                 affected.add((sku, day))
 
@@ -1059,12 +1065,20 @@ class OperationalStore:
                 """INSERT INTO erpnext_sales_invoice_state
                    (tenant_id, warehouse_id, invoice_id, posting_date, docstatus,
                     modified_at, source_deleted)
-                   VALUES (?, ?, ?, ?, ?, ?, 0)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)
                    ON CONFLICT(tenant_id, warehouse_id, invoice_id)
                    DO UPDATE SET posting_date=excluded.posting_date,
                      docstatus=excluded.docstatus, modified_at=excluded.modified_at,
-                     source_deleted=0""",
-                (tenant, warehouse_id, invoice_id, day, docstatus, modified),
+                     source_deleted=excluded.source_deleted""",
+                (
+                    tenant,
+                    warehouse_id,
+                    invoice_id,
+                    day,
+                    docstatus,
+                    effective_modified,
+                    int(inactive),
+                ),
             )
         return {sku for sku, _day in affected}
 
