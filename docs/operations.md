@@ -174,11 +174,11 @@ two-pass match is a practical consistency check rather than a source lock.
 
 After a verified snapshot:
 - Missing invoice IDs have their per-invoice demand contributions removed,
-  affected SKU/day totals recomputed, and a deletion tombstone recorded. Stale
-  incremental events cannot resurrect those contributions.
+  affected SKU/day totals recomputed, and a source-time tombstone is recorded just beyond the last observed Modified
+  timestamp. Stale incremental events cannot resurrect those contributions.
 - Missing imported purchase orders are cancelled, removing their remaining
   confirmed inbound quantity and fencing stale updates.
-- Missing Bin records receive zero-quantity snapshots only when the latest
+- Missing Bin records receive zero-quantity deletion snapshots only when the latest
   local inventory source is still `erpnext:Bin`. A newer manual inventory
   snapshot is preserved. Incremental and full imports also leave a latest
   manual/other-source inventory snapshot untouched rather than silently
