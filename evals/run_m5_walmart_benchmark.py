@@ -7,7 +7,7 @@ import json
 from collections import defaultdict
 from collections.abc import Mapping
 from dataclasses import asdict
-from datetime import date, timedelta
+from datetime import timedelta
 from pathlib import Path
 from typing import Any, cast
 
@@ -395,7 +395,8 @@ def run_m5_walmart_benchmark(
             },
             "limitations": [
                 "M5 provides sales demand, not on-hand inventory, purchase orders, or receipts.",
-                "Cost and inventory-position inputs are sensitivity assumptions, not retailer facts.",
+                "Cost and inventory-position inputs are sensitivity assumptions, "
+                "not retailer facts.",
                 "This is a demand-only policy simulation, not a production replenishment backtest.",
             ],
         },
