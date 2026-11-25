@@ -203,6 +203,47 @@ such as HTTP 400/401 are not retried. Configure `max_retries`,
 `retry_backoff_seconds`, and `sync_overlap_seconds` on `ERPNextClient`
 when embedding the connector.
 
+## SQLite backup and restore
+
+SQLite is a single-host operational store. Back it up with the online backup API;
+do not copy only the main database file while the API or worker is writing, because
+committed data may still reside in the WAL.
+
+Create and verify an atomic backup:
+
+```bash
+demand-forecast-db backup \
+  ./state/operations.sqlite \
+  ./backups/operations-$(date -u +%Y%m%dT%H%M%SZ).sqlite
+
+demand-forecast-db verify ./backups/operations-YYYYMMDDTHHMMSSZ.sqlite
+```
+
+The command reports a SHA-256 digest, SQLite integrity result, and foreign-key
+check. Store backups encrypted, off-host, and under a documented retention
+policy. A backup on the same host is not disaster recovery.
+
+Restore only in a maintenance window after stopping every API and worker process
+that can open the target database:
+
+```bash
+demand-forecast-db verify ./backups/operations-YYYYMMDDTHHMMSSZ.sqlite
+
+demand-forecast-db restore \
+  ./backups/operations-YYYYMMDDTHHMMSSZ.sqlite \
+  ./state/operations.sqlite \
+  --confirm-services-stopped
+
+demand-forecast-db verify ./state/operations.sqlite
+```
+
+Restore verifies the backup, stages a temporary database, checks its integrity
+and foreign keys, then atomically replaces the target and removes stale WAL/SHM/journal
+sidecars. The explicit confirmation is required because replacing an open SQLite
+database is unsafe. Keep the old database and backup until the restored API/worker
+pass a smoke check. This tool does not schedule backups or upload them to remote
+storage; configure those controls in the deployment environment.
+
 ## Scheduled work
 
 Create schedules with `POST /v1/ops/schedules`. Supported types:
