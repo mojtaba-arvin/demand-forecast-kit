@@ -348,13 +348,20 @@ class OperationalStore:
             if exists is None:
                 raise KeyError("warehouse not found")
             latest = db.execute(
-                """SELECT source FROM inventory_snapshots
+                """SELECT source, as_of FROM inventory_snapshots
                    WHERE tenant_id=? AND warehouse_id=? AND sku_id=?
                    ORDER BY as_of DESC LIMIT 1""",
                 (tenant, warehouse_id, sku_id.strip()),
             ).fetchone()
-            if latest is not None and str(latest["source"]) != "erpnext:Bin":
-                return False
+            if latest is not None:
+                latest_source = str(latest["source"])
+                latest_as_of = str(latest["as_of"])
+                if latest_source not in {"erpnext:Bin", "erpnext:Bin:deleted"}:
+                    return False
+                if timestamp < latest_as_of or (
+                    latest_source == "erpnext:Bin:deleted" and timestamp <= latest_as_of
+                ):
+                    return False
             db.execute(
                 """INSERT INTO inventory_snapshots
                    (tenant_id, warehouse_id, sku_id, quantity, reserved, backorders, as_of, source)
@@ -543,7 +550,13 @@ class OperationalStore:
                 if (
                     source_modified is not None
                     and current_source_modified is not None
-                    and source_modified < str(current_source_modified)
+                    and (
+                        source_modified < str(current_source_modified)
+                        or (
+                            str(existing["status"]) == "cancelled"
+                            and source_modified <= str(current_source_modified)
+                        )
+                    )
                 ):
                     return self.get_purchase_order(tenant, order_id)
                 db.execute(
@@ -665,8 +678,6 @@ class OperationalStore:
         tenant_id: str,
         warehouse_id: str,
         present_invoice_ids: set[str],
-        *,
-        reconciled_at: datetime | str,
     ) -> set[str]:
         """Remove invoice contributions absent from a verified full ERPNext snapshot.
 
@@ -676,7 +687,6 @@ class OperationalStore:
         tenant = self._tenant(tenant_id)
         if not warehouse_id.strip() or any(not item.strip() for item in present_invoice_ids):
             raise ValueError("warehouse_id and invoice identifiers must not be blank")
-        snapshot_time = _iso(reconciled_at)
         affected: set[tuple[str, str]] = set()
         with self._connect() as db:
             exists = db.execute(
@@ -713,10 +723,7 @@ class OperationalStore:
             tombstones: dict[str, str] = {}
             for row in missing:
                 previous_modified = datetime.fromisoformat(str(row["modified_at"]))
-                deletion_time = max(
-                    datetime.fromisoformat(snapshot_time),
-                    previous_modified + timedelta(microseconds=1),
-                ).astimezone(UTC).isoformat()
+                deletion_time = (previous_modified + timedelta(microseconds=1)).astimezone(UTC).isoformat()
                 tombstones[str(row["invoice_id"])] = deletion_time
             for sku, observed_day in affected:
                 total_row = db.execute(
@@ -761,14 +768,11 @@ class OperationalStore:
         tenant_id: str,
         warehouse_id: str,
         present_order_ids: set[str],
-        *,
-        reconciled_at: datetime | str,
     ) -> int:
         """Cancel ERPNext purchase orders absent from a verified full snapshot."""
         tenant = self._tenant(tenant_id)
         if not warehouse_id.strip() or any(not item.strip() for item in present_order_ids):
             raise ValueError("warehouse_id and order identifiers must not be blank")
-        snapshot_time = datetime.fromisoformat(_iso(reconciled_at))
         now = _now().isoformat()
         cancelled = 0
         with self._connect() as db:
@@ -789,9 +793,7 @@ class OperationalStore:
                 if order_id in present_order_ids:
                     continue
                 previous_modified = datetime.fromisoformat(str(row["source_modified_at"]))
-                deletion_time = max(
-                    snapshot_time, previous_modified + timedelta(microseconds=1)
-                ).astimezone(UTC).isoformat()
+                deletion_time = (previous_modified + timedelta(microseconds=1)).astimezone(UTC).isoformat()
                 db.execute(
                     """UPDATE purchase_orders
                        SET status='cancelled', updated_at=?, source_modified_at=?
@@ -806,14 +808,11 @@ class OperationalStore:
         tenant_id: str,
         warehouse_id: str,
         present_skus: set[str],
-        *,
-        reconciled_at: datetime | str,
     ) -> int:
-        """Write zero-quantity snapshots for deleted ERPNext Bins without overriding manual stock."""
+        """Write zero-quantity tombstones for deleted ERPNext Bins without overriding manual stock."""
         tenant = self._tenant(tenant_id)
         if not warehouse_id.strip() or any(not item.strip() for item in present_skus):
             raise ValueError("warehouse_id and SKU identifiers must not be blank")
-        snapshot_time = datetime.fromisoformat(_iso(reconciled_at))
         reconciled = 0
         with self._connect() as db:
             exists = db.execute(
@@ -840,15 +839,13 @@ class OperationalStore:
                 if latest is None or str(latest["source"]) != "erpnext:Bin":
                     continue
                 previous_time = datetime.fromisoformat(str(latest["as_of"]))
-                deletion_time = max(
-                    snapshot_time, previous_time + timedelta(microseconds=1)
-                ).astimezone(UTC).isoformat()
+                deletion_time = (previous_time + timedelta(microseconds=1)).astimezone(UTC).isoformat()
                 db.execute(
                     """INSERT INTO inventory_snapshots
                        (tenant_id, warehouse_id, sku_id, quantity, reserved, backorders, as_of, source)
-                       VALUES (?, ?, ?, 0, 0, 0, ?, 'erpnext:Bin')
+                       VALUES (?, ?, ?, 0, 0, 0, ?, 'erpnext:Bin:deleted')
                        ON CONFLICT(tenant_id, warehouse_id, sku_id, as_of)
-                       DO UPDATE SET quantity=0, reserved=0, backorders=0, source='erpnext:Bin'""",
+                       DO UPDATE SET quantity=0, reserved=0, backorders=0, source='erpnext:Bin:deleted'""",
                     (tenant, warehouse_id, sku, deletion_time),
                 )
                 reconciled += 1
