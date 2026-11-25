@@ -117,20 +117,35 @@ DEMAND_FORECAST_ERPNEXT_API_SECRET=...
 
 Create the matching local warehouse, then call
 `POST /v1/ops/erpnext/sync/{warehouse_id}` with an `ops:admin` key. The
-connector reads ERPNext Warehouse/Bin, submitted Sales Invoice/Sales Invoice
-Item, and Purchase Order/Purchase Order Item records. It imports stock,
-reservations, daily SKU demand (including zero-demand days within the observed
-period), and open/partially received purchase orders.
+connector reads ERPNext Warehouse/Bin, Sales Invoice/Sales Invoice Item, and
+Purchase Order/Purchase Order Item records. It imports stock and reservations,
+daily SKU demand (including zero-demand days between invoice dates), and open
+or partially received purchase orders.
+
+Operational sync uses independent tenant/warehouse watermarks for Bin, Sales
+Invoice, and Purchase Order. Each query replays a bounded five-minute overlap
+by default, and writes are idempotent. Watermarks advance only after the
+corresponding resource batch has been applied successfully. Edited invoices
+replace their prior per-invoice contribution; cancelled invoices remove that
+contribution and recompute affected SKU/day totals. Cancelled purchase orders
+are removed from confirmed inbound inventory. Source-modified timestamps fence
+out stale invoice and purchase-order updates that arrive after newer changes.
+
+Demand rows already owned by another source are not silently overwritten. A
+source conflict fails the invoice batch and leaves its watermark unchanged so
+an operator can reconcile the source-of-truth conflict. Incremental sync
+detects ERPNext cancellations and edits, but cannot detect hard-deleted source
+documents that no longer appear in modified-time queries; run an explicit full
+reconciliation after source-system hard deletes.
+
 The connector is read-only: it does not create purchase orders, alter stock
 ledgers, or submit ERPNext documents. It uses the Frappe token header and does
-not log credentials. Warehouse, Bin, invoice, and purchase-order resources are
-paginated with stable ordering. Operational sync uses independent tenant /
-warehouse watermarks for Bin, Sales Invoice, and Purchase Order, with a bounded
-five-minute overlap by default. Replayed changes are idempotent. Transient connection failures, HTTP 429,
-and selected 5xx responses are retried with bounded exponential backoff; a
-numeric `Retry-After` header is honored. Client errors such as HTTP 400/401 are
-not retried. Configure `max_retries` and `retry_backoff_seconds` on
-`ERPNextClient` when embedding the connector.
+not log credentials. Resource pages use stable ordering. Transient connection
+failures, HTTP 429, and selected 5xx responses are retried with bounded
+exponential backoff; a numeric `Retry-After` header is honored. Client errors
+such as HTTP 400/401 are not retried. Configure `max_retries`,
+`retry_backoff_seconds`, and `sync_overlap_seconds` on `ERPNextClient`
+when embedding the connector.
 
 ## Scheduled work
 

@@ -364,8 +364,8 @@ class ERPNextClient:
         for header in headers:
             if not header.get("name") or not header.get("modified"):
                 raise RuntimeError("ERPNext purchase order is missing name or modified")
-            if int(header.get("docstatus", 0)) == 1 and not header.get("supplier"):
-                raise RuntimeError("ERPNext submitted purchase order is missing supplier")
+            if not header.get("supplier"):
+                raise RuntimeError("ERPNext purchase order is missing supplier")
         submitted = [
             str(header["name"]) for header in headers if int(header.get("docstatus", 0)) == 1
         ]
@@ -602,7 +602,14 @@ class ERPNextClient:
         for order in purchase_orders:
             order_id = f"erpnext:{order['order_id']}"
             if order["docstatus"] == 2 or not order["lines"]:
-                store.cancel_purchase_order(tenant_id, order_id)
+                store.cancel_purchase_order(
+                    tenant_id,
+                    order_id,
+                    supplier_id=order["supplier_id"],
+                    warehouse_id=warehouse_id,
+                    expected_at=order["expected_at"],
+                    source_modified_at=order["modified"],
+                )
             else:
                 store.sync_purchase_order(
                     tenant_id,
@@ -611,6 +618,7 @@ class ERPNextClient:
                     warehouse_id=warehouse_id,
                     expected_at=order["expected_at"],
                     lines=order["lines"],
+                    source_modified_at=order["modified"],
                 )
             imported_orders += 1
         latest_order = self._latest_modified(purchase_orders)
