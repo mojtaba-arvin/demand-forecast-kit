@@ -31,7 +31,7 @@ model artifact exists.
 ## Consequences
 
 The registry can recover model bytes, evidence, active version, and history
-after process restart on one host. File writes may leave unreferenced blobs if
+after process restart on one host. The worker integration remains opt-in and\nrequires deployment code to construct the registry and register each reviewed\nmedia-type loader; the CLI does not dynamically import plugins. File writes may leave unreferenced blobs if
 a later database operation fails; such blobs are safe and can be garbage
 collected by a future explicit maintenance tool. This does not provide
 distributed serving, multi-host activation, automatic canary rollout, or

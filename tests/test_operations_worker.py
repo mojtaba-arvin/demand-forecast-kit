@@ -270,3 +270,128 @@ def test_worker_routes_to_exact_selected_model_version_when_multiple_are_registe
     assert forecast["model_id"] == "shared-model"
     assert forecast["model_version"] == "v1"
     assert forecast["quantiles"]["0.5"] == [1.0, 1.0]
+
+
+def test_worker_loads_only_explicitly_activated_model_artifact(tmp_path) -> None:
+    from demand_forecast_kit.contracts import QuantileForecast
+    from demand_forecast_kit.model_registry import ModelArtifactRegistry
+
+    class LoadedAdapter:
+        model_id = "artifact-model"
+        model_version = "v1"
+
+        def predict(
+            self, series_id, history, *, horizon, quantile_levels, seed
+        ) -> QuantileForecast:
+            values = tuple(42.0 for _ in range(horizon))
+            return QuantileForecast(
+                series_id=series_id,
+                quantiles={float(level): values for level in quantile_levels},
+            )
+
+    service = RunService(tmp_path / "state")
+    store = OperationalStore(service.state_dir / "operations.sqlite")
+    store.create_warehouse("tenant-a", "WH-1", "Main", "main")
+    start = datetime(2026, 5, 1, tzinfo=UTC)
+    for index in range(21):
+        store.record_demand(
+            "tenant-a", "WH-1", "SKU-1", float(index % 7),
+            observed_at=start + timedelta(days=index),
+        )
+    for index in range(5):
+        store.record_outcome(
+            "tenant-a", warehouse_id="WH-1", sku_id="SKU-1",
+            model_id="artifact-model", model_version="v1",
+            forecast_origin=start + timedelta(days=index),
+            target_at=start + timedelta(days=index + 1), predicted=10.5, actual=10.0,
+        )
+    store.create_schedule(
+        "tenant-a", job_type="forecast_refresh",
+        payload={"warehouse_id": "WH-1", "sku_id": "SKU-1", "horizon": 2},
+        interval_seconds=300, first_run_at=datetime.now(UTC) - timedelta(seconds=1),
+    )
+    artifacts = ModelArtifactRegistry(
+        service.state_dir / "models.sqlite", service.state_dir / "model-artifacts"
+    )
+    artifacts.register_artifact(
+        "artifact-model", "v1", b"reviewed-model-bytes",
+        evaluation_report=b'{"wql":0.1}', media_type="application/vnd.test.forecast",
+        validation_mae=0.5, validation_sample_count=100,
+    )
+    artifacts.activate("artifact-model", "v1", expected_active_version=None)
+    worker = OperationalWorker(service, store, model_artifact_registry=artifacts)
+    loads: list[bytes] = []
+
+    def loader(payload, record):
+        assert record.model_id == "artifact-model"
+        loads.append(payload)
+        return LoadedAdapter()
+
+    worker.register_artifact_loader("application/vnd.test.forecast", loader)
+    report = worker.run_once("tenant-a")
+
+    forecast = report["completed"][0]["result"]["forecast"]
+    assert report["failed"] == []
+    assert forecast["model_id"] == "artifact-model"
+    assert forecast["model_version"] == "v1"
+    assert forecast["quantiles"]["0.5"] == [42.0, 42.0]
+    assert forecast["model_selection"]["active_artifact_version"] == "v1"
+    assert loads == [b"reviewed-model-bytes"]
+
+
+def test_worker_falls_back_when_selected_artifact_is_not_active(tmp_path) -> None:
+    from demand_forecast_kit.contracts import QuantileForecast
+    from demand_forecast_kit.model_registry import ModelArtifactRegistry
+
+    class CandidateAdapter:
+        model_id = "inactive-model"
+        model_version = "v1"
+
+        def predict(
+            self, series_id, history, *, horizon, quantile_levels, seed
+        ) -> QuantileForecast:
+            values = tuple(99.0 for _ in range(horizon))
+            return QuantileForecast(
+                series_id=series_id,
+                quantiles={float(level): values for level in quantile_levels},
+            )
+
+    service = RunService(tmp_path / "state")
+    store = OperationalStore(service.state_dir / "operations.sqlite")
+    store.create_warehouse("tenant-a", "WH-1", "Main", "main")
+    start = datetime(2026, 6, 1, tzinfo=UTC)
+    for index in range(21):
+        store.record_demand(
+            "tenant-a", "WH-1", "SKU-1", float(index % 7),
+            observed_at=start + timedelta(days=index),
+        )
+    for index in range(5):
+        store.record_outcome(
+            "tenant-a", warehouse_id="WH-1", sku_id="SKU-1",
+            model_id="inactive-model", model_version="v1",
+            forecast_origin=start + timedelta(days=index),
+            target_at=start + timedelta(days=index + 1), predicted=10.5, actual=10.0,
+        )
+    store.create_schedule(
+        "tenant-a", job_type="forecast_refresh",
+        payload={"warehouse_id": "WH-1", "sku_id": "SKU-1", "horizon": 2},
+        interval_seconds=300, first_run_at=datetime.now(UTC) - timedelta(seconds=1),
+    )
+    artifacts = ModelArtifactRegistry(
+        service.state_dir / "models.sqlite", service.state_dir / "model-artifacts"
+    )
+    artifacts.register_artifact(
+        "inactive-model", "v1", b"candidate-bytes",
+        evaluation_report=b'{"wql":0.1}', media_type="application/vnd.test.forecast",
+        validation_mae=0.5, validation_sample_count=100,
+    )
+    worker = OperationalWorker(service, store, model_artifact_registry=artifacts)
+    worker.register_adapter(CandidateAdapter())
+    worker.register_artifact_loader("application/vnd.test.forecast", lambda payload, record: CandidateAdapter())
+
+    report = worker.run_once("tenant-a")
+
+    forecast = report["completed"][0]["result"]["forecast"]
+    assert report["failed"] == []
+    assert forecast["model_id"] == "seasonal-naive"
+    assert forecast["model_selection"]["adapter_fallback_reason"] == "no_active_model_artifact"

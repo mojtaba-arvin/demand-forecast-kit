@@ -58,3 +58,20 @@ and its deployment-specific tests are implemented.
 - Evaluation metrics are provenance supplied by the registering caller; the
   registry validates their shape, not the statistical validity of the experiment.
 - No model is automatically activated because its validation MAE is lower.
+
+
+## Worker integration
+
+The operational worker accepts an optional `ModelArtifactRegistry` and an
+explicit application-supplied loader registry keyed by media type. When
+artifact-registry mode is enabled, a selected non-baseline model is usable only
+when its exact version is the active registry version and a loader is registered
+for its media type. The loader receives digest-verified opaque bytes and
+immutable metadata; its returned adapter identity is checked before use.
+
+Missing active versions, missing loaders, digest/read failures, loader errors,
+and adapter identity mismatches preserve the deterministic seasonal-naive
+fallback. Loaded adapters are cached by immutable artifact digest, so activation
+and rollback resolve the corresponding version without mutating an existing
+adapter. Loader code is registered by the application; artifact metadata never
+selects or imports executable code. The CLI does not dynamically import plugins.
