@@ -34,14 +34,17 @@ another sync for the same tenant/warehouse.
 ### Deletion behavior
 
 - Sales Invoice: remove the deleted invoice's contribution, recompute affected
-  SKU/day totals, and retain a source-deleted tombstone with a local timestamp.
-  Incremental events older than that tombstone cannot resurrect the invoice.
+  SKU/day totals, and retain a source-deleted tombstone just beyond the last observed source
+  Modified timestamp. Incremental events at or before that fence cannot resurrect the invoice.
   A later verified full snapshot can restore it if the ID is present again.
 - Purchase Order: cancel the missing imported order and advance its source
-  modification fence so stale updates cannot restore inbound stock.
+  modification fence by one microsecond beyond the last observed source timestamp so
+  stale updates cannot restore inbound stock.
 - Bin: write a zero-quantity snapshot only if the latest local inventory source
   remains erpnext:Bin. A newer manual inventory source is authoritative and
-  must not be overwritten by a missing ERPNext Bin.
+  must not be overwritten by a missing ERPNext Bin. A Bin deletion is represented
+  by a distinct source tombstone; subsequent updates must have a later source
+  Modified timestamp.
 
 The command is exposed as demand-forecast-erpnext-reconcile and requires the
 explicit --confirm-full-snapshot flag. It also refuses an empty resource snapshot
