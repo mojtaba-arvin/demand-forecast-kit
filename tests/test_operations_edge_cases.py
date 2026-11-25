@@ -58,7 +58,6 @@ def test_legacy_retraining_schema_is_migrated_with_claim_tokens(tmp_path) -> Non
     assert claimed["claim_token"]
 
 
-
 def test_legacy_scheduler_schema_is_migrated_with_lease_tokens(tmp_path) -> None:
     database = tmp_path / "legacy-scheduler.sqlite"
     with sqlite3.connect(database) as connection:
@@ -86,7 +85,6 @@ def test_legacy_scheduler_schema_is_migrated_with_lease_tokens(tmp_path) -> None
     claimed = store.claim_due_schedules("tenant-a")
     assert claimed[0]["job_id"] == job["job_id"]
     assert claimed[0]["lease_token"]
-
 
 
 def test_tenant_warehouse_and_inventory_validation_edges(tmp_path) -> None:
