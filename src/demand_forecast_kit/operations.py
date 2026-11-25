@@ -1331,9 +1331,7 @@ class OperationalStore:
         return self._schedule_record(row)
 
     @staticmethod
-    def _schedule_record(
-        row: sqlite3.Row, *, include_lease_token: bool = False
-    ) -> dict[str, Any]:
+    def _schedule_record(row: sqlite3.Row, *, include_lease_token: bool = False) -> dict[str, Any]:
         record = dict(row)
         lease_token = record.pop("lease_token", None)
         if include_lease_token:
