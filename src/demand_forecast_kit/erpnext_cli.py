@@ -21,12 +21,16 @@ def main() -> None:
     parser.add_argument(
         "--confirm-full-snapshot",
         action="store_true",
-        help=(\n            "confirm that this operation may reconcile records absent from the full ERPNext snapshot"\n        ),
+        help=(
+            "confirm that this operation may reconcile records absent from the full ERPNext snapshot"
+        ),
     )
     parser.add_argument(
         "--allow-empty-snapshot",
         action="store_true",
-        help=(\n            "allow empty ERPNext resources after independently verifying API permissions and source state"\n        ),
+        help=(
+            "allow empty ERPNext resources after independently verifying API permissions and source state"
+        ),
     )
     args = parser.parse_args()
     if not args.confirm_full_snapshot:
