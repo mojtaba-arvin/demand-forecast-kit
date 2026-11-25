@@ -261,19 +261,19 @@ def test_stale_retraining_claims_are_requeued_after_worker_crash(store: Operatio
         reason="drift",
     )
     store.claim_retraining("tenant-a", request["request_id"])
-    now = datetime(2026, 6, 1, tzinfo=UTC)
+    now = datetime.now(UTC)
 
     assert (
         store.recover_stale_retraining(
-            "tenant-a", stale_after_seconds=300, now=now
+            "tenant-a", stale_after_seconds=60, now=now
         )
         == 0
     )
     assert (
         store.recover_stale_retraining(
             "tenant-a",
-            stale_after_seconds=300,
-            now=now + timedelta(minutes=6),
+            stale_after_seconds=60,
+            now=now + timedelta(seconds=120),
         )
         == 1
     )
