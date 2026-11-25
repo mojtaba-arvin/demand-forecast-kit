@@ -861,15 +861,15 @@ class OperationalStore:
             raise ValueError("warehouse_id must not be blank")
         with self._connect() as db:
             bins = db.execute(
-                """SELECT COUNT(*) AS count FROM inventory_snapshots current
-                   WHERE current.tenant_id=? AND current.warehouse_id=?
-                     AND current.source='erpnext:Bin'
-                     AND (current.quantity > 0 OR current.reserved > 0)
-                     AND current.as_of=(
+                """SELECT COUNT(*) AS count FROM inventory_snapshots current_snapshot
+                   WHERE current_snapshot.tenant_id=? AND current_snapshot.warehouse_id=?
+                     AND current_snapshot.source='erpnext:Bin'
+                     AND (current_snapshot.quantity > 0 OR current_snapshot.reserved > 0)
+                     AND current_snapshot.as_of=(
                        SELECT MAX(latest.as_of) FROM inventory_snapshots latest
-                       WHERE latest.tenant_id=current.tenant_id
-                         AND latest.warehouse_id=current.warehouse_id
-                         AND latest.sku_id=current.sku_id
+                       WHERE latest.tenant_id=current_snapshot.tenant_id
+                         AND latest.warehouse_id=current_snapshot.warehouse_id
+                         AND latest.sku_id=current_snapshot.sku_id
                      )""",
                 (tenant, warehouse_id),
             ).fetchone()
