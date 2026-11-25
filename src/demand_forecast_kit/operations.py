@@ -681,8 +681,8 @@ class OperationalStore:
     ) -> set[str]:
         """Remove invoice contributions absent from a verified full ERPNext snapshot.
 
-        Missing invoices receive a local tombstone timestamp so delayed incremental
-        events cannot resurrect their previous demand contribution.
+        Missing invoices receive a source-time tombstone just beyond their last known
+        Modified timestamp so delayed incremental events cannot resurrect demand.
         """
         tenant = self._tenant(tenant_id)
         if not warehouse_id.strip() or any(not item.strip() for item in present_invoice_ids):
