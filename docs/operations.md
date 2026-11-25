@@ -125,7 +125,8 @@ or partially received purchase orders.
 Operational sync uses independent tenant/warehouse watermarks for Bin, Sales
 Invoice, and Purchase Order. Each query replays a bounded five-minute overlap
 by default, and writes are idempotent. Watermarks advance only after the
-corresponding resource batch has been applied successfully. Edited invoices
+corresponding resource batch has been applied successfully. Run one sync at a
+time per tenant/warehouse: the SQLite watermarks are not a distributed lock. Edited invoices
 replace their prior per-invoice contribution; cancelled invoices remove that
 contribution and recompute affected SKU/day totals. Cancelled purchase orders
 are removed from confirmed inbound inventory. Source-modified timestamps fence
