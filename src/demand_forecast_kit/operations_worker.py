@@ -25,10 +25,15 @@ class OperationalWorker:
         service: RunService,
         store: OperationalStore,
         lifecycle: ModelLifecycle | None = None,
+        *,
+        retraining_stale_after_seconds: int = 3600,
     ) -> None:
+        if type(retraining_stale_after_seconds) is not int or retraining_stale_after_seconds < 1:
+            raise ValueError("retraining_stale_after_seconds must be a positive integer")
         self.service = service
         self.store = store
         self.lifecycle = lifecycle or ModelLifecycle(store)
+        self.retraining_stale_after_seconds = retraining_stale_after_seconds
         fallback = SeasonalNaiveAdapter()
         self.fallback_adapter = fallback
         self.adapters: dict[str, ForecastAdapter] = {fallback.model_id: fallback}
@@ -42,7 +47,9 @@ class OperationalWorker:
         self.lifecycle.register_trainer(model_id, trainer)
 
     def run_once(self, tenant_id: str, *, limit: int = 20) -> dict[str, Any]:
-        recovered_retraining = self.store.recover_stale_retraining(tenant_id)
+        recovered_retraining = self.store.recover_stale_retraining(
+            tenant_id, stale_after_seconds=self.retraining_stale_after_seconds
+        )
         jobs = self.store.claim_due_schedules(tenant_id, limit=limit)
         completed: list[dict[str, Any]] = []
         failed: list[dict[str, str]] = []
