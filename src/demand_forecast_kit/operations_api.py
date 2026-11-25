@@ -166,6 +166,9 @@ def build_operations_router(service: Any) -> Any:
         min_samples: int = Field(default=10, ge=1, le=1000)
         degradation_ratio: float = Field(default=1.5, gt=0)
 
+    class ScheduleFinishInput(StrictModel):
+        lease_token: str = Field(min_length=1)
+
     class ScheduleInput(StrictModel):
         job_type: str
         payload: dict[str, Any] = Field(default_factory=dict)
@@ -334,9 +337,18 @@ def build_operations_router(service: Any) -> Any:
         return {"jobs": call(store.claim_due_schedules, tenant, limit=limit)}
 
     @router.post("/schedules/{job_id}/complete")
-    def complete_schedule(job_id: str, user: dict[str, Any] = Depends(principal)) -> dict[str, Any]:
+    def complete_schedule(
+        job_id: str,
+        request: ScheduleFinishInput,
+        user: dict[str, Any] = Depends(principal),
+    ) -> dict[str, Any]:
         tenant = authorize(user, "ops:admin")
-        return call(store.complete_schedule, tenant, job_id)
+        return call(
+            store.complete_schedule,
+            tenant,
+            job_id,
+            lease_token=request.lease_token,
+        )
 
     @router.get("/retraining-requests")
     def list_retraining_requests(user: dict[str, Any] = Depends(principal)) -> dict[str, Any]:
