@@ -487,7 +487,9 @@ def test_erpnext_full_reconciliation_removes_hard_deleted_source_records(tmp_pat
     assert store.get_purchase_order("tenant-a", "erpnext:PO-1")["status"] == "submitted"
     assert store.inventory_position("tenant-a", "WH-1", "SKU-2")["on_hand"] == 8
 
-    result = client.reconcile_warehouse(store, "tenant-a", "WH-1")
+    result = client.reconcile_warehouse(
+        store, "tenant-a", "WH-1", allow_empty_snapshot=True
+    )
 
     assert result == {
         "inventory_items": 0,
@@ -602,3 +604,48 @@ def test_erpnext_full_reconciliation_fetch_failure_does_not_apply_deletions(tmp_
     assert store.demand_history("tenant-a", "WH-1", "SKU-1")[0]["demand"] == 5
     assert store.inventory_position("tenant-a", "WH-1", "SKU-1")["on_hand"] == 20
     assert store.get_purchase_order("tenant-a", "erpnext:PO-1")["status"] == "submitted"
+
+
+def test_erpnext_full_reconciliation_rejects_unexpected_empty_snapshot(tmp_path) -> None:
+    resources = {
+        "Bin": [
+            {
+                "item_code": "SKU-1",
+                "warehouse": "WH-1",
+                "actual_qty": 20,
+                "reserved_qty": 0,
+                "modified": "2026-11-25 09:00:00",
+            }
+        ],
+        "Sales Invoice": [
+            {
+                "name": "SINV-1",
+                "posting_date": "2026-11-24",
+                "docstatus": 1,
+                "modified": "2026-11-25 10:00:00",
+            }
+        ],
+        "Sales Invoice Item": [
+            {"item_code": "SKU-1", "qty": 5, "parent": "SINV-1", "warehouse": "WH-1"}
+        ],
+        "Purchase Order": [],
+        "Purchase Order Item": [],
+    }
+
+    def transport(url, method, headers, body, timeout):
+        doctype = urlsplit(url).path.rsplit("/", 1)[-1]
+        return json.dumps({"data": resources[doctype]}).encode()
+
+    store = OperationalStore(tmp_path / "empty-snapshot.sqlite")
+    store.create_warehouse("tenant-a", "WH-1", "Main", "main")
+    client = ERPNextClient("https://erp.example", "key", "secret", transport=transport)
+    client.sync_warehouse(store, "tenant-a", "WH-1")
+    resources["Bin"] = []
+    resources["Sales Invoice"] = []
+    resources["Sales Invoice Item"] = []
+
+    with pytest.raises(RuntimeError, match="unexpectedly empty"):
+        client.reconcile_warehouse(store, "tenant-a", "WH-1")
+
+    assert store.demand_history("tenant-a", "WH-1", "SKU-1")[0]["demand"] == 5
+    assert store.inventory_position("tenant-a", "WH-1", "SKU-1")["on_hand"] == 20
