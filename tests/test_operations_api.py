@@ -227,6 +227,19 @@ def test_schedule_api_creates_and_claims_jobs(client: TestClient) -> None:
     claimed = client.post("/v1/ops/schedules/claim-due")
     assert claimed.status_code == 200
     assert len(claimed.json()["jobs"]) == 1
+    job = claimed.json()["jobs"][0]
+    assert job["lease_token"]
+    listed = client.get("/v1/ops/schedules")
+    assert listed.status_code == 200
+    assert "lease_token" not in listed.json()["schedules"][0]
+
+    missing_token = client.post(f"/v1/ops/schedules/{job['job_id']}/complete")
+    assert missing_token.status_code == 422
+    completed = client.post(
+        f"/v1/ops/schedules/{job['job_id']}/complete",
+        json={"lease_token": job["lease_token"]},
+    )
+    assert completed.status_code == 200
 
 
 def test_api_keys_enforce_scopes_and_tenant_isolation(tmp_path, monkeypatch) -> None:
