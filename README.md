@@ -246,6 +246,11 @@ python -m pip install ".[dev]"
 - [Project roadmap and verified milestone status](docs/roadmap.md)
 - [Expanded UCI Online Retail II benchmark](docs/benchmarks/uci-online-retail-ii.md)
 
+Registry-backed model loading and replenishment policies are opt-in: deployments
+must register reviewed model loaders and explicitly activate model/policy
+versions. See the [worker registry setup](docs/worker-registry-setup.md) before
+enabling these controls in an operational process.
+
 ## Metric definitions
 
 - **MASE:** mean absolute median-forecast error divided by the in-sample seasonal-naive scale. Undefined scales are reported as null.
