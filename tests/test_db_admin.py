@@ -99,3 +99,22 @@ def test_db_admin_cli_emits_backup_report(monkeypatch, tmp_path, capsys) -> None
     result = json.loads(capsys.readouterr().out)
     assert result["integrity_check"] == "ok"
     assert result["backup"] == str(backup.resolve())
+
+
+def test_online_backup_includes_committed_wal_content(tmp_path) -> None:
+    database = tmp_path / "wal.sqlite"
+    backup = tmp_path / "wal-backup.sqlite"
+    connection = sqlite3.connect(database)
+    try:
+        connection.execute("PRAGMA journal_mode=WAL")
+        connection.execute("CREATE TABLE events (id INTEGER PRIMARY KEY, value TEXT NOT NULL)")
+        connection.execute("INSERT INTO events (value) VALUES ('committed-in-wal')")
+        connection.commit()
+
+        backup_database(database, backup)
+
+        with sqlite3.connect(backup) as restored:
+            value = restored.execute("SELECT value FROM events").fetchone()[0]
+            assert value == "committed-in-wal"
+    finally:
+        connection.close()
