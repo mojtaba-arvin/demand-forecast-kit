@@ -32,9 +32,10 @@ def build_operations_router(service: Any) -> Any:
         raise RuntimeError("DEMAND_FORECAST_API_KEYS must be valid JSON") from exc
     if not isinstance(key_records_raw, list):
         raise RuntimeError("DEMAND_FORECAST_API_KEYS must be a JSON array")
-    if not all(isinstance(record, dict) for record in key_records_raw):
+    key_record_items = cast(list[Any], key_records_raw)
+    if not all(isinstance(record, dict) for record in key_record_items):
         raise RuntimeError("each API key record must be an object")
-    key_records = cast(list[dict[str, Any]], key_records_raw)
+    key_records = cast(list[dict[str, Any]], key_record_items)
     keys: dict[str, dict[str, Any]] = {}
     for record in key_records:
         key_id = record.get("key_id")
@@ -49,14 +50,18 @@ def build_operations_router(service: Any) -> Any:
             or not isinstance(tenant, str)
             or not tenant.strip()
             or not isinstance(scopes_raw, list)
-            or not all(isinstance(item, str) for item in scopes_raw)
         ):
+            raise RuntimeError(
+                "API key records require key_id, SHA-256 token digest, tenant_id, scopes"
+            )
+        typed_scopes_any = cast(list[Any], scopes_raw)
+        if not all(isinstance(item, str) for item in typed_scopes_any):
             raise RuntimeError(
                 "API key records require key_id, SHA-256 token digest, tenant_id, scopes"
             )
         if key_id in keys:
             raise RuntimeError("API key identifiers must be unique")
-        typed_scopes = cast(list[str], scopes_raw)
+        typed_scopes = cast(list[str], typed_scopes_any)
         keys[key_id] = {
             "digest": digest.lower(),
             "tenant_id": tenant,
@@ -479,9 +484,10 @@ def install_api_auth(app: Any) -> None:
         raise RuntimeError("DEMAND_FORECAST_API_KEYS must be valid JSON") from exc
     if not isinstance(records_raw, list):
         raise RuntimeError("DEMAND_FORECAST_API_KEYS must be a JSON array")
-    if not all(isinstance(record, dict) for record in records_raw):
+    record_items = cast(list[Any], records_raw)
+    if not all(isinstance(record, dict) for record in record_items):
         raise RuntimeError("each API key record must be an object")
-    records = cast(list[dict[str, Any]], records_raw)
+    records = cast(list[dict[str, Any]], record_items)
     tokens: list[tuple[str, set[str]]] = []
     for record in records:
         digest, scopes_raw = record.get("token_sha256"), record.get("scopes")
@@ -489,10 +495,12 @@ def install_api_auth(app: Any) -> None:
             not isinstance(digest, str)
             or len(digest) != 64
             or not isinstance(scopes_raw, list)
-            or not all(isinstance(scope, str) for scope in scopes_raw)
         ):
             raise RuntimeError("API key records require token_sha256 and scopes")
-        tokens.append((digest.lower(), set(cast(list[str], scopes_raw))))
+        scope_items = cast(list[Any], scopes_raw)
+        if not all(isinstance(scope, str) for scope in scope_items):
+            raise RuntimeError("API key records require token_sha256 and scopes")
+        tokens.append((digest.lower(), set(cast(list[str], scope_items))))
     if not tokens:
         raise RuntimeError("at least one API key must be configured in production")
 

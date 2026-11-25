@@ -88,9 +88,12 @@ class ERPNextClient:
             raise RuntimeError("ERPNext response must be a JSON object")
         payload = cast(dict[str, Any], payload_raw)
         data: Any = payload.get("data")
-        if not isinstance(data, list) or any(not isinstance(item, dict) for item in data):
+        if not isinstance(data, list):
             raise RuntimeError("ERPNext response does not contain a valid data list")
-        return cast(list[dict[str, Any]], data)
+        data_items = cast(list[Any], data)
+        if any(not isinstance(item, dict) for item in data_items):
+            raise RuntimeError("ERPNext response does not contain a valid data list")
+        return cast(list[dict[str, Any]], data_items)
 
     def list_warehouses(self) -> list[dict[str, Any]]:
         return self._resource(
