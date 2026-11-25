@@ -27,6 +27,39 @@ def test_legacy_inventory_schema_is_migrated_with_backorders(tmp_path) -> None:
     assert "backorders" in columns
 
 
+
+def test_legacy_retraining_schema_is_migrated_with_claim_tokens(tmp_path) -> None:
+    database = tmp_path / "legacy-retraining.sqlite"
+    with sqlite3.connect(database) as connection:
+        connection.execute(
+            """CREATE TABLE retraining_requests (
+                request_id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL,
+                warehouse_id TEXT NOT NULL, sku_id TEXT NOT NULL,
+                model_id TEXT NOT NULL, model_version TEXT NOT NULL,
+                reason TEXT NOT NULL,
+                status TEXT NOT NULL CHECK(status IN ('queued','claimed','completed','failed')),
+                created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+            )"""
+        )
+    store = OperationalStore(database)
+    with sqlite3.connect(database) as connection:
+        columns = {row[1] for row in connection.execute("PRAGMA table_info(retraining_requests)")}
+    assert "claim_token" in columns
+
+    _warehouse(store)
+    request = store.queue_retraining(
+        "tenant-a",
+        warehouse_id="WH-1",
+        sku_id="SKU-1",
+        model_id="model-a",
+        model_version="v1",
+        reason="migration-test",
+    )
+    claimed = store.claim_retraining("tenant-a", request["request_id"])
+    assert claimed["claim_token"]
+
+
+
 def test_tenant_warehouse_and_inventory_validation_edges(tmp_path) -> None:
     store = OperationalStore(tmp_path / "validation.sqlite")
     with pytest.raises(ValueError, match="tenant_id"):
