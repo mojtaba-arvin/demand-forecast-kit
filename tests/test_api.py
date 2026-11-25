@@ -21,6 +21,43 @@ def test_health_endpoint(client: TestClient) -> None:
     assert response.json()["status"] == "ok"
 
 
+
+def test_liveness_and_readiness_report_operational_dependencies(client: TestClient) -> None:
+    live = client.get("/health/live")
+    ready = client.get("/health/ready")
+
+    assert live.status_code == 200
+    assert live.json() == {"status": "alive"}
+    assert ready.status_code == 200
+    assert ready.json() == {
+        "status": "ready",
+        "dependencies": {
+            "run_registry": True,
+            "operational_store": True,
+            "artifact_store": True,
+        },
+    }
+
+
+def test_readiness_fails_closed_when_operational_database_is_missing(
+    client: TestClient,
+) -> None:
+    service = client.app.state.run_service
+    (service.state_dir / "operations.sqlite").unlink()
+
+    response = client.get("/health/ready")
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == {
+        "status": "not_ready",
+        "dependencies": {
+            "run_registry": True,
+            "operational_store": False,
+            "artifact_store": True,
+        },
+    }
+
+
 def test_forecast_endpoint_returns_deterministic_quantile_contract(client: TestClient) -> None:
     payload = {
         "series_id": "sku-1",
