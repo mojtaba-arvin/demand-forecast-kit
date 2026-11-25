@@ -247,7 +247,10 @@ def run_benchmark(
                 "lead_times_days": [7, 14],
                 "bootstrap_samples": 250,
                 "minimum_calibration_paths": 5,
-                "method": "prequential residual-path calibration using strictly earlier non-overlapping paths",
+                "method": (
+                    "prequential residual-path calibration using strictly earlier "
+                    "non-overlapping paths"
+                ),
             },
         },
         "panel": {
