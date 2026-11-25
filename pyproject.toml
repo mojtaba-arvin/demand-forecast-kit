@@ -30,6 +30,7 @@ dependencies = ["polars>=1.35,<2"]
 demand-forecast = "demand_forecast_kit.cli:main"
 demand-forecast-evaluate = "demand_forecast_kit.evaluation_cli:main"
 demand-forecast-worker = "demand_forecast_kit.operations_worker:main"
+demand-forecast-erpnext-reconcile = "demand_forecast_kit.erpnext_cli:main"
 
 [project.optional-dependencies]
 io = ["duckdb>=1.4,<2", "pyarrow>=22,<25"]
