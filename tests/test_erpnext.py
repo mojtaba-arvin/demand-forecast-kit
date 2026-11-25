@@ -724,3 +724,55 @@ def test_erpnext_full_reconciliation_allows_empty_new_warehouse(tmp_path) -> Non
         "deleted_purchase_orders": 0,
         "snapshot_verified": True,
     }
+
+
+def test_empty_invoice_warehouse_contribution_tombstones_stale_line_replays(tmp_path) -> None:
+    store = OperationalStore(tmp_path / "empty-invoice-contribution.sqlite")
+    store.create_warehouse("tenant-a", "WH-1", "Main", "main")
+    store.apply_erpnext_sales_invoice(
+        "tenant-a",
+        "WH-1",
+        "SINV-1",
+        posting_date="2026-11-24",
+        docstatus=1,
+        modified_at="2026-11-25T10:00:00+00:00",
+        lines=[{"sku_id": "SKU-1", "quantity": 5}],
+    )
+
+    store.apply_erpnext_sales_invoice(
+        "tenant-a",
+        "WH-1",
+        "SINV-1",
+        posting_date="2026-11-24",
+        docstatus=1,
+        modified_at="2026-11-25T10:00:00+00:00",
+        lines=[],
+    )
+    assert store.demand_history("tenant-a", "WH-1", "SKU-1")[0]["demand"] == 0
+    assert store.list_erpnext_sales_invoice_ids("tenant-a", "WH-1") == set()
+
+    assert (
+        store.apply_erpnext_sales_invoice(
+            "tenant-a",
+            "WH-1",
+            "SINV-1",
+            posting_date="2026-11-24",
+            docstatus=1,
+            modified_at="2026-11-25T10:00:00+00:00",
+            lines=[{"sku_id": "SKU-1", "quantity": 5}],
+        )
+        == set()
+    )
+    assert store.demand_history("tenant-a", "WH-1", "SKU-1")[0]["demand"] == 0
+
+    store.apply_erpnext_sales_invoice(
+        "tenant-a",
+        "WH-1",
+        "SINV-1",
+        posting_date="2026-11-24",
+        docstatus=1,
+        modified_at="2026-11-25T10:01:00+00:00",
+        lines=[{"sku_id": "SKU-1", "quantity": 7}],
+    )
+    assert store.demand_history("tenant-a", "WH-1", "SKU-1")[0]["demand"] == 7
+    assert store.list_erpnext_sales_invoice_ids("tenant-a", "WH-1") == {"SINV-1"}
