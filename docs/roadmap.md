@@ -57,4 +57,4 @@ gh api repos/mojtaba-arvin/demand-forecast-kit/actions/runners \\
   --jq '.runners[] | [.name, .status, ([.labels[].name] | join(","))] | @tsv'
 \`\`\`
 
-If no dedicated runner with labels \`self-hosted,linux,x64,demand-forecast-reference\` is available, register one on a stable Linux x64 host. The registration-token command and the 10-run dispatch sequence are recorded in the project handoff notes; do not fabricate benchmark artifacts or enable the gate before calibration.
+If no dedicated runner with labels \`self-hosted,linux,x64,demand-forecast-reference\` is available, register one on a stable Linux x64 host. See the [reference benchmark runner runbook](benchmark-reference-runner.md) for registration, immutable revision tagging, ten independent dispatches, and closure criteria. Do not fabricate benchmark artifacts or enable the gate before calibration.
