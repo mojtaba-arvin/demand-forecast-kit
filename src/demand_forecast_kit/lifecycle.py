@@ -118,14 +118,13 @@ class ModelLifecycle:
                 "model_id": request["model_id"],
             }
         claimed = self.store.claim_retraining(tenant_id, request_id)
-        history_rows = self.store.demand_history(
-            tenant_id, str(request["warehouse_id"]), str(request["sku_id"]), limit=100_000
-        )
-        history = tuple(float(row["demand"]) for row in history_rows)
-        if not history:
-            self.store.finish_retraining(tenant_id, request_id, success=False)
-            raise ValueError("cannot retrain without demand history")
         try:
+            history_rows = self.store.demand_history(
+                tenant_id, str(request["warehouse_id"]), str(request["sku_id"]), limit=100_000
+            )
+            history = tuple(float(row["demand"]) for row in history_rows)
+            if not history:
+                raise ValueError("cannot retrain without demand history")
             result = trainer(claimed, history)
             if not result.model_version.strip():
                 raise ValueError("trainer returned a blank model version")
