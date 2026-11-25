@@ -295,7 +295,7 @@ class OperationalWorker:
             "quantity": recommendation.quantity,
             "target_stock_level": recommendation.target_stock_level,
             "target_service_level": recommendation.target_service_level,
-            "policy": policy_id,
+            "policy": active_policy.policy_id if active_policy is not None else "newsvendor",
         }
         if active_policy is not None:
             decision["policy_version"] = active_policy.policy_version
@@ -305,7 +305,7 @@ class OperationalWorker:
             "warehouse_id": warehouse_id,
             "sku_id": sku_id,
             "lead_time_demand_quantiles": payload["lead_time_demand_quantiles"],
-            "underage_cost": payload["underage_cost"],
+            "underage_cost": underage_cost,
             "overage_cost": overage_cost,
             "pack_size": pack_size,
             "inventory_position": position["inventory_position"],
@@ -314,6 +314,12 @@ class OperationalWorker:
             config["policy_id"] = active_policy.policy_id
             config["policy_version"] = active_policy.policy_version
             config["policy_definition_sha256"] = active_policy.definition_sha256
+        model_id = (
+            f"replenishment-policy:{policy_id}"
+            if active_policy is not None
+            else "newsvendor-policy"
+        )
+        model_version = active_policy.policy_version if active_policy is not None else "1"
         encoded = json.dumps(
             config, sort_keys=True, separators=(",", ":"), allow_nan=False
         ).encode()
@@ -324,19 +330,13 @@ class OperationalWorker:
         run = self.service.record_run(
             idempotency_key=self.service.idempotency_key(
                 dataset_fingerprint=fingerprint,
-                model_id=(
-                    f"replenishment-policy:{policy_id}"
-                    if active_policy is not None else "newsvendor-policy"
-                ),
-                model_version=(active_policy.policy_version if active_policy is not None else "1"),
+                model_id=model_id,
+                model_version=model_version,
                 config=config,
             ),
             dataset_fingerprint=fingerprint,
-            model_id=(
-                f"replenishment-policy:{policy_id}"
-                if active_policy is not None else "newsvendor-policy"
-            ),
-            model_version=(active_policy.policy_version if active_policy is not None else "1"),
+            model_id=model_id,
+            model_version=model_version,
             config=config,
             result=decision,
             artifact_payload=result_bytes,
