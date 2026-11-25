@@ -180,9 +180,7 @@ def main() -> None:
     args = parser.parse_args()
     try:
         if args.command == "backup":
-            result = backup_database(
-                args.database, args.destination, overwrite=args.overwrite
-            )
+            result = backup_database(args.database, args.destination, overwrite=args.overwrite)
         elif args.command == "verify":
             result = verify_database(args.database)
         else:
