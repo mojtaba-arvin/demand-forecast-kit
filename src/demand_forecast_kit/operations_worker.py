@@ -59,18 +59,21 @@ class OperationalWorker:
         for job in jobs:
             try:
                 result = self._execute(tenant_id, job)
-                self.store.complete_schedule(tenant_id, str(job["job_id"]))
+                self.store.complete_schedule(
+                    tenant_id, str(job["job_id"]), lease_token=str(job["lease_token"])
+                )
                 completed.append(
                     {"job_id": job["job_id"], "job_type": job["job_type"], "result": result}
                 )
             except Exception as exc:
-                self.store.release_schedule(tenant_id, str(job["job_id"]))
-                failed.append(
-                    {
-                        "job_id": str(job["job_id"]),
-                        "error": f"{type(exc).__name__}: {exc}",
-                    }
-                )
+                error = f"{type(exc).__name__}: {exc}"
+                try:
+                    self.store.release_schedule(
+                        tenant_id, str(job["job_id"]), lease_token=str(job["lease_token"])
+                    )
+                except Exception as release_exc:
+                    error += f"; lease release failed: {type(release_exc).__name__}: {release_exc}"
+                failed.append({"job_id": str(job["job_id"]), "error": error})
         for request in self.store.list_retraining_requests(tenant_id, limit=1000):
             if request["status"] != "queued" or request["model_id"] not in self.lifecycle.trainers:
                 continue

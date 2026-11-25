@@ -86,6 +86,26 @@ def test_worker_catches_registered_trainer_failure(tmp_path) -> None:
     assert store.list_retraining_requests("tenant-a")[0]["status"] == "failed"
 
 
+def test_worker_reports_lost_scheduler_lease_without_aborting_poll(tmp_path, monkeypatch) -> None:
+    service, store = _new_service_store(tmp_path)
+    store.create_schedule(
+        "tenant-a",
+        job_type="forecast_refresh",
+        payload={},
+        interval_seconds=300,
+        first_run_at=datetime.now(UTC) - timedelta(seconds=1),
+    )
+
+    def stale_release(*_args, **_kwargs):
+        raise ValueError("scheduled job lease is stale")
+
+    monkeypatch.setattr(store, "release_schedule", stale_release)
+    report = OperationalWorker(service, store).run_once("tenant-a")
+
+    assert len(report["failed"]) == 1
+    assert "lease release failed: ValueError" in report["failed"][0]["error"]
+
+
 def test_worker_falls_back_when_selected_adapter_is_not_registered(tmp_path) -> None:
     service, store = _new_service_store(tmp_path)
     start = datetime(2026, 2, 1, tzinfo=UTC)

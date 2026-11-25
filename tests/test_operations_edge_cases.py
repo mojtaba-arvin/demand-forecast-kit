@@ -58,6 +58,35 @@ def test_legacy_retraining_schema_is_migrated_with_claim_tokens(tmp_path) -> Non
     assert claimed["claim_token"]
 
 
+def test_legacy_scheduler_schema_is_migrated_with_lease_tokens(tmp_path) -> None:
+    database = tmp_path / "legacy-scheduler.sqlite"
+    with sqlite3.connect(database) as connection:
+        connection.execute(
+            """CREATE TABLE scheduled_jobs (
+                tenant_id TEXT NOT NULL, job_id TEXT NOT NULL, job_type TEXT NOT NULL,
+                payload_json TEXT NOT NULL, interval_seconds INTEGER NOT NULL,
+                next_run_at TEXT NOT NULL, last_run_at TEXT, lease_until TEXT,
+                enabled INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL,
+                PRIMARY KEY (tenant_id, job_id)
+            )"""
+        )
+    store = OperationalStore(database)
+    with sqlite3.connect(database) as connection:
+        columns = {row[1] for row in connection.execute("PRAGMA table_info(scheduled_jobs)")}
+    assert "lease_token" in columns
+
+    job = store.create_schedule(
+        "tenant-a",
+        job_type="forecast_refresh",
+        payload={},
+        interval_seconds=60,
+        first_run_at=datetime.now(UTC) - timedelta(seconds=1),
+    )
+    claimed = store.claim_due_schedules("tenant-a")
+    assert claimed[0]["job_id"] == job["job_id"]
+    assert claimed[0]["lease_token"]
+
+
 def test_tenant_warehouse_and_inventory_validation_edges(tmp_path) -> None:
     store = OperationalStore(tmp_path / "validation.sqlite")
     with pytest.raises(ValueError, match="tenant_id"):
@@ -412,10 +441,11 @@ def test_scheduler_validation_edges(tmp_path) -> None:
         store.complete_schedule(
             "tenant-a",
             "missing",
+            lease_token="invalid",
             completed_at=datetime(2026, 1, 1),
         )
     with pytest.raises(KeyError, match="scheduled job"):
-        store.complete_schedule("tenant-a", "missing")
+        store.complete_schedule("tenant-a", "missing", lease_token="invalid")
     job = store.create_schedule(
         "tenant-a",
         job_type="forecast_refresh",
@@ -423,8 +453,10 @@ def test_scheduler_validation_edges(tmp_path) -> None:
         interval_seconds=60,
     )
     with pytest.raises(ValueError, match="active lease"):
-        store.complete_schedule("tenant-a", job["job_id"])
+        store.complete_schedule("tenant-a", job["job_id"], lease_token="invalid")
     with pytest.raises(ValueError, match="positive integer"):
-        store.release_schedule("tenant-a", job["job_id"], retry_after_seconds=0)
+        store.release_schedule(
+            "tenant-a", job["job_id"], lease_token="invalid", retry_after_seconds=0
+        )
     with pytest.raises(ValueError, match="active lease"):
-        store.release_schedule("tenant-a", job["job_id"])
+        store.release_schedule("tenant-a", job["job_id"], lease_token="invalid")
