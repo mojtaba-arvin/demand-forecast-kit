@@ -38,13 +38,25 @@ def test_sigterm_records_worker_as_stopped(tmp_path: Path) -> None:
     )
     database = state_dir / "operations.sqlite"
     deadline = time.monotonic() + 10
-    while time.monotonic() < deadline and not database.exists():
+    heartbeat_seen = False
+    while time.monotonic() < deadline and not heartbeat_seen:
         if process.poll() is not None:
             stdout, stderr = process.communicate()
             pytest.fail(f"worker exited before startup: {stdout}\n{stderr}")
-        time.sleep(0.05)
+        if database.exists():
+            try:
+                with sqlite3.connect(database) as connection:
+                    row = connection.execute(
+                        "SELECT 1 FROM worker_heartbeats WHERE tenant_id=?",
+                        ("tenant-sigterm",),
+                    ).fetchone()
+                heartbeat_seen = row is not None
+            except sqlite3.OperationalError:
+                pass
+        if not heartbeat_seen:
+            time.sleep(0.05)
 
-    assert database.exists(), "worker did not initialize its operational database"
+    assert heartbeat_seen, "worker did not publish its startup heartbeat"
     process.send_signal(signal.SIGTERM)
     try:
         stdout, stderr = process.communicate(timeout=10)

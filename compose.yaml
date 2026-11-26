@@ -4,7 +4,6 @@ services:
       context: .
     init: true
     restart: unless-stopped
-    stop_grace_period: 60s
     read_only: true
     tmpfs:
       - /tmp:mode=1777,size=64m
@@ -42,6 +41,7 @@ services:
       - "15"
     init: true
     restart: unless-stopped
+    stop_grace_period: 60s
     read_only: true
     tmpfs:
       - /tmp:mode=1777,size=64m

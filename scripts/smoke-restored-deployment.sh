@@ -7,6 +7,11 @@ base_url="${DEMAND_FORECAST_API_URL:-http://127.0.0.1:8000}"
 token="${DEMAND_FORECAST_API_TOKEN:?DEMAND_FORECAST_API_TOKEN must be an ops:read bearer token}"
 stale_after_seconds="${DEMAND_FORECAST_WORKER_STALE_AFTER_SECONDS:-90}"
 
+if [[ ! "$stale_after_seconds" =~ ^[0-9]+$ ]] || (( stale_after_seconds < 5 || stale_after_seconds > 3600 )); then
+  printf 'DEMAND_FORECAST_WORKER_STALE_AFTER_SECONDS must be between 5 and 3600\\n' >&2
+  exit 2
+fi
+
 command -v curl >/dev/null
 command -v python3 >/dev/null
 

@@ -60,6 +60,7 @@ See [versioned replenishment policies](policy-lifecycle.md) for validation, acti
 - PR #82: CI validation of compose.yaml against .env.example when Docker Compose is available.
 - PR #83/#84: change-aware UCI Online Retail benchmark gating, including merge-base detection for work branches.
 - PR #85: merge-base-aware gating for the independent UCI Online Retail II benchmark.
+- PR #87: Restic backup/restore round-trip integration test, graceful SIGTERM worker shutdown, and authenticated post-restore API/worker smoke check. The CI drill uses a local encrypted Restic repository and mocked Compose control plane; it does not replace an independent-host recovery exercise.
 
 ## Issue #31 deferral decision
 
