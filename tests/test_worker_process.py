@@ -7,6 +7,7 @@ from __future__ import annotations
 import os
 import signal
 import sqlite3
+from contextlib import closing
 import subprocess
 import sys
 import time
@@ -45,7 +46,7 @@ def test_sigterm_records_worker_as_stopped(tmp_path: Path) -> None:
             pytest.fail(f"worker exited before startup: {stdout}\n{stderr}")
         if database.exists():
             try:
-                with sqlite3.connect(database) as connection:
+                with closing(sqlite3.connect(database)) as connection:
                     row = connection.execute(
                         "SELECT 1 FROM worker_heartbeats WHERE tenant_id=?",
                         ("tenant-sigterm",),
@@ -66,7 +67,7 @@ def test_sigterm_records_worker_as_stopped(tmp_path: Path) -> None:
         pytest.fail(f"worker did not stop after SIGTERM: {stdout}\n{stderr}")
 
     assert process.returncode == 0, f"worker failed during shutdown: {stdout}\n{stderr}"
-    with sqlite3.connect(database) as connection:
+    with closing(sqlite3.connect(database)) as connection:
         rows = connection.execute(
             "SELECT status FROM worker_heartbeats WHERE tenant_id=?",
             ("tenant-sigterm",),
