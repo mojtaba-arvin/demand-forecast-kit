@@ -10,7 +10,7 @@
 - Source files: `sales_txn.csv` and `sales_txn.parquet`
 - No raw source file is committed. The inspection workflow downloads to a temporary directory, verifies the published MD5 checksums, computes SHA-256, and uploads only a JSON report.
 
-The metadata description is generic and does not identify the retailer/operator or collection methodology. The distinct source record is not enough to assert independent-retailer replication.
+The metadata description is generic and does not identify the retailer/operator or collection methodology. A public catalogue attributes this Zenodo record and a similarly titled Mendeley retail-stocks release to Jimmy Smith; the relationship and overlap are unverified. Do not count the two releases as separate retailers or independent data-generating processes until original-source provenance establishes that they are distinct. The distinct source record is not enough to assert independent-retailer replication.
 
 ## Verified source structure
 
