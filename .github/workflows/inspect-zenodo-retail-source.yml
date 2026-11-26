@@ -36,7 +36,7 @@ jobs:
             --output artifacts/zenodo-retail-source-inspection.json
 
       - name: Upload schema and provenance report only
-        uses: actions/upload-artifact@ea8dad6e4a5a9a6e9a6b4b7f8f5a4e8e7f3d1f6a # v4.6.2
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: zenodo-retail-source-inspection
           path: artifacts/zenodo-retail-source-inspection.json

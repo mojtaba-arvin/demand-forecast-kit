@@ -230,6 +230,7 @@ def inspect_record(record_id: int, output: Path) -> dict[str, Any]:
 
             local_path = root / Path(key).name
             digest = hashlib.sha256()
+            source_md5 = hashlib.md5(usedforsecurity=False)
             downloaded = 0
             with requests.get(
                 download_url,
@@ -246,10 +247,17 @@ def inspect_record(record_id: int, output: Path) -> dict[str, Any]:
                         if downloaded > MAX_FILE_BYTES:
                             raise ValueError(f"{key} exceeded the download size limit")
                         digest.update(chunk)
+                        source_md5.update(chunk)
                         stream.write(chunk)
 
+            if size and downloaded != size:
+                raise ValueError(f"{key} size mismatch: expected {size}, received {downloaded}")
+            expected_checksum = str(entry.get("checksum") or "")
+            if expected_checksum.startswith("md5:") and source_md5.hexdigest() != expected_checksum[4:]:
+                raise ValueError(f"{key} does not match the source MD5 checksum")
             file_report["downloaded_bytes"] = downloaded
             file_report["sha256"] = digest.hexdigest()
+            file_report["source_md5_verified"] = expected_checksum.startswith("md5:")
             file_report["status"] = "downloaded"
             report["files"].append(file_report)
             report["tables"].extend(inspect_path(local_path, key))
