@@ -176,10 +176,11 @@ tenant's workers. It reports each worker's status and last-seen time, plus a
 top-level `healthy` flag (true when at least one worker is healthy). The stale
 threshold is configurable from 5 to 3,600 seconds; the default is 90 seconds.
 Workers heartbeat at startup and every `min(--poll-seconds, 30)` seconds
-(default 15). SIGTERM/SIGINT initiate graceful shutdown and record the worker
-as stopped; a process crash or forced kill is classified as stale after the
-threshold expires. The Compose worker has a 60-second stop grace period so
-in-flight work can finish before Docker sends SIGKILL. Heartbeat responses do not
+(default 15). SIGTERM/SIGINT stop new polling while the heartbeat continues during any
+in-flight job drain; after the job returns, the heartbeat thread stops and the
+worker records itself as stopped. A process crash or forced kill is classified
+as stale after the threshold expires. The Compose worker has a 60-second stop
+grace period so in-flight work can finish before Docker sends SIGKILL. Heartbeat responses do not
 expose lease tokens or credentials.
 
 A worker restart should recover through the existing expiring scheduler leases
