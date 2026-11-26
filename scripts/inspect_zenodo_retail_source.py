@@ -116,9 +116,7 @@ def inspect_frame(name: str, frame: pl.DataFrame) -> dict[str, Any]:
         if canonical in column_lookup
     }
     null_counts = frame.null_count().row(0, named=True)
-    nonzero_nulls = {
-        column: int(count) for column, count in null_counts.items() if count
-    }
+    nonzero_nulls = {column: int(count) for column, count in null_counts.items() if count}
 
     numeric_diagnostics: dict[str, dict[str, Any]] = {}
     for canonical in sorted(NUMERIC_COLUMNS):
@@ -141,11 +139,7 @@ def inspect_frame(name: str, frame: pl.DataFrame) -> dict[str, Any]:
             continue
         flag_distributions[column] = [
             {key: _json_value(value) for key, value in row.items()}
-            for row in frame.group_by(column)
-            .len()
-            .sort("len", descending=True)
-            .head(20)
-            .to_dicts()
+            for row in frame.group_by(column).len().sort("len", descending=True).head(20).to_dicts()
         ]
 
     series_coverage: dict[str, Any] | None = None
