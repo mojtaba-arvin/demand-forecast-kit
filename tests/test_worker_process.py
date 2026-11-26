@@ -7,10 +7,10 @@ from __future__ import annotations
 import os
 import signal
 import sqlite3
-from contextlib import closing
 import subprocess
 import sys
 import time
+from contextlib import closing
 from pathlib import Path
 
 import pytest

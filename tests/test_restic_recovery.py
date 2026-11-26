@@ -6,9 +6,9 @@ from __future__ import annotations
 
 import os
 import shutil
-from contextlib import closing
 import sqlite3
 import subprocess
+from contextlib import closing
 from pathlib import Path
 
 import pytest
@@ -34,10 +34,9 @@ def test_restic_backup_restore_round_trip_and_service_recovery(tmp_path: Path) -
     state = deployment / "state"
     state.mkdir()
     database = state / "operations.sqlite"
-    with closing(sqlite3.connect(database)) as connection:
-        with connection:
-            connection.execute("CREATE TABLE marker (value INTEGER NOT NULL)")
-            connection.execute("INSERT INTO marker VALUES (7)")
+    with closing(sqlite3.connect(database)) as connection, connection:
+        connection.execute("CREATE TABLE marker (value INTEGER NOT NULL)")
+        connection.execute("INSERT INTO marker VALUES (7)")
     (state / "artifacts").mkdir()
     (state / "artifacts" / "forecast.json").write_text('{"run_id": 7}\n', encoding="utf-8")
 
@@ -101,9 +100,8 @@ exec "$REAL_RESTIC" "$@"
     assert backup.returncode == 0, backup.stderr
     assert docker_state.read_text(encoding="utf-8") == "api\nworker\n"
 
-    with closing(sqlite3.connect(database)) as connection:
-        with connection:
-            connection.execute("UPDATE marker SET value=99")
+    with closing(sqlite3.connect(database)) as connection, connection:
+        connection.execute("UPDATE marker SET value=99")
     (state / "post-backup-only.txt").write_text("must be rolled back", encoding="utf-8")
     docker_state.write_text("", encoding="utf-8")
 
