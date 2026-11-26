@@ -15,7 +15,6 @@ from pathlib import Path
 from typing import Any
 
 import polars as pl
-import requests
 
 MAX_FILE_BYTES = 300 * 1024 * 1024
 USER_AGENT = "demand-forecast-kit/1.0 (public dataset schema inspection)"
@@ -82,7 +81,8 @@ def _json_value(value: Any) -> Any:
 def _read_frame(path: Path) -> pl.DataFrame:
     if path.suffix.lower() == ".parquet":
         return pl.read_parquet(path)
-    sample = path.read_bytes()[:8192].decode("utf-8-sig", errors="replace")
+    with path.open("rb") as stream:
+        sample = stream.read(8192).decode("utf-8-sig", errors="replace")
     try:
         delimiter = csv.Sniffer().sniff(sample, delimiters=",;\t|").delimiter
     except csv.Error:
@@ -93,6 +93,7 @@ def _read_frame(path: Path) -> pl.DataFrame:
         try_parse_dates=True,
         infer_schema_length=10_000,
         low_memory=True,
+        null_values=[""],
     )
 
 
@@ -262,6 +263,8 @@ def inspect_path(path: Path, name: str) -> list[dict[str, Any]]:
 
 
 def inspect_record(record_id: int, output: Path) -> dict[str, Any]:
+    import requests
+
     headers = {"User-Agent": USER_AGENT, "Accept": "application/json"}
     response = requests.get(
         f"https://zenodo.org/api/records/{record_id}",
