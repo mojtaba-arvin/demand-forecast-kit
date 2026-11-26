@@ -259,9 +259,10 @@ def inspect_path(path: Path, name: str) -> list[dict[str, Any]]:
                     {"name": info.filename, "skipped": "member exceeds size limit"}
                 )
                 continue
-            with archive.open(info) as source, tempfile.NamedTemporaryFile(
-                suffix=member.suffix, delete=False
-            ) as destination:
+            with (
+                archive.open(info) as source,
+                tempfile.NamedTemporaryFile(suffix=member.suffix, delete=False) as destination,
+            ):
                 shutil.copyfileobj(source, destination)
                 temporary_path = Path(destination.name)
             try:
@@ -384,8 +385,7 @@ def main() -> None:
                 "doi": report["doi"],
                 "files": len(report["files"]),
                 "tables": [
-                    {"name": table["name"], "rows": table.get("rows")}
-                    for table in report["tables"]
+                    {"name": table["name"], "rows": table.get("rows")} for table in report["tables"]
                 ],
                 "report": str(args.output),
             },
