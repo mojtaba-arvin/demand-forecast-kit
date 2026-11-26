@@ -28,6 +28,9 @@ DATE_COLUMNS = {
     "last_sold_date",
     "week_start",
     "transaction_date",
+    "txn_dt",
+    "last_rcpt_dt",
+    "last_sold_dt",
 }
 IDENTIFIER_COLUMNS = {
     "store_id",
@@ -35,6 +38,8 @@ IDENTIFIER_COLUMNS = {
     "sku",
     "product_id",
     "item_id",
+    "store",
+    "product_no",
 }
 NUMERIC_COLUMNS = {
     "units",
@@ -48,6 +53,15 @@ NUMERIC_COLUMNS = {
     "cogs",
     "sales_amount",
     "discount_amount",
+    "qty_sold",
+    "qty_on_hand",
+    "latest_oh_qty",
+    "stock_unit_cost_price",
+    "stock_unit_selling_price",
+    "days_since_receipt",
+    "days_since_sale",
+    "sales_amt",
+    "dsc_amt",
 }
 FLAG_COLUMNS = {
     "is_return",
@@ -56,6 +70,7 @@ FLAG_COLUMNS = {
     "in_stock",
     "stock_status",
     "sales_type",
+    "is_return",
 }
 
 
@@ -83,9 +98,13 @@ def _read_frame(path: Path) -> pl.DataFrame:
 
 
 def inspect_frame(name: str, frame: pl.DataFrame) -> dict[str, Any]:
-    columns = set(frame.columns)
+    column_lookup = {column.casefold(): column for column in frame.columns}
+
     date_ranges: dict[str, dict[str, str | None]] = {}
-    for column in sorted(columns & DATE_COLUMNS):
+    for canonical in sorted(DATE_COLUMNS):
+        column = column_lookup.get(canonical)
+        if column is None:
+            continue
         values = frame[column].cast(pl.String, strict=False)
         date_ranges[column] = {
             "min": _json_value(values.min()),
@@ -93,29 +112,39 @@ def inspect_frame(name: str, frame: pl.DataFrame) -> dict[str, Any]:
         }
 
     distinct_counts = {
-        column: int(frame[column].n_unique())
-        for column in sorted(columns & IDENTIFIER_COLUMNS)
+        column_lookup[canonical]: int(frame[column_lookup[canonical]].n_unique())
+        for canonical in sorted(IDENTIFIER_COLUMNS)
+        if canonical in column_lookup
     }
     null_counts = frame.null_count().row(0, named=True)
     nonzero_nulls = {
-        name: int(count) for name, count in null_counts.items() if count
+        column: int(count) for column, count in null_counts.items() if count
     }
 
     numeric_diagnostics: dict[str, dict[str, Any]] = {}
-    for column in sorted(columns & NUMERIC_COLUMNS):
+    for canonical in sorted(NUMERIC_COLUMNS):
+        column = column_lookup.get(canonical)
+        if column is None:
+            continue
         values = frame[column].cast(pl.Float64, strict=False)
         numeric_diagnostics[column] = {
             "min": _json_value(values.min()),
             "max": _json_value(values.max()),
             "negative_rows": int((values < 0).sum()),
             "zero_rows": int((values == 0).sum()),
+            "positive_rows": int((values > 0).sum()),
         }
 
     flag_distributions: dict[str, list[dict[str, Any]]] = {}
-    for column in sorted(columns & FLAG_COLUMNS):
+    for canonical in sorted(FLAG_COLUMNS):
+        column = column_lookup.get(canonical)
+        if column is None:
+            continue
         flag_distributions[column] = [
             {key: _json_value(value) for key, value in row.items()}
-            for row in frame.group_by(column).len().sort("len", descending=True)
+            for row in frame.group_by(column)
+            .len()
+            .sort("len", descending=True)
             .head(20)
             .to_dicts()
         ]
@@ -125,18 +154,21 @@ def inspect_frame(name: str, frame: pl.DataFrame) -> dict[str, Any]:
         ["date", "store_id", "sku"],
         ["date", "store_id", "product_id"],
         ["date", "store_id", "item_id"],
+        ["txn_dt", "store", "product_no"],
         ["start_date", "end_date", "store_id", "article_id"],
         ["start_date", "end_date", "store_id", "sku"],
     ]
     key_diagnostics: dict[str, dict[str, int]] = {}
-    for key in candidate_keys:
-        if set(key).issubset(columns):
-            unique_rows = int(frame.select(pl.struct(key).n_unique()).item())
-            key_diagnostics["+".join(key)] = {
-                "rows": frame.height,
-                "unique_keys": unique_rows,
-                "duplicate_rows": frame.height - unique_rows,
-            }
+    for canonical_key in candidate_keys:
+        if not set(canonical_key).issubset(column_lookup):
+            continue
+        key = [column_lookup[column] for column in canonical_key]
+        unique_rows = int(frame.select(pl.struct(key).n_unique()).item())
+        key_diagnostics["+".join(key)] = {
+            "rows": frame.height,
+            "unique_keys": unique_rows,
+            "duplicate_rows": frame.height - unique_rows,
+        }
 
     return {
         "name": name,
@@ -150,7 +182,6 @@ def inspect_frame(name: str, frame: pl.DataFrame) -> dict[str, Any]:
         "numeric_diagnostics": numeric_diagnostics,
         "flag_distributions": flag_distributions,
     }
-
 
 def inspect_path(path: Path, name: str) -> list[dict[str, Any]]:
     if path.suffix.lower() in SUPPORTED_SUFFIXES:
@@ -196,8 +227,13 @@ def inspect_record(record_id: int, output: Path) -> dict[str, Any]:
         "doi": record.get("doi"),
         "title": metadata.get("title"),
         "publication_date": metadata.get("publication_date"),
+        "version": metadata.get("version"),
+        "record_created": record.get("created"),
+        "record_updated": record.get("updated"),
         "license": metadata.get("license"),
-        "source_url": record.get("links", {}).get("html"),
+        "description": metadata.get("description"),
+        "source_url": record.get("links", {}).get("html")
+        or f"https://zenodo.org/records/{record_id}",
         "files": [],
         "tables": [],
         "limits": {
