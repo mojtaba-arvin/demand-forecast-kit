@@ -6,9 +6,10 @@ import argparse
 import hashlib
 import json
 import os
+import signal
 import socket
 import threading
-import time
+from types import FrameType
 from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
@@ -429,6 +430,12 @@ def main() -> None:
     worker = OperationalWorker(service, store)
     stop_event = threading.Event()
 
+    def request_shutdown(_signum: int, _frame: FrameType | None) -> None:
+        stop_event.set()
+
+    signal.signal(signal.SIGTERM, request_shutdown)
+    signal.signal(signal.SIGINT, request_shutdown)
+
     def maintain_heartbeat() -> None:
         interval = min(args.poll_seconds, 30)
         while not stop_event.wait(interval):
@@ -442,13 +449,14 @@ def main() -> None:
     )
     heartbeat_thread.start()
     try:
-        while True:
+        while not stop_event.is_set():
             report = worker.run_once(args.tenant_id)
             if report["claimed"] or report["failed"] or report["retraining"]:
                 print(json.dumps(report, sort_keys=True, allow_nan=False), flush=True)
             if args.once:
                 break
-            time.sleep(args.poll_seconds)
+            if stop_event.wait(args.poll_seconds):
+                break
     finally:
         stop_event.set()
         heartbeat_thread.join(timeout=5)
