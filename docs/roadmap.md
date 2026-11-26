@@ -64,6 +64,8 @@ See [versioned replenishment policies](policy-lifecycle.md) for validation, acti
 - PR #87: Restic backup/restore round-trip integration test, graceful SIGTERM worker shutdown, and authenticated post-restore API/worker smoke check. The CI drill uses a local encrypted Restic repository and mocked Compose control plane; it does not replace an independent-host recovery exercise.
 - PR #88: retail dataset selection protocol separating demand-only evidence from stock-aware diagnostics and empirical replenishment evaluation.
 - PR #89: reproducible Zenodo source inspection with verified MD5/SHA-256 provenance and schema/series/stock/return diagnostics. Source data is temporary-only; no forecasting or replenishment result is claimed.
+- PR #90: CSV empty-field normalization to null, streaming delimiter sampling, and tests for CSV/Parquet missing-value parity and source diagnostics.
+- PR #91: CI validation of the systemd backup service and timer with `systemd-analyze verify`; this validates unit configuration, not host-level scheduling or off-host recovery.
 
 ## Issue #31 deferral decision
 
