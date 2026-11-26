@@ -148,6 +148,65 @@ def inspect_frame(name: str, frame: pl.DataFrame) -> dict[str, Any]:
             .to_dicts()
         ]
 
+    series_coverage: dict[str, Any] | None = None
+    store_column = column_lookup.get("store")
+    product_column = column_lookup.get("product_no")
+    date_column = column_lookup.get("txn_dt")
+    if store_column and product_column and date_column:
+        series_frame = frame.group_by([store_column, product_column]).agg(
+            pl.len().alias("rows"),
+            pl.col(date_column).n_unique().alias("observed_days"),
+            pl.col(date_column).min().alias("first_date"),
+            pl.col(date_column).max().alias("last_date"),
+        )
+        series_frame = series_frame.with_columns(
+            (
+                (pl.col("last_date") - pl.col("first_date")).dt.total_days() + 1
+            ).alias("span_days")
+        ).with_columns(
+            (pl.col("observed_days") / pl.col("span_days")).alias("coverage_ratio")
+        )
+
+        def distribution(column: str) -> dict[str, Any]:
+            summary = series_frame.select(
+                pl.col(column).min().alias("min"),
+                pl.col(column).median().alias("median"),
+                pl.col(column).quantile(0.9).alias("p90"),
+                pl.col(column).max().alias("max"),
+            ).row(0, named=True)
+            return {key: _json_value(value) for key, value in summary.items()}
+
+        rows_per_date = frame.group_by(date_column).len()
+        daily_summary = rows_per_date.select(
+            pl.col("len").min().alias("min"),
+            pl.col("len").median().alias("median"),
+            pl.col("len").quantile(0.9).alias("p90"),
+            pl.col("len").max().alias("max"),
+        ).row(0, named=True)
+        series_coverage = {
+            "store_product_series": series_frame.height,
+            "rows_per_series": distribution("rows"),
+            "observed_days_per_series": distribution("observed_days"),
+            "date_span_days_per_series": distribution("span_days"),
+            "observed_day_coverage_ratio": distribution("coverage_ratio"),
+            "series_with_30_or_more_observed_days": int(
+                (series_frame["observed_days"] >= 30).sum()
+            ),
+            "series_with_90_or_more_observed_days": int(
+                (series_frame["observed_days"] >= 90).sum()
+            ),
+            "series_with_180_or_more_observed_days": int(
+                (series_frame["observed_days"] >= 180).sum()
+            ),
+            "series_observed_every_day_in_own_span": int(
+                (series_frame["observed_days"] == series_frame["span_days"]).sum()
+            ),
+            "rows_per_observed_date": {
+                key: _json_value(value) for key, value in daily_summary.items()
+            },
+            "observed_date_count": rows_per_date.height,
+        }
+
     candidate_keys = [
         ["date", "store_id", "article_id"],
         ["date", "store_id", "sku"],
@@ -178,6 +237,7 @@ def inspect_frame(name: str, frame: pl.DataFrame) -> dict[str, Any]:
         "distinct_identifier_counts": distinct_counts,
         "nonzero_null_counts": nonzero_nulls,
         "candidate_key_diagnostics": key_diagnostics,
+        "series_coverage": series_coverage,
         "numeric_diagnostics": numeric_diagnostics,
         "flag_distributions": flag_distributions,
     }
