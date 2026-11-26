@@ -289,7 +289,10 @@ def inspect_record(record_id: int, output: Path) -> dict[str, Any]:
             if size and downloaded != size:
                 raise ValueError(f"{key} size mismatch: expected {size}, received {downloaded}")
             expected_checksum = str(entry.get("checksum") or "")
-            if expected_checksum.startswith("md5:") and source_md5.hexdigest() != expected_checksum[4:]:
+            if (
+                expected_checksum.startswith("md5:")
+                and source_md5.hexdigest() != expected_checksum[4:]
+            ):
                 raise ValueError(f"{key} does not match the source MD5 checksum")
             file_report["downloaded_bytes"] = downloaded
             file_report["sha256"] = digest.hexdigest()
