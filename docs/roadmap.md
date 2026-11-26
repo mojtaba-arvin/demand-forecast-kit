@@ -1,6 +1,6 @@
 # Project roadmap and milestone status
 
-**Status date:** 2026-11-25  
+**Status date:** 2026-11-26  
 **Status baseline:** main after PRs #72, #77, and #78; latest delivery is recorded below.
 
 This document records implementation boundaries and the next engineering priorities.
@@ -34,7 +34,7 @@ A feature is not considered production-ready merely because its unit tests pass.
 
 1. **Extend independent retail evidence (Issue #75).** The opt-in M5/Walmart local-file adapter and reproducible benchmark runner are implemented. The runner reserves the final 28 labeled days for rolling-origin demand holdout and compares explicit baseline/high-service policies using synthetic stock/cost assumptions. Authorized Kaggle files and the empirical run remain external; M5 lacks actual stock/receipt data, so this is not a production replenishment backtest. Keep global correction disabled until independent demand coverage and real inventory outcomes replicate.
 2. **Validate ERPNext full reconciliation in a representative deployment (Issue #73).** The explicit double-snapshot operator command is implemented; exercise it against a real ERPNext test site, confirm pagination/permissions, and retain the read-only boundary.
-3. **Advance operational readiness (Issue #74).** PR #72/#77 provide local SQLite backup/restore and API probes. PR #80 adds a constrained Compose profile, encrypted Restic off-host snapshots, retention, and daily systemd scheduling. PR #79 adds worker heartbeat and tenant isolation. A real restore drill on an independent host, with API/worker smoke checks, remains required before claiming operational readiness.
+3. **Advance operational readiness (Issue #74).** PR #72/#77 provide local SQLite backup/restore and API probes. PR #80 adds a constrained Compose profile, encrypted Restic off-host snapshots, retention, and daily systemd scheduling. PR #79 adds worker heartbeat and tenant isolation. PR #87 adds a local Restic backup/restore integration drill in CI, graceful SIGTERM worker shutdown, and an authenticated post-restore API/worker smoke script. A real restore drill on an independent host, with off-host credentials and host-level systemd validation, remains required before claiming operational readiness.
 4. **Resume Issue #31 after external host provisioning.** Collect 10 independent full-profile artifacts on one fixed Linux x64 runner, characterize variance, and enable only an environment-matched threshold justified by the measured distribution.
 
 See [versioned replenishment policies](policy-lifecycle.md) for validation, activation, rollback, and worker enforcement. See the [UCI retail benchmark](benchmarks/uci-online-retail.md) and [independent electricity benchmark](benchmarks/uci-electricity-load.md) for dataset-specific protocols and evidence.
@@ -60,6 +60,7 @@ See [versioned replenishment policies](policy-lifecycle.md) for validation, acti
 - PR #82: CI validation of compose.yaml against .env.example when Docker Compose is available.
 - PR #83/#84: change-aware UCI Online Retail benchmark gating, including merge-base detection for work branches.
 - PR #85: merge-base-aware gating for the independent UCI Online Retail II benchmark.
+- PR #87: Restic backup/restore round-trip integration test, graceful SIGTERM worker shutdown, and authenticated post-restore API/worker smoke check. The CI drill uses a local encrypted Restic repository and mocked Compose control plane; it does not replace an independent-host recovery exercise.
 
 ## Issue #31 deferral decision
 

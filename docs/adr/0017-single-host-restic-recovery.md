@@ -22,8 +22,9 @@ port. Multi-host sharing of the state directory is unsupported.
 Use Restic for encrypted remote snapshots. The backup script requires both
 services to be running, stops them to obtain a quiescent snapshot of the entire
 state directory, uploads the archive, applies a 7-daily/5-weekly/12-monthly
-retention policy, and restarts services through an EXIT trap. A systemd timer
-runs this daily. The restore script requires an explicit confirmation argument
+retention policy, and restarts services through an EXIT trap. Services restart immediately
+after the snapshot upload; retention pruning runs after service availability
+has been restored. A systemd timer runs this daily. The restore script requires an explicit confirmation argument
 and stopped services, preserves the previous state, restores the complete
 archive, and checks SQLite integrity and foreign keys before leaving services
 stopped for application smoke checks.
@@ -34,6 +35,10 @@ stopped for application smoke checks.
   claimed.
 - Restic encrypts data before remote upload. Repository credentials and
   password files remain host-managed and must not enter Git.
+- CI exercises an encrypted local Restic backup/restore round trip with a
+  mocked Compose control plane and verifies database integrity and state
+  restoration. This validates script behavior, not off-host network storage,
+  systemd scheduling, or host-level service recovery.
 - A successful upload and SQLite integrity checks do not prove recovery until
   an independent restore drill validates API and worker behavior.
 - SQLite remains local, single-host storage. No distributed locks, failover,

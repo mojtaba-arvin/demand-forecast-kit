@@ -6,11 +6,12 @@ import argparse
 import hashlib
 import json
 import os
+import signal
 import socket
 import threading
-import time
 from collections.abc import Callable
 from datetime import UTC, datetime
+from types import FrameType
 from typing import Any
 
 from demand_forecast_kit.decisions import newsvendor_order
@@ -427,11 +428,18 @@ def main() -> None:
     service = RunService.from_environment()
     store = OperationalStore(service.state_dir / "operations.sqlite")
     worker = OperationalWorker(service, store)
-    stop_event = threading.Event()
+    shutdown_event = threading.Event()
+    heartbeat_stop_event = threading.Event()
+
+    def request_shutdown(_signum: int, _frame: FrameType | None) -> None:
+        shutdown_event.set()
+
+    signal.signal(signal.SIGTERM, request_shutdown)
+    signal.signal(signal.SIGINT, request_shutdown)
 
     def maintain_heartbeat() -> None:
         interval = min(args.poll_seconds, 30)
-        while not stop_event.wait(interval):
+        while not heartbeat_stop_event.wait(interval):
             worker.heartbeat(args.tenant_id)
 
     worker.heartbeat(args.tenant_id)
@@ -442,15 +450,16 @@ def main() -> None:
     )
     heartbeat_thread.start()
     try:
-        while True:
+        while not shutdown_event.is_set():
             report = worker.run_once(args.tenant_id)
             if report["claimed"] or report["failed"] or report["retraining"]:
                 print(json.dumps(report, sort_keys=True, allow_nan=False), flush=True)
             if args.once:
                 break
-            time.sleep(args.poll_seconds)
+            if shutdown_event.wait(args.poll_seconds):
+                break
     finally:
-        stop_event.set()
+        heartbeat_stop_event.set()
         heartbeat_thread.join(timeout=5)
         worker.stop(args.tenant_id)
 

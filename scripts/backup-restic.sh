@@ -32,11 +32,12 @@ trap cleanup EXIT
 docker compose stop api worker
 tar -czf "$archive" -C state .
 restic backup "$archive" --tag demand-forecast-kit
-restic forget --tag demand-forecast-kit \
-  --keep-daily 7 --keep-weekly 5 --keep-monthly 12 --prune
-rm -f "$archive"
 
+# Restore service availability before the potentially slow repository prune.
 docker compose start api worker
 trap - EXIT
 rm -rf "$temporary"
-printf 'Encrypted off-host backup completed; temporary plaintext staging removed.\n'
+
+restic forget --tag demand-forecast-kit \
+  --keep-daily 7 --keep-weekly 5 --keep-monthly 12 --prune
+printf 'Encrypted off-host backup completed; services are running.\n'

@@ -11,7 +11,7 @@ import pytest
 
 def test_restic_scripts_have_valid_bash_syntax() -> None:
     root = Path(__file__).resolve().parents[1]
-    for name in ("backup-restic.sh", "restore-restic.sh"):
+    for name in ("backup-restic.sh", "restore-restic.sh", "smoke-restored-deployment.sh"):
         script = root / "scripts" / name
         subprocess.run(["bash", "-n", str(script)], check=True, capture_output=True, text=True)
 

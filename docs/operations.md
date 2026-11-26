@@ -91,17 +91,37 @@ sudo env RESTIC_REPOSITORY="$RESTIC_REPOSITORY" \
 
 The script requires both Compose services to be running, stops them so every
 SQLite database and artifact file is captured consistently, archives the
-complete state/ directory, uploads the archive to Restic, applies retention
-(7 daily, 5 weekly, 12 monthly snapshots), and restarts the services even if
-the backup fails. This creates a short maintenance interruption. Never back up
-only operations.sqlite: run registry, model/policy registries, and immutable
+complete state/ directory, and uploads the archive to Restic. It restarts both
+services immediately after the upload, before running the potentially slow
+retention prune (7 daily, 5 weekly, 12 monthly snapshots). An EXIT trap attempts
+to restart services if snapshot creation or upload fails. This limits the
+maintenance interruption to the consistent snapshot/upload window. Never back
+up only operations.sqlite: run registry, model/policy registries, and immutable
 artifact files are also part of the state.
 
-For daily scheduling, install the supplied systemd service and timer. Configure
-the Restic environment file first with RESTIC_REPOSITORY, RESTIC_PASSWORD_FILE,
-and any provider-specific credentials. The unit assumes the repository is
-installed at /opt/demand-forecast-kit; edit WorkingDirectory and ExecStart if
-it lives elsewhere, then:
+For daily scheduling, create a root-only environment file first. It is read by
+the systemd unit and must contain the Restic repository, password-file path,
+and any provider credentials (for example, AWS_ACCESS_KEY_ID and
+AWS_SECRET_ACCESS_KEY for S3-compatible storage):
+
+```bash
+sudo install -d -m 0700 /etc/demand-forecast-kit
+sudo install -m 0600 /dev/null /etc/demand-forecast-kit/restic.env
+sudoedit /etc/demand-forecast-kit/restic.env
+```
+
+Example file contents (replace every placeholder; do not commit this file):
+
+```bash
+RESTIC_REPOSITORY=s3:s3.amazonaws.com/your-bucket/demand-forecast-kit
+RESTIC_PASSWORD_FILE=/etc/demand-forecast-kit/restic-password
+AWS_ACCESS_KEY_ID=replace-me
+AWS_SECRET_ACCESS_KEY=replace-me
+```
+
+Create the password file with mode 0600 and initialize the repository once.
+The unit assumes the application is installed at /opt/demand-forecast-kit; edit
+WorkingDirectory and ExecStart if it lives elsewhere, then:
 
 ```bash
 sudo install -m 0644 deploy/systemd/demand-forecast-backup.service /etc/systemd/system/
@@ -128,7 +148,8 @@ services stopped. Start the services only after verification:
 
 ```bash
 docker compose start api worker
-curl --fail http://127.0.0.1:8000/health/ready
+export DEMAND_FORECAST_API_TOKEN='<raw token with ops:read scope>'
+./scripts/smoke-restored-deployment.sh
 docker compose ps
 docker compose logs --tail=100 worker
 ```
@@ -155,8 +176,11 @@ tenant's workers. It reports each worker's status and last-seen time, plus a
 top-level `healthy` flag (true when at least one worker is healthy). The stale
 threshold is configurable from 5 to 3,600 seconds; the default is 90 seconds.
 Workers heartbeat at startup and every `min(--poll-seconds, 30)` seconds
-(default 15). A graceful stop is recorded as stopped; a process crash is
-classified as stale after the threshold expires. Heartbeat responses do not
+(default 15). SIGTERM/SIGINT stop new polling while the heartbeat continues during any
+in-flight job drain; after the job returns, the heartbeat thread stops and the
+worker records itself as stopped. A process crash or forced kill is classified
+as stale after the threshold expires. The Compose worker has a 60-second stop
+grace period so in-flight work can finish before Docker sends SIGKILL. Heartbeat responses do not
 expose lease tokens or credentials.
 
 A worker restart should recover through the existing expiring scheduler leases
