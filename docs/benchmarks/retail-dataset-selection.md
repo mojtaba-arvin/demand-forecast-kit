@@ -26,7 +26,7 @@ not only by row count.
 | --- | --- | --- | --- |
 | [M5 Forecasting Accuracy](https://www.kaggle.com/competitions/m5-forecasting-accuracy) | 30,490 item/store series across 10 stores; daily sales history | Large independent retail demand benchmark; 7/14-day demand calibration and chronological demand holdout | No observed on-hand stock, receipts, purchase orders, or lead times in the competition sales files |
 | [Retail Transactions and Stocks Data — Mendeley](https://doi.org/10.17632/27x8mjm8k4.1) | Official record describes daily transaction-level sales and SKU on-hand stock from 40 stores and 2,326 SKUs; CC BY 4.0. Listed CSV sizes are 37.3 MB sales and 95.4 MB inventory | Candidate for stock-aware descriptive validation and daily sales/inventory alignment | Official landing metadata does not establish stock interval semantics, purchase orders, supplier lead times, or lost-sales truth. A public [format-preserving dataset card](https://huggingface.co/datasets/LemeBase/retail-forecasting-hackathon) reports 125,751 sales rows, 284,755 inventory rows, and 2025-06-01–2026-04-24; verify these against the original files before use |
-| [Retail Transactions and Stocks Data — Zenodo apparel record](https://doi.org/10.5281/zenodo.19784493) | Public dataset metadata reports 29 stores, 338 SKUs, 491,857 daily rows, 2023-12-31–2026-04-20; CC BY 4.0 | Strong candidate for daily stock-aware diagnostics: the published schema includes units, on-hand, unit cost/price, returns, last receipt date, and data-quality flags | Receipt dates are not a supplier lead-time distribution or purchase-order history. The published metadata is a discovery aid; inspect the original release and verify the exact schema and grain |
+| [Retail Transactions and Stocks Data — Zenodo record](https://doi.org/10.5281/zenodo.19784493) | Original CSV and Parquet files inspected on 2026-11-26: 491,857 rows, 25 columns, 29 stores, 338 products, 842 dates; CC BY 4.0 | Candidate for daily stock-aware demand/availability diagnostics; unique daily store-product key and observed on-hand/cost/receipt-date fields | Retailer identity and collection methodology are not disclosed; no PO, supplier lead-time, in-transit, or lost-sales fields. Stock/return/status semantics need validation before forecasting or policy scoring |
 | [VN2 Inventory Planning Challenge](https://doi.org/10.5281/zenodo.23265416) | 599 store/article pairs, weekly data for eight weeks; CC BY 4.0 | Complementary inventory-policy stress test: weekly sales/in-stock flags, starting and ending stock, missed units, and 1-/2-week in-transit quantities | Eight weekly periods are insufficient for robust seasonal forecasting or calibration claims; confirm challenge-specific semantics before scoring policies |
 
 The Mendeley and Zenodo source summaries above are based on their source
@@ -34,6 +34,56 @@ records and a public [retail dataset catalogue](https://huggingface.co/datasets/
 The catalogue states that its Parquet files are format conversions of the
 source data, not new observations. It is not a substitute for validating the
 original source files.
+
+
+## Verified Zenodo source inspection (2026-11-26)
+
+The original files for [Zenodo record 19784493](https://zenodo.org/records/19784493)
+were downloaded in a temporary GitHub Actions workspace. Both published MD5
+checksums verified; only the JSON schema/provenance report was uploaded as an
+artifact. The raw files were not committed.
+
+| File | Size | Source MD5 | SHA-256 |
+| --- | ---: | --- | --- |
+| `sales_txn.csv` | 104,838,674 bytes | `2b9202fe0c7659be042db9f3abbbdfe9` | `5fc93422c7bb65a3abb59312028b21e587eeacd3b1a689e8de506cde49d74599` |
+| `sales_txn.parquet` | 8,040,154 bytes | `dcf18a0112798694be9263c78cad6cdd` | `bed632b98325d8c5f9c16a489cc2d5841d1e3e31a6977401662133b778f9e22e` |
+
+Both representations contain 491,857 rows and 25 columns. The Parquet file is
+the preferred analysis input because it preserves null values in receipt/sale
+date fields; the CSV encodes those missing values as empty strings.
+
+Verified structure and data-quality observations:
+
+- `TXN_DT` spans 2023-12-31 through 2026-04-20 (842 calendar days); there are
+  29 distinct `STORE` values and 338 distinct `PRODUCT_NO` values.
+- `(TXN_DT, STORE, PRODUCT_NO)` is unique across all 491,857 rows. The data
+  includes 462,568 zero-`QTY_SOLD` rows (94.05%), 28,574 positive rows (5.81%),
+  and 715 negative rows (0.15%). Do not silently interpret missing dates as
+  zero demand; zero quantities are explicit observations.
+- `QTY_ON_HAND` is zero on 18,129 rows (3.69%) and ranges from 0 to 10,885.
+  `LATEST_OH_QTY` is negative on 8,261 rows (1.68%); do not use it as a
+  reliable inventory position without resolving its meaning.
+- `IS_AUDIT_ANOMALY` is true on 10,049 rows (2.04%) and `IS_PHASING_OUT` is
+  true on 114,957 rows (23.37%).
+- `LAST_RCPT_DT` is null on 81,067 rows (16.48%) and `LAST_SOLD_DT` is null
+  on 5,314 rows (1.08%). Negative sales/COGS and return-coded rows require
+  separate treatment.
+- `IS_RETURN` has values -1/0/1 and `STOCK_STATUS` has values R/C. The source
+  record does not define these codes. Do not coerce them to booleans or assign
+  meanings without evidence.
+
+The source description is generic and does not identify the retailer/operator
+or collection methodology. This is a verified stock-aware retail dataset, but
+it is **not yet evidence of independent-retailer replication**. It has no
+purchase-order history, supplier lead-time, in-transit quantity, or observed
+lost-sales field. `QTY_ON_HAND` timestamp semantics and the return/status
+codes must be established before treating it as uncensored demand or scoring
+inventory policies. It supports a next-stage stock-aware diagnostic, not an
+empirical lead-time replenishment cost/service backtest.
+
+The initial inspection run is recorded at
+[GitHub Actions run 45750274825](https://github.com/mojtaba-arvin/demand-forecast-kit/actions/runs/45750274825).
+The reproducible inspector is being added in PR #89.
 
 ## Product decision
 
