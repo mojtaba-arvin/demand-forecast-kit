@@ -222,7 +222,7 @@ def inspect_record(record_id: int, output: Path) -> dict[str, Any]:
                 continue
 
             links = entry.get("links", {})
-            download_url = links.get("download") or links.get("self")
+            download_url = links.get("content") or links.get("download") or links.get("self")
             if not download_url:
                 file_report["status"] = "skipped: no public download URL"
                 report["files"].append(file_report)
