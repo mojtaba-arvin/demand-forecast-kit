@@ -12,8 +12,10 @@ behavior, which does not execute its shutdown cleanup on SIGTERM.
 
 ## Decision
 
-- Handle SIGTERM and SIGINT as graceful worker shutdown requests. Stop the
-  heartbeat thread and persist the worker's stopped status in a finally block.
+- Handle SIGTERM and SIGINT as graceful worker shutdown requests. Stop new
+  polling while the heartbeat continues during an in-flight job drain; after
+  the current job returns, stop the heartbeat thread and persist the worker's
+  stopped status in a finally block.
 - Give the Compose worker a 60-second stop grace period so an in-flight job can
   finish before forced termination; scheduler leases remain the crash-recovery
   mechanism.
