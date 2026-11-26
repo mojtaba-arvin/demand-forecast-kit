@@ -30,10 +30,14 @@ not only by row count.
 | [VN2 Inventory Planning Challenge](https://doi.org/10.5281/zenodo.23265416) | 599 store/article pairs, weekly data for eight weeks; CC BY 4.0 | Complementary inventory-policy stress test: weekly sales/in-stock flags, starting and ending stock, missed units, and 1-/2-week in-transit quantities | Eight weekly periods are insufficient for robust seasonal forecasting or calibration claims; confirm challenge-specific semantics before scoring policies |
 
 The Mendeley and Zenodo source summaries above are based on their source
-records and a public [retail dataset catalogue](https://huggingface.co/datasets/LemeBase/hackathon-retail-sets).
-The catalogue states that its Parquet files are format conversions of the
-source data, not new observations. It is not a substitute for validating the
-original source files.
+records and a public [retail dataset catalogue](https://huggingface.co/datasets/LemeBase/retail-forecasting-hackathon).
+The catalogue identifies Jimmy Smith as the source author for both similarly
+titled releases and describes the Zenodo file as a direct Parquet copy, while
+the Mendeley files are format-preserving conversions. Their relationship and
+possible source overlap are not established. **Do not count them as two
+independent retailers or independent data-generating processes** until original
+metadata and row-level provenance establish that they are distinct. The
+catalogue is not a substitute for validating the original source files.
 
 
 ## Verified Zenodo source inspection (2026-11-26)
@@ -97,9 +101,12 @@ The reproducible inspector is being added in PR #89.
 3. **Use VN2 only as a complementary inventory-policy stress test.** Its
    in-transit and missed-unit fields are valuable, but eight weeks cannot
    establish robust forecast calibration.
-4. **Keep Mendeley footwear as a secondary candidate.** Its store/SKU breadth is
-   attractive, but inventory interval semantics must be resolved from the
-   original files before joining stock to daily sales.
+4. **Treat Mendeley and Zenodo as one unverified provenance family for now.**
+   Both releases have the same title and are attributed to Jimmy Smith in the
+   public catalogue. Their overlap/relationship must be established before
+   either is counted as independent-retailer evidence. Mendeley’s store/SKU
+   breadth is attractive, but inventory interval semantics must be resolved
+   from the original files before joining stock to daily sales.
 5. **Do not enable global calibration correction.** Independent demand
    coverage, per-series dispersion, interval width, bias, and uncertainty must
    improve on a predeclared chronological holdout. Inventory cost/service
@@ -147,7 +154,9 @@ labelled empirical.
 
 - M5 local-file adapter and prequential 7/14-day calibration/28-day demand
   holdout runner are merged; no M5 real-data result is claimed.
-- Mendeley and Zenodo source files have not yet been validated locally.
+- Zenodo original files have been inspected; Mendeley original files have not.
+- Mendeley and Zenodo share a title and attributed author in the public catalogue;
+  independence/overlap is unproven, so they count as one provenance family until resolved.
 - Global calibration correction remains disabled.
 - Issue #75 stays open until independent source validation and empirical
   chronological evidence meet the acceptance criteria.
