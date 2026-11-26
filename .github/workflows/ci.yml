@@ -148,7 +148,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install --yes restic
-          python -m pip install pytest
+          python -m pip install pytest pytest-cov
 
       - name: Exercise encrypted backup and restore scripts
         run: python -m pytest -q tests/test_restic_recovery.py

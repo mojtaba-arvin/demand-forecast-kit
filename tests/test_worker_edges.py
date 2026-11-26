@@ -1,4 +1,5 @@
 import sys
+import threading
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -200,9 +201,13 @@ def test_worker_cli_poll_loop_sleeps_between_polls(tmp_path, monkeypatch) -> Non
     monkeypatch.setattr(operations_worker, "RunService", FakeRunService)
     monkeypatch.setattr(sys, "argv", ["worker", "--tenant-id", "tenant-a"])
 
-    def stop_polling(_seconds):
-        raise StopPolling
+    original_wait = threading.Event.wait
 
-    monkeypatch.setattr(operations_worker.time, "sleep", stop_polling)
+    def stop_polling(_event, timeout=None):
+        if threading.current_thread() is threading.main_thread() and timeout == 15:
+            raise StopPolling
+        return original_wait(_event, timeout)
+
+    monkeypatch.setattr(threading.Event, "wait", stop_polling)
     with pytest.raises(StopPolling):
         operations_worker.main()

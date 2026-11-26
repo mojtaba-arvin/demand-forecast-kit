@@ -9,9 +9,9 @@ import os
 import signal
 import socket
 import threading
-from types import FrameType
 from collections.abc import Callable
 from datetime import UTC, datetime
+from types import FrameType
 from typing import Any
 
 from demand_forecast_kit.decisions import newsvendor_order
