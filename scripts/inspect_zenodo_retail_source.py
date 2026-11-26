@@ -160,12 +160,8 @@ def inspect_frame(name: str, frame: pl.DataFrame) -> dict[str, Any]:
             pl.col(date_column).max().alias("last_date"),
         )
         series_frame = series_frame.with_columns(
-            (
-                (pl.col("last_date") - pl.col("first_date")).dt.total_days() + 1
-            ).alias("span_days")
-        ).with_columns(
-            (pl.col("observed_days") / pl.col("span_days")).alias("coverage_ratio")
-        )
+            ((pl.col("last_date") - pl.col("first_date")).dt.total_days() + 1).alias("span_days")
+        ).with_columns((pl.col("observed_days") / pl.col("span_days")).alias("coverage_ratio"))
 
         def distribution(column: str) -> dict[str, Any]:
             summary = series_frame.select(
@@ -242,6 +238,7 @@ def inspect_frame(name: str, frame: pl.DataFrame) -> dict[str, Any]:
         "flag_distributions": flag_distributions,
     }
 
+
 def inspect_path(path: Path, name: str) -> list[dict[str, Any]]:
     if path.suffix.lower() in SUPPORTED_SUFFIXES:
         return [inspect_frame(name, _read_frame(path))]
@@ -255,9 +252,7 @@ def inspect_path(path: Path, name: str) -> list[dict[str, Any]]:
             if info.is_dir() or member.suffix.lower() not in SUPPORTED_SUFFIXES:
                 continue
             if info.file_size > MAX_FILE_BYTES:
-                reports.append(
-                    {"name": info.filename, "skipped": "member exceeds size limit"}
-                )
+                reports.append({"name": info.filename, "skipped": "member exceeds size limit"})
                 continue
             with (
                 archive.open(info) as source,
