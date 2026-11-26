@@ -70,7 +70,6 @@ FLAG_COLUMNS = {
     "in_stock",
     "stock_status",
     "sales_type",
-    "is_return",
 }
 
 
