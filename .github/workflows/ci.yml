@@ -155,5 +155,18 @@ jobs:
           sudo apt-get install --yes restic
           python -m pip install pytest
 
+      - name: Verify systemd backup service and timer units
+        run: |
+          command -v systemd-analyze
+          sudo install -d -m 0755 /opt/demand-forecast-kit/scripts
+          sudo install -d -m 0700 /etc/demand-forecast-kit
+          sudo install -m 0755 scripts/backup-restic.sh /opt/demand-forecast-kit/scripts/backup-restic.sh
+          sudo install -m 0644 deploy/systemd/demand-forecast-backup.service /etc/systemd/system/
+          sudo install -m 0644 deploy/systemd/demand-forecast-backup.timer /etc/systemd/system/
+          sudo touch /etc/demand-forecast-kit/restic.env
+          sudo systemd-analyze verify \
+            /etc/systemd/system/demand-forecast-backup.service \
+            /etc/systemd/system/demand-forecast-backup.timer
+
       - name: Exercise encrypted backup and restore scripts
         run: python -m pytest -o addopts='' -q tests/test_restic_recovery.py
