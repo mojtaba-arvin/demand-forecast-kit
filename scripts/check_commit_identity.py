@@ -164,7 +164,7 @@ def self_test():
         "feat: test\n  Co-Authored-By: Copilot <copilot[bot]@users.noreply.github.com>"
     )
     expect(plain, [item("Human", "h@example.org", "human", "User", bot_trailer)], True)
-    actions_trailer = "feat: test\\nCo-authored-by: GitHub Actions <actions@example.org>"
+    actions_trailer = "feat: test\nCo-authored-by: GitHub Actions <actions@example.org>"
     expect(plain, [item("Human", "h@example.org", "human", "User", actions_trailer)], True)
     expect(plain, [item("Human", "h@example.org", "human", "User",
                         "feat: test\nCo-authored-by: Another Human <other@example.org>")], False)
