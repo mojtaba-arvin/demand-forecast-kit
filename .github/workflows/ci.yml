@@ -38,9 +38,6 @@ jobs:
       - name: Ruff format
         run: ruff format --check .
 
-      - name: Show validator formatter diff (diagnostic)
-        if: always()
-        run: ruff format --diff scripts/check_commit_identity.py || true
 
 
 
