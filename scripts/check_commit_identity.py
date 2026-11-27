@@ -23,7 +23,7 @@ BOT_MARKERS = re.compile(
     r"(?<![a-z0-9])(?:ai[ -]?agent|agent(?:[ -]?bot)?|assistant(?:[ -]?bot)?|"
     r"copilot|claude|cursor|windsurf|codex|chatgpt|gemini|openai|"
     r"gpt(?:[- ]?[0-9a-z.]+)?|llm|ai[ -]?model|"
-    r"github-actions|dependabot|\[bot\])(?![a-z0-9])",
+    r"github[ -]?actions|dependabot|\[bot\])(?![a-z0-9])",
     re.IGNORECASE,
 )
 COAUTHOR = re.compile(r"^\s*co-authored-by\s*:\s*(.*?)\s*$", re.IGNORECASE)
@@ -160,11 +160,12 @@ def self_test():
     expect(plain, [item("Wrong Name", EMAIL, MAINTAINER, "User")], True)
     expect(plain, [item(NAME, EMAIL, MAINTAINER, "User",
                         cname="Wrong Name", cemail=EMAIL)], True)
-    expect(plain, [item("Human", "h@example.org", "human", "User",
     bot_trailer = (
         "feat: test\n  Co-Authored-By: Copilot <copilot[bot]@users.noreply.github.com>"
     )
     expect(plain, [item("Human", "h@example.org", "human", "User", bot_trailer)], True)
+    actions_trailer = "feat: test\\nCo-authored-by: GitHub Actions <actions@example.org>"
+    expect(plain, [item("Human", "h@example.org", "human", "User", actions_trailer)], True)
     expect(plain, [item("Human", "h@example.org", "human", "User",
                         "feat: test\nCo-authored-by: Another Human <other@example.org>")], False)
     expect({"body": MARKER, "labels": []}, [maintainer], False)
