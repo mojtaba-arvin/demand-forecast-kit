@@ -8,6 +8,10 @@ permissions:
   contents: read
   pull-requests: read
 
+concurrency:
+  group: commit-identity-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   commit-identity:
     name: Commit identity
