@@ -21,7 +21,7 @@ WEB_FLOW = "web-flow"
 WEB_FLOW_EMAIL = "noreply@github.com"
 BOT_MARKERS = re.compile(
     r"(?<![a-z0-9])(?:ai[ -]?agent|agent(?:[ -]?bot)?|assistant(?:[ -]?bot)?|"
-    r"copilot|claude|cursor|windsurf|codex|chatgpt|gemini|openai|"
+    r"copilot|claude|cursor|windsurf|codex|chatgpt|gemini|openai|gpt(?:[- ]?[0-9a-z.]+)?|llm|ai[ -]?model|"
     r"github-actions|dependabot|\[bot\])(?![a-z0-9])",
     re.IGNORECASE,
 )
@@ -143,6 +143,7 @@ def self_test():
     expect(plain, [human], False)
     expect(plain, [item("Copilot", "bot@example.org", "copilot[bot]", "Bot")], True)
     expect(plain, [item("Build Agent", "agent@example.org", "build-agent", "User")], True)
+    expect(plain, [item("GPT-4", "gpt@example.org", "model-runner", "User")], True)
     expect(plain, [item("External", "human@example.org", "human", "User",
                         cname="Dependabot", cemail="bot@example.org",
                         clogin="dependabot[bot]", ctype="Bot")], True)
