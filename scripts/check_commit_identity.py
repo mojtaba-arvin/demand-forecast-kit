@@ -23,7 +23,8 @@ BOT_MARKERS = re.compile(
     r"(?<![a-z0-9])(?:ai[ -]?agent|agent(?:[ -]?bot)?|assistant(?:[ -]?bot)?|"
     r"copilot|claude|cursor|windsurf|codex|chatgpt|gemini|"
     r"gpt(?:[- ]?[0-9a-z.]+)?|llm|ai[ -]?model|"
-    r"github[ -]?actions|dependabot|\[bot\])(?![a-z0-9])",
+    r"github[ -]?actions|dependabot|build[ -]?bot|release[ -]?bot|"
+    r"automation[ -]?bot|ci[ -]?bot|bot|\\[bot\\])(?![a-z0-9])",
     re.IGNORECASE,
 )
 COAUTHOR = re.compile(r"^\s*co-authored-by\s*:\s*(.*?)\s*$", re.IGNORECASE)
