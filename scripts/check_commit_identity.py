@@ -12,8 +12,11 @@ EMAIL = "m.arvin@live.com"
 MARKER = "<!-- maintainer-directed-ai-work -->"
 AUTO_LABEL = "allow-automation-commits"
 AUTO_LOGINS = {"github-actions[bot]", "dependabot[bot]"}
-BOT_MARKERS = ("[bot]", "ai agent", "ai-agent", "agent bot", "copilot", "claude",
-               "cursor", "windsurf", "codex", "chatgpt", "gemini", "openai", "gpt", "ai assistant", "assistant bot")
+BOT_MARKERS = (
+    "[bot]", "ai agent", "ai-agent", "agent bot", "copilot", "claude",
+    "cursor", "windsurf", "codex", "chatgpt", "gemini", "openai", "gpt",
+    "ai assistant", "assistant bot",
+)
 
 
 def is_bot(name, email, login=None, account_type=None):
@@ -42,7 +45,10 @@ def validate(pr, commits):
         if is_bot(name, email, login, typ):
             allowed = allow_auto and login in AUTO_LOGINS and typ == "Bot"
             if not allowed:
-                errors.append(f"{sha}: bot/agent author rejected: {name!r} <{email}> login={login!r}")
+                errors.append(
+                    f"{sha}: bot/agent author rejected: "
+                    f"{name!r} <{email}> login={login!r}"
+                )
         if maintainer_work and (name != NAME or email.lower() != EMAIL.lower()):
             errors.append(f"{sha}: expected {NAME} <{EMAIL}>, got {name!r} <{email}>")
         for line in (c.get("message") or "").splitlines():
@@ -68,14 +74,29 @@ def self_test():
         return {"sha": "a" * 40, "commit": {"author": {"name": name, "email": email},
                 "message": message}, "author": {"login": login, "type": typ}}
     assert not validate({"body": "", "labels": []}, [item(NAME, EMAIL, "mojtaba-arvin", "User")])
-    assert not validate({"body": "", "labels": []}, [item("External Human", "x@example.org", "human", "User")])
-    assert validate({"body": "", "labels": []}, [item("Copilot", "bot@example.org", "copilot[bot]", "Bot")])
+    assert not validate(
+        {"body": "", "labels": []},
+        [item("External Human", "x@example.org", "human", "User")],
+    )
+    assert validate(
+        {"body": "", "labels": []},
+        [item("Copilot", "bot@example.org", "copilot[bot]", "Bot")],
+    )
     msg = "feat: test\nCo-authored-by: Copilot <copilot[bot]@users.noreply.github.com>"
     assert validate({"body": "", "labels": []}, [item("Human", "h@e.org", "human", "User", msg)])
-    assert not validate({"body": MARKER, "labels": []}, [item(NAME, EMAIL, "mojtaba-arvin", "User")])
-    assert validate({"body": MARKER, "labels": []}, [item("Other Human", "x@example.org", "human", "User")])
+    assert not validate(
+        {"body": MARKER, "labels": []},
+        [item(NAME, EMAIL, "mojtaba-arvin", "User")],
+    )
+    assert validate(
+        {"body": MARKER, "labels": []},
+        [item("Other Human", "x@example.org", "human", "User")],
+    )
     assert not validate({"body": "", "labels": [{"name": AUTO_LABEL}]},
-                        [item("github-actions[bot]", "bot@users.noreply.github.com", "github-actions[bot]", "Bot")])
+        [
+            item("github-actions[bot]", "bot@users.noreply.github.com",
+                 "github-actions[bot]", "Bot")
+        ])
     print("PASS: commit identity policy self-tests")
 
 
@@ -96,7 +117,10 @@ def main():
     pr = get_json(base + "/pulls/" + str(args.pr_number), args.token)
     commits, page = [], 1
     while True:
-        batch = get_json(base + f"/pulls/{args.pr_number}/commits?per_page=100&page={page}", args.token)
+        commits_url = (
+            base + f"/pulls/{args.pr_number}/commits?per_page=100&page={page}"
+        )
+        batch = get_json(commits_url, args.token)
         if not isinstance(batch, list):
             raise RuntimeError("GitHub API returned a non-list commit response")
         commits.extend(batch)
