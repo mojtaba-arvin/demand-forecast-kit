@@ -65,14 +65,10 @@ def validate(pr, commits):
             maintainer_commit_seen = True
             if name != NAME or email.lower() != EMAIL.lower():
                 errors.append(
-                    f"{sha}: maintainer account must use {NAME} <{EMAIL}>, "
-                    f"got {name!r} <{email}>"
+                    f"{sha}: maintainer account must use {NAME} <{EMAIL}>, got {name!r} <{email}>"
                 )
         elif email.lower() == EMAIL.lower():
-            errors.append(
-                f"{sha}: maintainer email must resolve to mojtaba-arvin, "
-                f"not {login!r}"
-            )
+            errors.append(f"{sha}: maintainer email must resolve to mojtaba-arvin, not {login!r}")
         for line in (c.get("message") or "").splitlines():
             if line.lower().startswith("co-authored-by:"):
                 identity = line.split(":", 1)[1].strip()
