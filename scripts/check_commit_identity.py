@@ -58,10 +58,8 @@ def validate(pr, commits):
         if is_bot(name, email, login, typ):
             allowed = allow_auto and login in AUTO_LOGINS and typ == "Bot"
             if not allowed:
-                errors.append(
-                    f"{sha}: bot/agent author rejected: {name!r} "
-                    f"<{email}> login={login!r}"
-                )
+                details = f"{name!r} <{email}> login={login!r}"
+                errors.append(f"{sha}: bot/agent author rejected: {details}")
         if maintainer_work and (name != NAME or email.lower() != EMAIL.lower()):
             errors.append(f"{sha}: expected {NAME} <{EMAIL}>, got {name!r} <{email}>")
         for line in (c.get("message") or "").splitlines():
