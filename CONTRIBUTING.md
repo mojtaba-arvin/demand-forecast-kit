@@ -36,3 +36,7 @@ reuse lint
 ## Agent-authored contributions
 
 Agent-authored PRs must be labelled as such, link the governing specification, list exact commands executed, and distinguish verified results from assumptions. Agents must not fabricate approvals, benchmark results, provenance records, test output, or human review. A generated artifact is evidence only when it is attached to the relevant CI run and can be inspected.
+
+## GitHub Issue title convention
+
+Use `<type>(<scope>): <short, clear description>` for every Issue title. The type must be one of `feat`, `fix`, `docs`, `refactor`, `test`, `build`, `ci`, `chore`, `perf`, or `revert`; scope must be concise lowercase kebab-case. Keep priorities, milestones, feature/command IDs, agent identity, and run metadata in labels or the Issue body. Do not use bracketed prefixes, standalone priority codes, `Recover:`, or supervisor identity prefixes. Preserve Issue metadata and relationships when renaming. See the [shared canonical contract](https://github.com/mojtaba-arvin/commands/blob/main/_shared/issue-title-contract.md).
