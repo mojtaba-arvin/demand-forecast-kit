@@ -153,6 +153,7 @@ def self_test():
     expect(plain, [human], False)
     expect(plain, [item("Copilot", "bot@example.org", "copilot[bot]", "Bot")], True)
     expect(plain, [item("Build Agent", "agent@example.org", "build-agent", "User")], True)
+    expect(plain, [item("Release Bot", "release@example.org", "release-bot", "User")], True)
     expect(plain, [item("GPT-4", "gpt@example.org", "model-runner", "User")], True)
     expect(plain, [item("External", "human@example.org", "human", "User",
                         cname="Dependabot", cemail="bot@example.org",
