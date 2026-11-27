@@ -14,9 +14,21 @@ MARKER = "<!-- maintainer-directed-ai-work -->"
 AUTO_LABEL = "allow-automation-commits"
 AUTO_LOGINS = {"github-actions[bot]", "dependabot[bot]"}
 BOT_MARKERS = (
-    "[bot]", "ai agent", "ai-agent", "agent bot", "copilot", "claude",
-    "cursor", "windsurf", "codex", "chatgpt", "gemini", "openai", "gpt",
-    "ai assistant", "assistant bot",
+    "[bot]",
+    "ai agent",
+    "ai-agent",
+    "agent bot",
+    "copilot",
+    "claude",
+    "cursor",
+    "windsurf",
+    "codex",
+    "chatgpt",
+    "gemini",
+    "openai",
+    "gpt",
+    "ai assistant",
+    "assistant bot",
 )
 
 
