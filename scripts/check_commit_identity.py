@@ -59,8 +59,8 @@ def validate(pr, commits):
             allowed = allow_auto and login in AUTO_LOGINS and typ == "Bot"
             if not allowed:
                 errors.append(
-                    f"{sha}: bot/agent author rejected: "
-                    f"{name!r} <{email}> login={login!r}"
+                    f"{sha}: bot/agent author rejected: {name!r} <{email}> "
+                    f"login={login!r}"
                 )
         if maintainer_work and (name != NAME or email.lower() != EMAIL.lower()):
             errors.append(f"{sha}: expected {NAME} <{EMAIL}>, got {name!r} <{email}>")
