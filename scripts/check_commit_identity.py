@@ -91,6 +91,7 @@ def self_test():
             "commit": {"author": {"name": name, "email": email}, "message": message},
             "author": {"login": login, "type": typ},
         }
+
     assert not validate({"body": "", "labels": []}, [item(NAME, EMAIL, "mojtaba-arvin", "User")])
     assert not validate(
         {"body": "", "labels": []},
