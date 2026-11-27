@@ -110,7 +110,7 @@ def validate(pr, commits):
     if not commits:
         errors.append("empty PR commit list; refusing to pass")
     if marker and not maintainer_seen:
-        errors.append("maintainer-directed AI work requires a correctly attributed maintainer-authored commit")
+        errors.append("maintainer-directed AI work requires an exact maintainer-authored commit")
     return errors
 
 
