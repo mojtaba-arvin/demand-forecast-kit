@@ -71,19 +71,26 @@ def validate(pr, commits):
 
 
 def get_json(url, token):
-    req = urllib.request.Request(url, headers={
-        "Accept": "application/vnd.github+json",
-        "Authorization": "Bearer " + token,
-        "X-GitHub-Api-Version": "2022-11-28",
-        "User-Agent": "commit-identity-policy-check"})
+    req = urllib.request.Request(
+        url,
+        headers={
+            "Accept": "application/vnd.github+json",
+            "Authorization": "Bearer " + token,
+            "X-GitHub-Api-Version": "2022-11-28",
+            "User-Agent": "commit-identity-policy-check",
+        },
+    )
     with urllib.request.urlopen(req, timeout=30) as res:
         return json.loads(res.read().decode())
 
 
 def self_test():
     def item(name, email, login, typ, message="feat: test"):
-        return {"sha": "a" * 40, "commit": {"author": {"name": name, "email": email},
-                "message": message}, "author": {"login": login, "type": typ}}
+        return {
+            "sha": "a" * 40,
+            "commit": {"author": {"name": name, "email": email}, "message": message},
+            "author": {"login": login, "type": typ},
+        }
     assert not validate({"body": "", "labels": []}, [item(NAME, EMAIL, "mojtaba-arvin", "User")])
     assert not validate(
         {"body": "", "labels": []},
@@ -103,11 +110,10 @@ def self_test():
         {"body": MARKER, "labels": []},
         [item("Other Human", "x@example.org", "human", "User")],
     )
-    assert not validate({"body": "", "labels": [{"name": AUTO_LABEL}]},
-        [
-            item("github-actions[bot]", "bot@users.noreply.github.com",
-                 "github-actions[bot]", "Bot")
-        ])
+    assert not validate(
+        {"body": "", "labels": [{"name": AUTO_LABEL}]},
+        [item("github-actions[bot]", "bot@users.noreply.github.com", "github-actions[bot]", "Bot")],
+    )
     print("PASS: commit identity policy self-tests")
 
 
@@ -128,9 +134,7 @@ def main():
     pr = get_json(base + "/pulls/" + str(args.pr_number), args.token)
     commits, page = [], 1
     while True:
-        commits_url = (
-            base + f"/pulls/{args.pr_number}/commits?per_page=100&page={page}"
-        )
+        commits_url = base + f"/pulls/{args.pr_number}/commits?per_page=100&page={page}"
         batch = get_json(commits_url, args.token)
         if not isinstance(batch, list):
             raise RuntimeError("GitHub API returned a non-list commit response")
