@@ -72,10 +72,13 @@ def validate(pr, commits):
 
         expected_email = AUTOMATION.get(author_login)
         automation_commit = bool(
-            allow_automation and expected_email
-            and author_type == "Bot" and committer_login == author_login
+            allow_automation
+            and expected_email
+            and author_type == "Bot"
+            and committer_login == author_login
             and committer_type == "Bot"
-            and author[0] == author_login and committer[0] == author_login
+            and author[0] == author_login
+            and committer[0] == author_login
             and author[1].lower() == expected_email
             and committer[1].lower() == expected_email
         )
@@ -92,8 +95,7 @@ def validate(pr, commits):
             automation_commit or web_flow_committer
         ):
             errors.append(
-                f"{sha}: bot/agent committer rejected: "
-                f"{committer!r} login={committer_login!r}"
+                f"{sha}: bot/agent committer rejected: {committer!r} login={committer_login!r}"
             )
         if committer[1].lower() == WEB_FLOW_EMAIL and not web_flow_committer:
             errors.append(f"{sha}: web-flow identity is allowed only as the linked committer")
@@ -108,28 +110,35 @@ def validate(pr, commits):
     if not commits:
         errors.append("empty PR commit list; refusing to pass")
     if marker and not maintainer_seen:
-        errors.append(
-            "maintainer-directed AI work requires a correctly attributed "
-            "maintainer-authored commit"
-        )
+        errors.append("maintainer-directed AI work requires a correctly attributed maintainer-authored commit")
     return errors
 
 
 def get_json(url, token):
-    request = urllib.request.Request(url, headers={
-        "Accept": "application/vnd.github+json",
-        "Authorization": "Bearer " + token,
-        "X-GitHub-Api-Version": "2022-11-28",
-        "User-Agent": "commit-identity-policy-check",
-    })
+    request = urllib.request.Request(
+        url,
+        headers={
+            "Accept": "application/vnd.github+json",
+            "Authorization": "Bearer " + token,
+            "X-GitHub-Api-Version": "2022-11-28",
+            "User-Agent": "commit-identity-policy-check",
+        },
+    )
     with urllib.request.urlopen(request, timeout=30) as response:
         return json.loads(response.read().decode())
 
 
 def self_test():
     def item(
-        name, email, login, typ, message="feat: test",
-        cname=None, cemail=None, clogin=None, ctype=None,
+        name,
+        email,
+        login,
+        typ,
+        message="feat: test",
+        cname=None,
+        cemail=None,
+        clogin=None,
+        ctype=None,
     ):
         cname = cname if cname is not None else name
         cemail = cemail if cemail is not None else email
@@ -137,8 +146,11 @@ def self_test():
         ctype = ctype if ctype is not None else typ
         return {
             "sha": "a" * 40,
-            "commit": {"author": {"name": name, "email": email},
-                       "committer": {"name": cname, "email": cemail}, "message": message},
+            "commit": {
+                "author": {"name": name, "email": email},
+                "committer": {"name": cname, "email": cemail},
+                "message": message,
+            },
             "author": {"login": login, "type": typ} if login else None,
             "committer": {"login": clogin, "type": ctype} if clogin else None,
         }
@@ -157,20 +169,45 @@ def self_test():
     expect(plain, [item("Build Agent", "agent@example.org", "build-agent", "User")], True)
     expect(plain, [item("Release Bot", "release@example.org", "release-bot", "User")], True)
     expect(plain, [item("GPT-4", "gpt@example.org", "model-runner", "User")], True)
-    expect(plain, [item("External", "human@example.org", "human", "User",
-                        cname="Dependabot", cemail="bot@example.org",
-                        clogin="dependabot[bot]", ctype="Bot")], True)
-    expect(plain, [item("Wrong Name", EMAIL, MAINTAINER, "User")], True)
-    expect(plain, [item(NAME, EMAIL, MAINTAINER, "User",
-                        cname="Wrong Name", cemail=EMAIL)], True)
-    bot_trailer = (
-        "feat: test\n  Co-Authored-By: Copilot <copilot[bot]@users.noreply.github.com>"
+    expect(
+        plain,
+        [
+            item(
+                "External",
+                "human@example.org",
+                "human",
+                "User",
+                cname="Dependabot",
+                cemail="bot@example.org",
+                clogin="dependabot[bot]",
+                ctype="Bot",
+            )
+        ],
+        True,
     )
+    expect(plain, [item("Wrong Name", EMAIL, MAINTAINER, "User")], True)
+    expect(
+        plain,
+        [item(NAME, EMAIL, MAINTAINER, "User", cname="Wrong Name", cemail=EMAIL)],
+        True,
+    )
+    bot_trailer = "feat: test\\n  Co-Authored-By: Copilot <copilot[bot]@users.noreply.github.com>"
     expect(plain, [item("Human", "h@example.org", "human", "User", bot_trailer)], True)
     actions_trailer = "feat: test\nCo-authored-by: GitHub Actions <actions@example.org>"
     expect(plain, [item("Human", "h@example.org", "human", "User", actions_trailer)], True)
-    expect(plain, [item("Human", "h@example.org", "human", "User",
-                        "feat: test\nCo-authored-by: Another Human <other@example.org>")], False)
+    expect(
+        plain,
+        [
+            item(
+                "Human",
+                "h@example.org",
+                "human",
+                "User",
+                "feat: test\\nCo-authored-by: Another Human <other@example.org>",
+            )
+        ],
+        False,
+    )
     expect({"body": MARKER, "labels": []}, [maintainer], False)
     expect({"body": MARKER, "labels": []}, [human], True)
 
@@ -181,8 +218,16 @@ def self_test():
     expect({"body": "", "labels": [{"name": AUTO_LABEL}]}, [genuine], False)
     expect(plain, [genuine], True)
 
-    webflow = item("External", "h@example.org", "human", "User",
-                   cname="GitHub", cemail=WEB_FLOW_EMAIL, clogin=WEB_FLOW, ctype="Bot")
+    webflow = item(
+        "External",
+        "h@example.org",
+        "human",
+        "User",
+        cname="GitHub",
+        cemail=WEB_FLOW_EMAIL,
+        clogin=WEB_FLOW,
+        ctype="Bot",
+    )
     expect(plain, [webflow], False)
     expect(plain, [item("web-flow", WEB_FLOW_EMAIL, WEB_FLOW, "Bot")], True)
     expect(plain, [], True)
