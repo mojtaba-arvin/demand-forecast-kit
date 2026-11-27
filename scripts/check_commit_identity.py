@@ -21,7 +21,8 @@ WEB_FLOW = "web-flow"
 WEB_FLOW_EMAIL = "noreply@github.com"
 BOT_MARKERS = re.compile(
     r"(?<![a-z0-9])(?:ai[ -]?agent|agent(?:[ -]?bot)?|assistant(?:[ -]?bot)?|"
-    r"copilot|claude|cursor|windsurf|codex|chatgpt|gemini|openai|gpt(?:[- ]?[0-9a-z.]+)?|llm|ai[ -]?model|"
+    r"copilot|claude|cursor|windsurf|codex|chatgpt|gemini|openai|"
+    r"gpt(?:[- ]?[0-9a-z.]+)?|llm|ai[ -]?model|"
     r"github-actions|dependabot|\[bot\])(?![a-z0-9])",
     re.IGNORECASE,
 )
@@ -90,7 +91,10 @@ def validate(pr, commits):
         if is_bot(*committer, committer_login, committer_type) and not (
             automation_commit or web_flow_committer
         ):
-            errors.append(f"{sha}: bot/agent committer rejected: {committer!r} login={committer_login!r}")
+            errors.append(
+                f"{sha}: bot/agent committer rejected: "
+                f"{committer!r} login={committer_login!r}"
+            )
         if committer[1].lower() == WEB_FLOW_EMAIL and not web_flow_committer:
             errors.append(f"{sha}: web-flow identity is allowed only as the linked committer")
 
@@ -104,7 +108,10 @@ def validate(pr, commits):
     if not commits:
         errors.append("empty PR commit list; refusing to pass")
     if marker and not maintainer_seen:
-        errors.append("maintainer-directed AI work requires a correctly attributed maintainer-authored commit")
+        errors.append(
+            "maintainer-directed AI work requires a correctly attributed "
+            "maintainer-authored commit"
+        )
     return errors
 
 
@@ -120,7 +127,10 @@ def get_json(url, token):
 
 
 def self_test():
-    def item(name, email, login, typ, message="feat: test", cname=None, cemail=None, clogin=None, ctype=None):
+    def item(
+        name, email, login, typ, message="feat: test",
+        cname=None, cemail=None, clogin=None, ctype=None,
+    ):
         cname = cname if cname is not None else name
         cemail = cemail if cemail is not None else email
         clogin = clogin if clogin is not None else login
@@ -151,7 +161,10 @@ def self_test():
     expect(plain, [item(NAME, EMAIL, MAINTAINER, "User",
                         cname="Wrong Name", cemail=EMAIL)], True)
     expect(plain, [item("Human", "h@example.org", "human", "User",
-                        "feat: test\n  Co-Authored-By: Copilot <copilot[bot]@users.noreply.github.com>")], True)
+    bot_trailer = (
+        "feat: test\n  Co-Authored-By: Copilot <copilot[bot]@users.noreply.github.com>"
+    )
+    expect(plain, [item("Human", "h@example.org", "human", "User", bot_trailer)], True)
     expect(plain, [item("Human", "h@example.org", "human", "User",
                         "feat: test\nCo-authored-by: Another Human <other@example.org>")], False)
     expect({"body": MARKER, "labels": []}, [maintainer], False)
@@ -189,7 +202,8 @@ def main():
     pr = get_json(base + "/pulls/" + str(args.pr_number), args.token)
     commits, page = [], 1
     while True:
-        batch = get_json(base + f"/pulls/{args.pr_number}/commits?per_page=100&page={page}", args.token)
+        commits_url = base + f"/pulls/{args.pr_number}/commits?per_page=100&page={page}"
+        batch = get_json(commits_url, args.token)
         if not isinstance(batch, list):
             raise RuntimeError("GitHub API returned a non-list commit response")
         commits.extend(batch)
