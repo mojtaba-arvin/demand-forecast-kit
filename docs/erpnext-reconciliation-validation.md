@@ -87,13 +87,16 @@ Run the following cases sequentially. Use a fresh local SQLite database and a de
 | Cancelled invoice | Import a submitted invoice, then owner cancels it | Demand contribution is removed and cancellation is reflected; no source write is made by connector |
 | Edited invoice | Change quantities/date/warehouse on a synthetic invoice between incremental imports | Prior contribution is replaced, not double-counted; edits outside the target warehouse remove the old warehouse contribution |
 | Hard-deleted PO | Import an open/partially received PO, then owner hard-deletes it | Local order is cancelled; remaining inbound quantity is removed; stale incremental event cannot resurrect it |
-| Permission-filtered resource | Remove the Integration User's list/read permission or add a restrictive User Permission so a resource is filtered/empty while local imported records exist | Reconciliation fails closed before applying deletion for an incomplete/permission-limited snapshot |
+| Permission-filtered parent resource | Remove list/read permission or restrict Bin, Sales Invoice, or Purchase Order while local imports exist | An entirely empty result is rejected by default; a stable non-empty partial result is **not independently detectable by the current command**. Compare owner counts before invocation and do not run on any mismatch |
+| Permission-filtered child resource | Restrict Sales Invoice Item or Purchase Order Item while parent headers remain visible | A successful empty/partial child list can currently look like a legitimate no-line document. Compare owner counts before invocation; do not run if counts differ. This is a known fail-closed compatibility gap to resolve before claiming acceptance |
 | Genuine empty resource | Owner verifies complete list/read permission and confirms a resource is truly empty | Default invocation refuses unexpected empty snapshot when local records exist; `--allow-empty-snapshot` is used only after this independent verification |
 | Source changes between passes | Owner changes a fixture during the controlled double-read window | Snapshot mismatch aborts before local deletion/reconciliation writes |
 | Manual inventory ownership | Record a manual local inventory snapshot newer than the imported Bin | Full reconciliation and subsequent incremental import preserve manual quantity/source |
 | Stale replay | Replay an event older than the deletion/cancellation fence | Deleted/cancelled invoice contribution and PO/Bin state are not resurrected |
 
-The permission-filtered case must not be “fixed” by routinely passing `--allow-empty-snapshot`. That flag is an exceptional operator acknowledgement for a genuinely empty resource after independent permission verification, not a bypass for incomplete reads.
+The permission-filtered case must not be “fixed” by routinely passing `--allow-empty-snapshot`. That flag is an exceptional operator acknowledgement for a genuinely empty parent resource after independent permission verification, not a bypass for incomplete reads.
+
+**Important current limitation:** PR #71's two-pass comparison proves that the same rows were returned twice; it does not prove that the Integration User was allowed to see every row. The command's built-in unexpected-empty guard covers empty Bin, Sales Invoice, and Purchase Order snapshots when local records exist. It does not compare owner-verified expected counts, and it does not have a dedicated empty/partial-child-resource guard for Sales Invoice Item or Purchase Order Item. Frappe can return a stable permission-filtered subset as a successful `data` list. Therefore the owner must compare all five API-visible counts with independently verified counts under exactly the same scope **before running reconciliation**. If any count differs or cannot be established, stop; do not run the command. This is an explicit unresolved acceptance gap, not a passed fail-closed test. The validation run must record this gap unless the command is hardened to enforce an expected-count manifest and regression-tested.
 
 ## Execute the reconciliation
 
@@ -126,7 +129,7 @@ Verify using the local store and targeted test fixtures:
 - Missing purchase orders are cancelled and no longer contribute confirmed inbound quantity; an older source modification cannot restore them.
 - Missing Bin records are zeroed/tombstoned only when ERPNext still owns the latest local inventory snapshot. Manual/other-source ownership is preserved.
 - Resource watermarks advance only after successful application.
-- An HTTP/auth/permission error, malformed response, incomplete page, or mismatch between full reads aborts before deletion reconciliation. No empty or partial page is treated as proof of absence.
+- An HTTP/auth error, malformed response, transport failure, or mismatch between full reads aborts before deletion reconciliation. A short page terminates pagination by design. A stable permission-filtered non-empty subset is not currently distinguishable from a complete result by the command alone; owner-count preflight is mandatory and any mismatch blocks execution.
 - Repeating the same verified snapshot does not change effective local state or create duplicate demand/inbound records.
 - The integration user's audit trail shows only GET requests from the connector. Confirm there were no POST, PUT, PATCH, or DELETE requests attributable to the integration user.
 - The connector makes no ERPNext document, stock ledger, or accounting changes. Local SQLite mutations are expected and are the only mutations performed by the command.
@@ -149,6 +152,8 @@ Connector commit:
 Integration identity: dedicated read-only user (alias only)
 Effective roles reviewed: yes/no
 Write permissions absent on all five DocTypes: yes/no
+Owner-verified count equality for all five resources: yes/no
+Known limitation (stable partial permission-filtered lists): acknowledged / hardened
 Connector HTTP methods observed: GET only / unexpected methods
 
 Resource                  Pages (page size 2)   Listed count   Single GET   Owner count match
@@ -188,6 +193,8 @@ Report counts separately for the five remote resources and the command's local r
 - [ ] Owner has recorded exact ERPNext/Frappe versions and site timezone.
 - [ ] Dedicated Integration User and read-only API key are created; no Administrator/human token is used.
 - [ ] Owner has independently verified complete list/read permissions for all five DocTypes and scoped child-row visibility.
+- [ ] Owner-provided expected counts match all five API-visible counts before reconciliation; any mismatch blocks execution.
+- [ ] The stable non-empty permission-filtering limitation is either addressed by enforced expected counts in the command or explicitly retained as an acceptance blocker.
 - [ ] Page-size-two fixture data exists in every resource.
 - [ ] Owner has scheduled a quiet source window and is available for controlled source-side edits/cancellations/hard deletes.
 - [ ] Test host has the package, isolated SQLite path, and protected environment variables configured.
