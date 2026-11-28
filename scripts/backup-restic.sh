@@ -14,7 +14,7 @@ test -d state
 running_services="$(docker compose ps --services --status running)"
 for service in api worker; do
   if ! grep -Fxq "$service" <<<"$running_services"; then
-    printf 'Refusing backup: Compose service %s is not running\n' "$service" >&2
+    printf 'Refusing backup: Compose service %s is not running\\n' "$service" >&2
     exit 1
   fi
 done
@@ -33,11 +33,14 @@ docker compose stop api worker
 tar -czf "$archive" -C state .
 restic backup "$archive" --tag demand-forecast-kit
 
-# Restore service availability before the potentially slow repository prune.
+# Restore service availability before repository verification and retention work.
 docker compose start api worker
 trap - EXIT
 rm -rf "$temporary"
 
+# Validate repository metadata and pack structure before declaring backup success.
+restic check
+
 restic forget --tag demand-forecast-kit \
   --keep-daily 7 --keep-weekly 5 --keep-monthly 12 --prune
-printf 'Encrypted off-host backup completed; services are running.\n'
+printf 'Encrypted off-host backup completed and repository metadata verified; services are running.\\n'
