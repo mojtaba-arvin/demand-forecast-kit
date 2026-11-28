@@ -122,7 +122,23 @@ exec "$REAL_RESTIC" "$@"
     assert (preserved[0] / "post-backup-only.txt").is_file()
     assert docker_state.read_text(encoding="utf-8") == ""
 
+    # Repeat the restore with no existing state directory: clean-host recovery
+    # must not depend on preserving or merging files from a previous install.
+    shutil.rmtree(state)
+    clean_restore = subprocess.run(
+        ["bash", str(scripts / "restore-restic.sh"), "--confirm"],
+        cwd=deployment,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert clean_restore.returncode == 0, clean_restore.stderr
+    with closing(sqlite3.connect(database)) as connection:
+        assert connection.execute("SELECT value FROM marker").fetchone() == (7,)
+    assert len(list(deployment.glob("state.pre-restore-*"))) == 1
 
+    
 def test_backup_failure_attempts_to_restart_both_services(tmp_path: Path) -> None:
     real_restic = shutil.which("restic")
     if real_restic is None:
