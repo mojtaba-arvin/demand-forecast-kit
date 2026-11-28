@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 
 if [[ "${1:-}" != "--confirm" ]]; then
-  printf 'Usage: %s --confirm (stops must already be stopped)\n' "$0" >&2
+  printf 'Usage: %s --confirm (stops must already be stopped)\\n' "$0" >&2
   exit 2
 fi
 
@@ -18,17 +18,19 @@ test -r "$RESTIC_PASSWORD_FILE"
 running_services="$(docker compose ps --services --status running)"
 for service in api worker; do
   if grep -Fxq "$service" <<<"$running_services"; then
-    printf 'Refusing restore: stop Compose service %s first\n' "$service" >&2
+    printf 'Refusing restore: stop Compose service %s first\\n' "$service" >&2
     exit 1
   fi
 done
 
 temporary="$(mktemp -d)"
 trap 'rm -rf "$temporary"' EXIT
+# Check repository structure before selecting or extracting the latest tagged snapshot.
+restic check
 restic restore latest --tag demand-forecast-kit --target "$temporary"
 archive="$(find "$temporary" -type f -name 'demand-forecast-kit-state-*.tar.gz' -print -quit)"
 if [[ -z "$archive" ]]; then
-  printf 'No tagged demand-forecast-kit state archive found in the latest snapshot\n' >&2
+  printf 'No tagged demand-forecast-kit state archive found in the latest snapshot\\n' >&2
   exit 1
 fi
 tar -tzf "$archive" >/dev/null
@@ -73,8 +75,8 @@ then
 fi
 
 if [[ -d "$previous_state" ]]; then
-  printf 'Previous state preserved at %s.\n' "$previous_state"
+  printf 'Previous state preserved at %s.\\n' "$previous_state"
 else
-  printf 'No previous state directory existed.\n'
+  printf 'No previous state directory existed.\\n'
 fi
-printf 'Services remain stopped. Start them and perform API/worker smoke checks before deleting any preserved state.\n'
+printf 'Services remain stopped. Start them and perform API/worker smoke checks before deleting any preserved state.\\n'
