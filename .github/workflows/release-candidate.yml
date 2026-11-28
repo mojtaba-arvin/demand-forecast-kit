@@ -2,18 +2,7 @@ name: Release candidate
 
 on:
   push:
-    branches: ["main", "work/**", "integration/**"]
-    paths:
-      - "pyproject.toml"
-      - "README.md"
-      - "CHANGELOG.md"
-      - "src/**"
-      - "tests/**"
-      - "evals/**"
-      - "docs/**"
-      - ".github/workflows/release-candidate.yml"
-  pull_request:
-    branches: ["main", "work/**", "integration/**"]
+    branches: ["main"]
     paths:
       - "pyproject.toml"
       - "README.md"
@@ -34,6 +23,7 @@ concurrency:
 
 jobs:
   build-and-verify:
+    if: github.event_name == 'workflow_call' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
