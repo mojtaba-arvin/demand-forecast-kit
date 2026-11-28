@@ -4,7 +4,7 @@ name: UCI Online Retail real-data benchmark
 
 on:
   push:
-    branches: ["main", "work/**", "integration/**"]
+    branches: ["main"]
     paths:
       - ".github/workflows/uci-online-retail-benchmark.yml"
       - "evals/run_uci_online_retail_benchmark.py"
