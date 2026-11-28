@@ -25,6 +25,8 @@ done
 
 temporary="$(mktemp -d)"
 trap 'rm -rf "$temporary"' EXIT
+# Check repository structure before selecting or extracting the latest tagged snapshot.
+restic check
 restic restore latest --tag demand-forecast-kit --target "$temporary"
 archive="$(find "$temporary" -type f -name 'demand-forecast-kit-state-*.tar.gz' -print -quit)"
 if [[ -z "$archive" ]]; then
