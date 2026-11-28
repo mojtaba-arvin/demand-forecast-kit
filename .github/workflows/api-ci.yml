@@ -2,7 +2,7 @@ name: Optional API integration
 
 on:
   push:
-    branches: ["work/**"]
+    branches: ["main"]
     paths:
       - "src/demand_forecast_kit/api.py"
       - "src/demand_forecast_kit/run_service.py"
@@ -19,6 +19,7 @@ on:
       - "tests/test_run_service.py"
       - "pyproject.toml"
       - ".github/workflows/api-ci.yml"
+  workflow_dispatch:
 
 permissions:
   contents: read

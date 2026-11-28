@@ -2,7 +2,7 @@ name: Optional LightGBM adapter CI
 
 on:
   push:
-    branches: ["work/**", "integration/**"]
+    branches: ["main"]
     paths:
       - "src/demand_forecast_kit/models/lightgbm.py"
       - "tests/test_optional_models.py"
