@@ -33,6 +33,9 @@ services:
   worker:
     build:
       context: .
+    depends_on:
+      api:
+        condition: service_healthy
     command:
       - demand-forecast-worker
       - --tenant-id
