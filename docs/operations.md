@@ -16,6 +16,14 @@ one host, sharing one durable state directory. It is not a multi-host or HA
 profile. The worker is configured for one tenant; use a separate worker
 service instance per tenant rather than a multi-tenant worker process.
 
+The worker process is also the scheduler poller: there is deliberately no
+separate scheduler container or independently scalable scheduler service.
+Compose starts the API first and waits for `/health/ready` before starting the
+worker. Compose stops the worker before the API. On host reboot, both services
+use `restart: unless-stopped`; the API re-establishes local database readiness
+before the worker resumes polling. The scheduler recovers abandoned work using
+its expiring leases and fencing tokens, not by clearing lease state.
+
 Prepare the host:
 
 ```bash
@@ -98,6 +106,16 @@ to restart services if snapshot creation or upload fails. This limits the
 maintenance interruption to the consistent snapshot/upload window. Never back
 up only operations.sqlite: run registry, model/policy registries, and immutable
 artifact files are also part of the state.
+
+
+The backup script restarts API and worker immediately after the upload, then
+runs `restic check` before retention pruning. This checks repository metadata
+and pack structure; the restore command authenticates and decrypts the selected
+snapshot's file contents as it materializes them. For a full repository data
+scrub (which can be I/O intensive), run `restic check --read-data` during a
+separate maintenance window. The CI round-trip uses an encrypted local Restic
+repository; it validates the Restic format and scripts but does not validate
+remote object-store credentials, network policy, or a real off-host endpoint.
 
 For daily scheduling, create a root-only environment file first. It is read by
 the systemd unit and must contain the Restic repository, password-file path,
