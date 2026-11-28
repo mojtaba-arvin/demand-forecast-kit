@@ -18,11 +18,13 @@ service instance per tenant rather than a multi-tenant worker process.
 
 The worker process is also the scheduler poller: there is deliberately no
 separate scheduler container or independently scalable scheduler service.
-Compose starts the API first and waits for `/health/ready` before starting the
-worker. Compose stops the worker before the API. On host reboot, both services
-use `restart: unless-stopped`; the API re-establishes local database readiness
-before the worker resumes polling. The scheduler recovers abandoned work using
-its expiring leases and fencing tokens, not by clearing lease state.
+A Compose-managed start waits for API `/health/ready` before starting the
+worker; Compose stops the worker before the API. Docker's `unless-stopped`
+restart policy independently restarts containers after a daemon/host restart
+and does not itself enforce Compose dependency ordering. The worker therefore
+must tolerate API startup lag while reopening the same durable local SQLite
+state; abandoned scheduled work is recovered through expiring leases and
+fencing tokens, not by clearing lease state.
 
 Prepare the host:
 
