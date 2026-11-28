@@ -342,6 +342,8 @@ hard deletes.
 
 ### Operator-triggered full reconciliation
 
+For the live disposable-site validation matrix, owner-only prerequisites, execution steps, and redacted report template, see [ERPNext reconciliation validation](erpnext-reconciliation-validation.md).
+
 Incremental sync deliberately does not interpret an empty delta as a deletion.
 After ERPNext hard deletes or a suspected source/local divergence, run the
 explicit full-snapshot command from the host that owns the SQLite database:
