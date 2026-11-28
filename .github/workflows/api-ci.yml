@@ -1,7 +1,5 @@
 name: Optional API integration
 
-name: Optional API integration
-
 on:
   push:
     branches: ["main"]
