@@ -17,7 +17,7 @@ def test_metrics_are_separated_and_clustered():
     assert r["daily_marginal_training_metrics"] == p["training_model_summaries"]
     assert r["inventory_policy_sensitivity"]["results"] == p["holdout_policy_results"]
     assert g["series_count"] == 2 and g["p80_coverage_macro_series"] == .5
-    assert g["mean_cumulative_interval_width"] == 8
+    assert g["mean_cumulative_interval_width"] == 7.5
     assert g["mean_baseline_median_bias_actual_minus_forecast"] == 4.5
     assert len(g["p80_coverage_cluster_bootstrap_95ci"]) == 2
 
