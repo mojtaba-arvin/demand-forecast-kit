@@ -34,6 +34,10 @@ rather than treating a successful upload as proof of repository integrity.
 
 ## Consequences and limits
 
+- Compose dependency ordering applies to Compose-managed starts/stops. Docker's
+  container restart policy may restart API and worker independently after a
+  daemon/host restart; the worker must tolerate API startup lag and recover
+  through local SQLite leases rather than assuming API-first daemon startup.
 - This remains one host, one local POSIX filesystem, one API, and one worker
   process per tenant. It is not a multi-host SQLite, shared-filesystem,
   distributed-locking, failover, or HA design.
